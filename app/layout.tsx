@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { GlobalLoadingIndicator } from "@/components/ui/global-loading";
 import NextTopLoader from "nextjs-toploader";
+import { Toaster } from "@/components/ui/sonner"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,9 @@ export default function RootLayout({
 
         {/* Global action loading indicator */}
         <GlobalLoadingIndicator />
+
+        {/* Toast notifications */}
+        <Toaster position="top-right"/>
         {children}
       </body>
     </html>
