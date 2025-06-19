@@ -17,8 +17,9 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Loader2, Mail, AlertCircle, CheckCircle } from "lucide-react";
+import { Mail, AlertCircle, CheckCircle, Send } from "lucide-react";
 import { sendMagicLinkAction, type MagicLinkSignInInput } from "@/app/actions/login-actions";
+import { useLoadingControl } from "@/lib/with-loading";
 
 // Zod schema for form validation (client-side)
 const loginSchema = z.object({
@@ -30,14 +31,16 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+const LOADING_KEY = "magic-link-login";
+
 export function LoginForm() {
-  const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
 
   const { executeRecaptcha } = useGoogleReCaptcha();
+  const { withLoadingState, isLoading } = useLoadingControl();
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -55,59 +58,64 @@ export function LoginForm() {
       return;
     }
 
-    setIsLoading(true);
     setMessage(null);
 
     try {
-      // Execute reCAPTCHA
-      const recaptchaToken = await executeRecaptcha("magic_link_login");
-      
-      if (!recaptchaToken) {
-        throw new Error("reCAPTCHA verification failed");
-      }
+      await withLoadingState(
+        LOADING_KEY,
+        async () => {
+          // Execute reCAPTCHA
+          const recaptchaToken = await executeRecaptcha("magic_link_login");
+          
+          if (!recaptchaToken) {
+            throw new Error("reCAPTCHA verification failed");
+          }
 
-      // Prepare data for server action
-      const actionData: MagicLinkSignInInput = {
-        email: data.email,
-        recaptchaToken,
-      };
+          // Prepare data for server action
+          const actionData: MagicLinkSignInInput = {
+            email: data.email,
+            recaptchaToken,
+          };
 
-      // Call the server action
-      const result = await sendMagicLinkAction(actionData);
-      
-      if (result.success) {
-        setMessage({
-          type: "success",
-          text: result.message!,
-        });
-        form.reset(); // Clear the form
-      } else {
-        // Handle server-side validation or API errors
-        if (result.error) {
-          if (typeof result.error === 'object' && 'general' in result.error) {
-            // General error from API
+          // Call the server action
+          const result = await sendMagicLinkAction(actionData);
+          
+          if (result.success) {
             setMessage({
-              type: "error",
-              text: result.error.general,
+              type: "success",
+              text: result.message!,
             });
+            form.reset(); // Clear the form
           } else {
-            // Field validation errors
-            Object.entries(result.error).forEach(([key, value]) => {
-              if (key === 'email' && Array.isArray(value)) {
-                form.setError('email', {
-                  type: "server",
-                  message: value.join(", "),
+            // Handle server-side validation or API errors
+            if (result.error) {
+              if (typeof result.error === 'object' && 'general' in result.error) {
+                // General error from API
+                setMessage({
+                  type: "error",
+                  text: result.error.general,
+                });
+              } else {
+                // Field validation errors
+                Object.entries(result.error).forEach(([key, value]) => {
+                  if (key === 'email' && Array.isArray(value)) {
+                    form.setError('email', {
+                      type: "server",
+                      message: value.join(", "),
+                    });
+                  }
                 });
               }
-            });
+            } else {
+              setMessage({
+                type: "error",
+                text: "An unexpected error occurred. Please try again.",
+              });
+            }
           }
-        } else {
-          setMessage({
-            type: "error",
-            text: "An unexpected error occurred. Please try again.",
-          });
-        }
-      }
+        },
+        "Sending Magic Link..."
+      );
     } catch (error) {
       console.error("Login error:", error);
       setMessage({
@@ -116,8 +124,6 @@ export function LoginForm() {
           ? error.message 
           : "Failed to send magic link. Please try again.",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -125,11 +131,11 @@ export function LoginForm() {
     <div className="space-y-6">
       {/* Success/Error Messages */}
       {message && (
-        <Alert className={message.type === "error" ? "border-red-200" : "border-green-200"}>
+        <Alert className={message.type === "error" ? "border-red-500" : "border-green-500"}>
           {message.type === "error" ? (
             <AlertCircle className="h-4 w-4 text-red-600" />
           ) : (
-            <CheckCircle className="h-4 w-4 text-green-600" />
+            <CheckCircle className="h-4 w-4 text-green-800" />
           )}
           <AlertDescription className={message.type === "error" ? "text-red-800" : "text-green-800"}>
             {message.text}
@@ -149,7 +155,7 @@ export function LoginForm() {
                   <Input
                     type="email"
                     placeholder="m@example.com"
-                    disabled={isLoading}
+                    disabled={isLoading(LOADING_KEY)}
                     {...field}
                   />
                 </FormControl>
@@ -160,20 +166,11 @@ export function LoginForm() {
 
           <Button 
             type="submit" 
-            className="w-full" 
-            disabled={isLoading}
+            className="w-full"
+            loadingKey={LOADING_KEY}
+            icon={Send}
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending Magic Link...
-              </>
-            ) : (
-              <>
-                <Mail className="mr-2 h-4 w-4" />
-                Send Magic Link
-              </>
-            )}
+            Login
           </Button>
         </form>
       </Form>

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { GlobalLoadingIndicator } from "@/components/ui/global-loading";
+import NextTopLoader from "nextjs-toploader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,6 +29,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* Page navigation loading */}
+        <NextTopLoader color="#2563eb" height={3} showSpinner={false} />
+
+        {/* Global action loading indicator */}
+        <GlobalLoadingIndicator />
         {children}
       </body>
     </html>
