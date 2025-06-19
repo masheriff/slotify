@@ -46,6 +46,7 @@
     "nextjs-toploader": "^3.8.16",
     "nodemailer": "^7.0.3",
     "pg": "^8.16.1",
+    "prettier": "^3.5.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-google-recaptcha-v3": "^1.11.0",
