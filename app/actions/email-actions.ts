@@ -168,7 +168,7 @@ export async function sendMagicLinkEmail(data: {
     return await emailSender.sendMagicLinkEmail(validatedData.email, {
       email: validatedData.email,
       url: validatedData.url,
-      expiresIn: validatedData.expiresIn || '10 minutes',
+      expiresIn: validatedData.expiresIn || '5 minutes',
     });
   } catch (error) {
     return {

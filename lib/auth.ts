@@ -38,7 +38,7 @@ export const auth = betterAuth({
           const result = await sendMagicLinkEmail({
             email,
             url,
-            expiresIn: '10 minutes'
+            expiresIn: '5 minutes'
           });
 
           if (!result.success) {

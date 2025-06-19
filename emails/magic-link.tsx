@@ -11,7 +11,7 @@ import { MagicLinkEmailProps } from '../types/email.types';
 export function MagicLinkEmail({ 
   email, 
   url,
-  expiresIn = '10 minutes'
+  expiresIn = '5 minutes'
 }: MagicLinkEmailProps) {
   const previewText = 'Your secure login link for Slotify';
   
