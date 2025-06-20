@@ -111,18 +111,17 @@ export const holterAssignments = pgTable("holter_assignments", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for better performance
-export const holterAssignmentsBookingIdIdx = index("holter_assignments_booking_id_idx").on(holterAssignments.bookingId);
-export const holterAssignmentsDeviceIdIdx = index("holter_assignments_device_id_idx").on(holterAssignments.deviceId);
-export const holterAssignmentsPatientIdIdx = index("holter_assignments_patient_id_idx").on(holterAssignments.patientId);
-export const holterAssignmentsStatusIdx = index("holter_assignments_status_idx").on(holterAssignments.status);
-export const holterAssignmentsExpectedReturnIdx = index("holter_assignments_expected_return_idx").on(holterAssignments.expectedReturnDate);
-export const holterAssignmentsNextFollowUpIdx = index("holter_assignments_next_follow_up_idx").on(holterAssignments.nextFollowUpDate);
-export const holterAssignmentsDeviceGivenDateIdx = index("holter_assignments_device_given_date_idx").on(holterAssignments.deviceGivenDate);
-export const holterAssignmentsActualReturnDateIdx = index("holter_assignments_actual_return_date_idx").on(holterAssignments.actualReturnDate);
-export const holterAssignmentsEscalationRequiredIdx = index("holter_assignments_escalation_required_idx").on(holterAssignments.escalationRequired);
-export const holterAssignmentsDeletedAtIdx = index("holter_assignments_deleted_at_idx").on(holterAssignments.deletedAt);
-export const holterAssignmentsCreatedByIdx = index("holter_assignments_created_by_idx").on(holterAssignments.createdBy);
-export const holterAssignmentsUpdatedByIdx = index("holter_assignments_updated_by_idx").on(holterAssignments.updatedBy);
+}, (table) => [
+  index("holter_assignments_booking_id_idx").on(table.bookingId),
+  index("holter_assignments_device_id_idx").on(table.deviceId),
+  index("holter_assignments_patient_id_idx").on(table.patientId),
+  index("holter_assignments_status_idx").on(table.status),
+  index("holter_assignments_expected_return_idx").on(table.expectedReturnDate),
+  index("holter_assignments_next_follow_up_idx").on(table.nextFollowUpDate),
+  index("holter_assignments_device_given_date_idx").on(table.deviceGivenDate),
+  index("holter_assignments_actual_return_date_idx").on(table.actualReturnDate),
+  index("holter_assignments_escalation_required_idx").on(table.escalationRequired),
+  index("holter_assignments_deleted_at_idx").on(table.deletedAt),
+  index("holter_assignments_created_by_idx").on(table.createdBy),
+  index("holter_assignments_updated_by_idx").on(table.updatedBy),
+]);

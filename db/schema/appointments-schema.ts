@@ -83,16 +83,20 @@ export const appointments = pgTable("appointments", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for better performance
-export const appointmentsPatientIdIdx = index("appointments_patient_id_idx").on(appointments.patientId);
-export const appointmentsReferringDoctorIdIdx = index("appointments_referring_doctor_id_idx").on(appointments.referringDoctorId);
-export const appointmentsReferringEntityIdIdx = index("appointments_referring_entity_id_idx").on(appointments.referringEntityId);
-export const appointmentsProcedureLocationIdIdx = index("appointments_procedure_location_id_idx").on(appointments.procedureLocationId);
-export const appointmentsDateIdx = index("appointments_date_idx").on(appointments.appointmentDate);
-export const appointmentsStatusIdx = index("appointments_status_idx").on(appointments.status);
-export const appointmentsPriorityIdx = index("appointments_priority_idx").on(appointments.priority);
-export const appointmentsDeletedAtIdx = index("appointments_deleted_at_idx").on(appointments.deletedAt);
-export const appointmentsCreatedByIdx = index("appointments_created_by_idx").on(appointments.createdBy);
-export const appointmentsUpdatedByIdx = index("appointments_updated_by_idx").on(appointments.updatedBy);
+}, (table) => [
+    index("appointments_patient_id_idx").on(table.patientId),
+    index("appointments_referring_doctor_id_idx").on(table.referringDoctorId),
+    index("appointments_referring_entity_id_idx").on(table.referringEntityId),
+    index("appointments_procedure_location_id_idx").on(table.procedureLocationId),
+    index("appointments_date_idx").on(table.appointmentDate),
+    index("appointments_status_idx").on(table.status),
+    index("appointments_priority_idx").on(table.priority),
+    index("appointments_deleted_at_idx").on(table.deletedAt),
+    index("appointments_created_by_idx").on(table.createdBy),
+    index("appointments_updated_by_idx").on(table.updatedBy),
+    index("appointments_confirmed_at_idx").on(table.confirmedAt),
+    index("appointments_cancelled_at_idx").on(table.cancelledAt),
+    index("appointments_cancellation_reason_idx").on(table.cancellationReason),
+    index("appointments_procedure_type_idx").on(table.procedureType),
+    index("appointments_comments_idx").on(table.comments),
+]);

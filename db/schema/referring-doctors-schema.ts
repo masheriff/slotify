@@ -21,12 +21,14 @@ export const specialties = pgTable("specialties", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for specialties
-export const specialtiesNameIdx = index("specialties_name_idx").on(specialties.name);
-export const specialtiesIsActiveIdx = index("specialties_is_active_idx").on(specialties.isActive);
-export const specialtiesDeletedAtIdx = index("specialties_deleted_at_idx").on(specialties.deletedAt);
+}, (table) => [
+  // indexes for better performance
+  index("specialties_name_idx").on(table.name),
+  index("specialties_is_active_idx").on(table.isActive),
+  index("specialties_deleted_at_idx").on(table.deletedAt),
+  index("specialties_created_by_idx").on(table.createdBy),
+  index("specialties_updated_by_idx").on(table.updatedBy),
+]);
 
 export const referringDoctors = pgTable("referring_doctors", {
   id: text("id").primaryKey(),
@@ -56,14 +58,14 @@ export const referringDoctors = pgTable("referring_doctors", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for better performance
-export const referringDoctorsEmailIdx = index("referring_doctors_email_idx").on(referringDoctors.email);
-export const referringDoctorsPhoneIdx = index("referring_doctors_phone_idx").on(referringDoctors.phone);
-export const referringDoctorsNameIdx = index("referring_doctors_name_idx").on(referringDoctors.firstName, referringDoctors.lastName);
-export const referringDoctorsLicenseIdx = index("referring_doctors_license_idx").on(referringDoctors.licenseNumber);
-export const referringDoctorsSpecialtyIdIdx = index("referring_doctors_specialty_id_idx").on(referringDoctors.specialtyId);
-export const referringDoctorsDeletedAtIdx = index("referring_doctors_deleted_at_idx").on(referringDoctors.deletedAt);
-export const referringDoctorsCreatedByIdx = index("referring_doctors_created_by_idx").on(referringDoctors.createdBy);
-export const referringDoctorsUpdatedByIdx = index("referring_doctors_updated_by_idx").on(referringDoctors.updatedBy);
+}, (table) => [
+  // Indexes for better performance
+  index("referring_doctors_email_idx").on(table.email),
+  index("referring_doctors_phone_idx").on(table.phone),
+  index("referring_doctors_name_idx").on(table.firstName, table.lastName),
+  index("referring_doctors_license_idx").on(table.licenseNumber),
+  index("referring_doctors_specialty_id_idx").on(table.specialtyId),
+  index("referring_doctors_deleted_at_idx").on(table.deletedAt),
+  index("referring_doctors_created_by_idx").on(table.createdBy),
+  index("referring_doctors_updated_by_idx").on(table.updatedBy),
+]);

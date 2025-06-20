@@ -2,6 +2,7 @@ import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg
 import { users } from "./auth-schema";
 import { bookings } from "./bookings-schema";
 import { interpretingDoctors } from "./interpreting-doctors-schema";
+import { ta } from "zod/v4/locales";
 
 // Interpretation status enum
 export const interpretationStatusEnum = pgEnum("interpretation_status", [
@@ -129,21 +130,21 @@ export const interpretations = pgTable("interpretations", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for better performance
-export const interpretationsBookingIdIdx = index("interpretations_booking_id_idx").on(interpretations.bookingId);
-export const interpretationsInterpretingDoctorIdIdx = index("interpretations_interpreting_doctor_id_idx").on(interpretations.interpretingDoctorId);
-export const interpretationsReviewingDoctorIdIdx = index("interpretations_reviewing_doctor_id_idx").on(interpretations.reviewingDoctorId);
-export const interpretationsStatusIdx = index("interpretations_status_idx").on(interpretations.status);
-export const interpretationsPriorityIdx = index("interpretations_priority_idx").on(interpretations.priority);
-export const interpretationsReportStatusIdx = index("interpretations_report_status_idx").on(interpretations.reportStatus);
-export const interpretationsAssignedAtIdx = index("interpretations_assigned_at_idx").on(interpretations.assignedAt);
-export const interpretationsFinalCompletedAtIdx = index("interpretations_final_completed_at_idx").on(interpretations.finalCompletedAt);
-export const interpretationsCriticalFindingsIdx = index("interpretations_critical_findings_idx").on(interpretations.criticalFindings);
-export const interpretationsIsEmergencyReadIdx = index("interpretations_is_emergency_read_idx").on(interpretations.isEmergencyRead);
-export const interpretationsReviewRequiredIdx = index("interpretations_review_required_idx").on(interpretations.reviewRequired);
-export const interpretationsFollowUpRequiredIdx = index("interpretations_follow_up_required_idx").on(interpretations.followUpRequired);
-export const interpretationsDeletedAtIdx = index("interpretations_deleted_at_idx").on(interpretations.deletedAt);
-export const interpretationsCreatedByIdx = index("interpretations_created_by_idx").on(interpretations.createdBy);
-export const interpretationsUpdatedByIdx = index("interpretations_updated_by_idx").on(interpretations.updatedBy);
+}, (table) => [
+  //indexes for performance
+  index("interpretations_booking_id_idx").on(table.bookingId),
+  index("interpretations_interpreting_doctor_id_idx").on(table.interpretingDoctorId),
+  index("interpretations_reviewing_doctor_id_idx").on(table.reviewingDoctorId),
+  index("interpretations_status_idx").on(table.status),
+  index("interpretations_priority_idx").on(table.priority),
+  index("interpretations_report_status_idx").on(table.reportStatus),
+  index("interpretations_assigned_at_idx").on(table.assignedAt),
+  index("interpretations_final_completed_at_idx").on(table.finalCompletedAt),
+  index("interpretations_critical_findings_idx").on(table.criticalFindings),
+  index("interpretations_is_emergency_read_idx").on(table.isEmergencyRead),
+  index("interpretations_review_required_idx").on(table.reviewRequired),
+  index("interpretations_follow_up_required_idx").on(table.followUpRequired),
+  index("interpretations_deleted_at_idx").on(table.deletedAt),
+  index("interpretations_created_by_idx").on(table.createdBy),
+  index("interpretations_updated_by_idx").on(table.updatedBy),
+]);

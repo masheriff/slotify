@@ -114,15 +114,15 @@ export const procedureTestLocations = pgTable("procedure_test_locations", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for better performance
-export const procedureTestLocationsNameIdx = index("procedure_test_locations_name_idx").on(procedureTestLocations.name);
-export const procedureTestLocationsTypeIdx = index("procedure_test_locations_type_idx").on(procedureTestLocations.type);
-export const procedureTestLocationsCategoryIdx = index("procedure_test_locations_category_idx").on(procedureTestLocations.category);
-export const procedureTestLocationsCityStateIdx = index("procedure_test_locations_city_state_idx").on(procedureTestLocations.city, procedureTestLocations.state);
-export const procedureTestLocationsIsActiveIdx = index("procedure_test_locations_is_active_idx").on(procedureTestLocations.isActive);
-export const procedureTestLocationsDeletedAtIdx = index("procedure_test_locations_deleted_at_idx").on(procedureTestLocations.deletedAt);
-export const procedureTestLocationsLicenseIdx = index("procedure_test_locations_license_idx").on(procedureTestLocations.licenseNumber);
-export const procedureTestLocationsCreatedByIdx = index("procedure_test_locations_created_by_idx").on(procedureTestLocations.createdBy);
-export const procedureTestLocationsUpdatedByIdx = index("procedure_test_locations_updated_by_idx").on(procedureTestLocations.updatedBy);
+}, (table) => [
+  // Indexes for better performance
+  index("procedure_test_locations_name_idx").on(table.name),
+  index("procedure_test_locations_type_idx").on(table.type),
+  index("procedure_test_locations_category_idx").on(table.category),
+  index("procedure_test_locations_city_state_idx").on(table.city, table.state),
+  index("procedure_test_locations_is_active_idx").on(table.isActive),
+  index("procedure_test_locations_deleted_at_idx").on(table.deletedAt),
+  index("procedure_test_locations_license_idx").on(table.licenseNumber),
+  index("procedure_test_locations_created_by_idx").on(table.createdBy),
+  index("procedure_test_locations_updated_by_idx").on(table.updatedBy),
+]);

@@ -1,5 +1,6 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg-core";
 import { users } from "./auth-schema"; // Import users table for foreign key references
+import { table } from "console";
 
 // Enums for better type safety and data consistency
 export const entityTypeEnum = pgEnum("entity_type", [
@@ -61,14 +62,17 @@ export const referringEntities = pgTable("referring_entities", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for referring entities
-export const referringEntitiesNameIdx = index("referring_entities_name_idx").on(referringEntities.name);
-export const referringEntitiesTypeIdx = index("referring_entities_type_idx").on(referringEntities.type);
-export const referringEntitiesIsActiveIdx = index("referring_entities_is_active_idx").on(referringEntities.isActive);
-export const referringEntitiesDeletedAtIdx = index("referring_entities_deleted_at_idx").on(referringEntities.deletedAt);
-export const referringEntitiesLicenseIdx = index("referring_entities_license_idx").on(referringEntities.licenseNumber);
+}, (table) => [
+  // Indexes for better performance
+  index("referring_entities_name_idx").on(table.name),
+  index("referring_entities_type_idx").on(table.type),
+  index("referring_entities_is_active_idx").on(table.isActive),
+  index("referring_entities_deleted_at_idx").on(table.deletedAt),
+  index("referring_entities_license_idx").on(table.licenseNumber),
+  index("referring_entities_tax_id_idx").on(table.taxId),
+  index("referring_entities_created_by_idx").on(table.createdBy),
+  index("referring_entities_updated_by_idx").on(table.updatedBy),
+]);
 
 // Referring Location (Physical locations/branches of referring entities)
 export const referringLocations = pgTable("referring_locations", {
@@ -104,13 +108,15 @@ export const referringLocations = pgTable("referring_locations", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for referring locations
-export const referringLocationsEntityIdIdx = index("referring_locations_entity_id_idx").on(referringLocations.referringEntityId);
-export const referringLocationsNameIdx = index("referring_locations_name_idx").on(referringLocations.name);
-export const referringLocationsCityStateIdx = index("referring_locations_city_state_idx").on(referringLocations.city, referringLocations.state);
-export const referringLocationsIsPrimaryIdx = index("referring_locations_is_primary_idx").on(referringLocations.isPrimary);
-export const referringLocationsIsActiveIdx = index("referring_locations_is_active_idx").on(referringLocations.isActive);
-export const referringLocationsDeletedAtIdx = index("referring_locations_deleted_at_idx").on(referringLocations.deletedAt);
-export const referringLocationsDepartmentIdx = index("referring_locations_department_idx").on(referringLocations.departmentType);
+}, (table) => [
+  // Indexes for better performance
+  index("referring_locations_entity_id_idx").on(table.referringEntityId),
+  index("referring_locations_name_idx").on(table.name),
+  index("referring_locations_city_state_idx").on(table.city, table.state),
+  index("referring_locations_is_primary_idx").on(table.isPrimary),
+  index("referring_locations_is_active_idx").on(table.isActive),
+  index("referring_locations_deleted_at_idx").on(table.deletedAt),
+  index("referring_locations_department_idx").on(table.departmentType),
+  index("referring_locations_created_by_idx").on(table.createdBy),
+  index("referring_locations_updated_by_idx").on(table.updatedBy),
+]);

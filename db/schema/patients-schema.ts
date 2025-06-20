@@ -1,5 +1,6 @@
 import { pgTable, text, timestamp, date, index } from "drizzle-orm/pg-core";
 import { users } from "./auth-schema"; // Import users table for foreign key references
+import { ta } from "zod/v4/locales";
 
 export const patients = pgTable("patients", {
   id: text("id").primaryKey(),
@@ -29,13 +30,15 @@ export const patients = pgTable("patients", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
+},(table) => [
+  index("patients_email_idx").on(table.email),
+  index("patients_phone_idx").on(table.phone),
+  index("patients_name_idx").on(table.firstName, table.lastName),
+  index("patients_insurance_idx").on(table.insuranceNumber),
+  index("patients_deleted_at_idx").on(table.deletedAt),
+  index("patients_created_by_idx").on(table.createdBy),
+  index("patients_updated_by_idx").on(table.updatedBy),
+  index("patients_date_of_birth_idx").on(table.dateOfBirth),
+  index("patients_address_idx").on(table.addressLine1, table.addressLine2, table.state, table.city, table.code),
 
-// Create indexes for better performance
-export const patientsEmailIdx = index("patients_email_idx").on(patients.email);
-export const patientsPhoneIdx = index("patients_phone_idx").on(patients.phone);
-export const patientsNameIdx = index("patients_name_idx").on(patients.firstName, patients.lastName);
-export const patientsInsuranceIdx = index("patients_insurance_idx").on(patients.insuranceNumber);
-export const patientsDeletedAtIdx = index("patients_deleted_at_idx").on(patients.deletedAt);
-export const patientsCreatedByIdx = index("patients_created_by_idx").on(patients.createdBy);
-export const patientsUpdatedByIdx = index("patients_updated_by_idx").on(patients.updatedBy);
+]);

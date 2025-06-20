@@ -1,6 +1,7 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg-core";
 import { users } from "./auth-schema"; // Import users table for foreign key references
 import { facilitySpecialtyEnum } from "./procedure-test-locations-schema"; // Import specialty enum
+import { ta } from "zod/v4/locales";
 
 // Technician certification level enum
 export const certificationLevelEnum = pgEnum("certification_level", [
@@ -63,17 +64,17 @@ export const technicians = pgTable("technicians", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for better performance
-export const techniciansEmailIdx = index("technicians_email_idx").on(technicians.email);
-export const techniciansPhoneIdx = index("technicians_phone_idx").on(technicians.phone);
-export const techniciansNameIdx = index("technicians_name_idx").on(technicians.firstName, technicians.lastName);
-export const techniciansSpecialtyIdx = index("technicians_specialty_idx").on(technicians.specialty);
-export const techniciansCertificationIdx = index("technicians_certification_idx").on(technicians.certificationLevel);
-export const techniciansEmploymentStatusIdx = index("technicians_employment_status_idx").on(technicians.employmentStatus);
-export const techniciansLicenseIdx = index("technicians_license_idx").on(technicians.licenseNumber);
-export const techniciansIsActiveIdx = index("technicians_is_active_idx").on(technicians.isActive);
-export const techniciansDeletedAtIdx = index("technicians_deleted_at_idx").on(technicians.deletedAt);
-export const techniciansCreatedByIdx = index("technicians_created_by_idx").on(technicians.createdBy);
-export const techniciansUpdatedByIdx = index("technicians_updated_by_idx").on(technicians.updatedBy);
+}, (table) => [
+  // Indexes for better performance
+  index("technicians_email_idx").on(table.email),
+  index("technicians_phone_idx").on(table.phone),
+  index("technicians_name_idx").on(table.firstName, table.lastName),
+  index("technicians_specialty_idx").on(table.specialty),
+  index("technicians_certification_idx").on(table.certificationLevel),
+  index("technicians_employment_status_idx").on(table.employmentStatus),
+  index("technicians_license_idx").on(table.licenseNumber),
+  index("technicians_is_active_idx").on(table.isActive),
+  index("technicians_deleted_at_idx").on(table.deletedAt),
+  index("technicians_created_by_idx").on(table.createdBy),
+  index("technicians_updated_by_idx").on(table.updatedBy),
+]);

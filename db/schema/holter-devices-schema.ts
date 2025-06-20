@@ -1,6 +1,7 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum, date } from "drizzle-orm/pg-core";
 import { users } from "./auth-schema"; // Import users table for foreign key references
 import { patients } from "./patients-schema"; // Import patients table
+import { table } from "console";
 
 // Device status enum
 export const deviceStatusEnum = pgEnum("device_status", [
@@ -71,17 +72,17 @@ export const holterDevices = pgTable("holter_devices", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for better performance
-export const holterDevicesSerialIdx = index("holter_devices_serial_idx").on(holterDevices.serialNumber);
-export const holterDevicesStatusIdx = index("holter_devices_status_idx").on(holterDevices.status);
-export const holterDevicesCurrentPatientIdx = index("holter_devices_current_patient_idx").on(holterDevices.currentPatientId);
-export const holterDevicesTypeIdx = index("holter_devices_type_idx").on(holterDevices.holterType);
-export const holterDevicesManufacturerIdx = index("holter_devices_manufacturer_idx").on(holterDevices.manufacturer);
-export const holterDevicesAssignedDateIdx = index("holter_devices_assigned_date_idx").on(holterDevices.assignedDate);
-export const holterDevicesExpectedReturnIdx = index("holter_devices_expected_return_idx").on(holterDevices.expectedReturnDate);
-export const holterDevicesIsActiveIdx = index("holter_devices_is_active_idx").on(holterDevices.isActive);
-export const holterDevicesDeletedAtIdx = index("holter_devices_deleted_at_idx").on(holterDevices.deletedAt);
-export const holterDevicesCreatedByIdx = index("holter_devices_created_by_idx").on(holterDevices.createdBy);
-export const holterDevicesUpdatedByIdx = index("holter_devices_updated_by_idx").on(holterDevices.updatedBy);
+}, (table) => [
+  // Indexes for performance
+  index("holter_devices_serial_idx").on(table.serialNumber),
+  index("holter_devices_status_idx").on(table.status),
+  index("holter_devices_current_patient_idx").on(table.currentPatientId),
+  index("holter_devices_type_idx").on(table.holterType),
+  index("holter_devices_manufacturer_idx").on(table.manufacturer),
+  index("holter_devices_assigned_date_idx").on(table.assignedDate),
+  index("holter_devices_expected_return_idx").on(table.expectedReturnDate),
+  index("holter_devices_is_active_idx").on(table.isActive),
+  index("holter_devices_deleted_at_idx").on(table.deletedAt),
+  index("holter_devices_created_by_idx").on(table.createdBy),
+  index("holter_devices_updated_by_idx").on(table.updatedBy),
+]);

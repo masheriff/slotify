@@ -170,21 +170,21 @@ export const chargeEntries = pgTable("charge_entries", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for better performance
-export const chargeEntriesInterpretationIdIdx = index("charge_entries_interpretation_id_idx").on(chargeEntries.interpretationId);
-export const chargeEntriesBookingIdIdx = index("charge_entries_booking_id_idx").on(chargeEntries.bookingId);
-export const chargeEntriesPatientIdIdx = index("charge_entries_patient_id_idx").on(chargeEntries.patientId);
-export const chargeEntriesStatusIdx = index("charge_entries_status_idx").on(chargeEntries.status);
-export const chargeEntriesServiceDateIdx = index("charge_entries_service_date_idx").on(chargeEntries.serviceDate);
-export const chargeEntriesPrimaryCptCodeIdx = index("charge_entries_primary_cpt_code_idx").on(chargeEntries.primaryCptCode);
-export const chargeEntriesChargeTypeIdx = index("charge_entries_charge_type_idx").on(chargeEntries.chargeType);
-export const chargeEntriesInsuranceTypeIdx = index("charge_entries_insurance_type_idx").on(chargeEntries.insuranceType);
-export const chargeEntriesClaimNumberIdx = index("charge_entries_claim_number_idx").on(chargeEntries.claimNumber);
-export const chargeEntriesSubmissionDateIdx = index("charge_entries_submission_date_idx").on(chargeEntries.submissionDate);
-export const chargeEntriesFollowUpRequiredIdx = index("charge_entries_follow_up_required_idx").on(chargeEntries.followUpRequired);
-export const chargeEntriesFollowUpDateIdx = index("charge_entries_follow_up_date_idx").on(chargeEntries.followUpDate);
-export const chargeEntriesDeletedAtIdx = index("charge_entries_deleted_at_idx").on(chargeEntries.deletedAt);
-export const chargeEntriesCreatedByIdx = index("charge_entries_created_by_idx").on(chargeEntries.createdBy);
-export const chargeEntriesUpdatedByIdx = index("charge_entries_updated_by_idx").on(chargeEntries.updatedBy);
+}, (table) => [
+  // Indexes for performance
+  index("charge_entries_interpretation_id_idx").on(table.interpretationId),
+  index("charge_entries_booking_id_idx").on(table.bookingId),
+  index("charge_entries_patient_id_idx").on(table.patientId),
+  index("charge_entries_status_idx").on(table.status),
+  index("charge_entries_service_date_idx").on(table.serviceDate),
+  index("charge_entries_primary_cpt_code_idx").on(table.primaryCptCode),
+  index("charge_entries_charge_type_idx").on(table.chargeType),
+  index("charge_entries_insurance_type_idx").on(table.insuranceType),
+  index("charge_entries_claim_number_idx").on(table.claimNumber),
+  index("charge_entries_submission_date_idx").on(table.submissionDate),
+  index("charge_entries_follow_up_required_idx").on(table.followUpRequired),
+  index("charge_entries_follow_up_date_idx").on(table.followUpDate),
+  index("charge_entries_deleted_at_idx").on(table.deletedAt),
+  index("charge_entries_created_by_idx").on(table.createdBy),
+  index("charge_entries_updated_by_idx").on(table.updatedBy),
+]);

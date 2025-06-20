@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Mail, AlertCircle, CheckCircle, Send } from "lucide-react";
-import { sendMagicLinkAction, type MagicLinkSignInInput } from "@/app/actions/login-actions";
+import { sendMagicLinkAction, type MagicLinkSignInInput } from "@/actions/login-actions";
 import { useLoadingControl } from "@/lib/with-loading";
 
 // Zod schema for form validation (client-side)

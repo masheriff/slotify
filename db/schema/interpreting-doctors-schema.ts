@@ -1,5 +1,6 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg-core";
 import { users } from "./auth-schema"; // Import users table for foreign key references
+import { table } from "console";
 
 // Medical specialties enum for interpreting doctors
 export const interpretingSpecialtyEnum = pgEnum("interpreting_specialty", [
@@ -84,18 +85,18 @@ export const interpretingDoctors = pgTable("interpreting_doctors", {
   updatedBy: text("updated_by")
     .notNull()
     .references(() => users.id),
-});
-
-// Create indexes for better performance
-export const interpretingDoctorsEmailIdx = index("interpreting_doctors_email_idx").on(interpretingDoctors.email);
-export const interpretingDoctorsPhoneIdx = index("interpreting_doctors_phone_idx").on(interpretingDoctors.phone);
-export const interpretingDoctorsNameIdx = index("interpreting_doctors_name_idx").on(interpretingDoctors.firstName, interpretingDoctors.lastName);
-export const interpretingDoctorsLicenseIdx = index("interpreting_doctors_license_idx").on(interpretingDoctors.licenseNumber);
-export const interpretingDoctorsPrimarySpecialtyIdx = index("interpreting_doctors_primary_specialty_idx").on(interpretingDoctors.primarySpecialty);
-export const interpretingDoctorsSecondarySpecialtyIdx = index("interpreting_doctors_secondary_specialty_idx").on(interpretingDoctors.secondarySpecialty);
-export const interpretingDoctorsReadingStatusIdx = index("interpreting_doctors_reading_status_idx").on(interpretingDoctors.readingStatus);
-export const interpretingDoctorsEmergencyReadsIdx = index("interpreting_doctors_emergency_reads_idx").on(interpretingDoctors.emergencyReads);
-export const interpretingDoctorsIsActiveIdx = index("interpreting_doctors_is_active_idx").on(interpretingDoctors.isActive);
-export const interpretingDoctorsDeletedAtIdx = index("interpreting_doctors_deleted_at_idx").on(interpretingDoctors.deletedAt);
-export const interpretingDoctorsCreatedByIdx = index("interpreting_doctors_created_by_idx").on(interpretingDoctors.createdBy);
-export const interpretingDoctorsUpdatedByIdx = index("interpreting_doctors_updated_by_idx").on(interpretingDoctors.updatedBy);
+}, (table) => [
+  // indexes for performance
+  index("interpreting_doctors_email_idx").on(table.email),
+  index("interpreting_doctors_phone_idx").on(table.phone),
+  index("interpreting_doctors_name_idx").on(table.firstName, table.lastName),
+  index("interpreting_doctors_license_idx").on(table.licenseNumber),
+  index("interpreting_doctors_primary_specialty_idx").on(table.primarySpecialty),
+  index("interpreting_doctors_secondary_specialty_idx").on(table.secondarySpecialty),
+  index("interpreting_doctors_reading_status_idx").on(table.readingStatus),
+  index("interpreting_doctors_emergency_reads_idx").on(table.emergencyReads),
+  index("interpreting_doctors_is_active_idx").on(table.isActive),
+  index("interpreting_doctors_deleted_at_idx").on(table.deletedAt),
+  index("interpreting_doctors_created_by_idx").on(table.createdBy),
+  index("interpreting_doctors_updated_by_idx").on(table.updatedBy),
+]);

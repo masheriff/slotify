@@ -1,14 +1,12 @@
 // lib/auth.ts
 import { betterAuth } from "better-auth";
-import {
-  magicLink,
-  admin,
-  organization,
-  captcha,
-} from "better-auth/plugins";
+import { magicLink, admin, organization, captcha } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db";
-import { sendMagicLinkEmail, sendOrganizationInvitationEmail } from "@/app/actions/email-actions";
+import {
+  sendMagicLinkEmail,
+  sendOrganizationInvitationEmail,
+} from "@/actions/email-actions";
 import {
   accounts,
   invitations,
@@ -19,6 +17,7 @@ import {
   verifications,
 } from "@/db/schema";
 import { nextCookies } from "better-auth/next-js";
+import { ac, clientRoles } from "./permissions/healthcare-access-control";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -38,36 +37,37 @@ export const auth = betterAuth({
     admin({
       defaultRole: "super_admin",
     }),
-    organization(
-      {
-        sendInvitationEmail: async (data) => {
-          const { email, organization, invitation, inviter} = data;
-          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    organization({
+      ac: ac,
+      roles: clientRoles,
+      sendInvitationEmail: async (data) => {
+        const { email, organization, invitation, inviter } = data;
+        const baseUrl =
+          process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
 
-          try {
-            const result = await sendOrganizationInvitationEmail({
-              email: email,
-              organizationName: organization.name || "Your Organization",
-              inviterName: inviter.user.name || "Admin",
-              invitationLink: `${baseUrl}/api/auth/organization/accept-invitation?token=${invitation.id}`,
-              expiresIn: invitation.expiresAt
-                ? `${Math.round((new Date(invitation.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days`
-                : "7 days",
-            });
+        try {
+          const result = await sendOrganizationInvitationEmail({
+            email: email,
+            organizationName: organization.name || "Your Organization",
+            inviterName: inviter.user.name || "Admin",
+            invitationLink: `${baseUrl}/api/auth/organization/accept-invitation?token=${invitation.id}`,
+            expiresIn: invitation.expiresAt
+              ? `${Math.round((new Date(invitation.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days`
+              : "7 days",
+          });
 
-            if (!result.success) {
-              console.error("Failed to send invitation email:", result.error);
-              throw new Error(`Email sending failed: ${result.error}`);
-            }
-
-            console.log("Invitation email sent successfully:", result.messageId);
-          } catch (error) {
-            console.error("Invitation email error:", error);
-            throw error;
+          if (!result.success) {
+            console.error("Failed to send invitation email:", result.error);
+            throw new Error(`Email sending failed: ${result.error}`);
           }
+
+          console.log("Invitation email sent successfully:", result.messageId);
+        } catch (error) {
+          console.error("Invitation email error:", error);
+          throw error;
         }
-      }
-    ),
+      },
+    }),
     magicLink({
       disableSignUp: true,
       expiresIn: 300,
@@ -95,9 +95,7 @@ export const auth = betterAuth({
       provider: "google-recaptcha",
       secretKey: process.env.RECAPTCHA_SECRET_KEY ?? "",
       minScore: 0.5, // Adjust the minimum score as needed
-      endpoints: [
-        "/sign-in/magic-link",
-      ], // Specify the endpoints that require CAPTCHA verification
+      endpoints: ["/sign-in/magic-link"], // Specify the endpoints that require CAPTCHA verification
     }),
     nextCookies(),
   ],
@@ -111,7 +109,35 @@ export const auth = betterAuth({
         max: 3, // Maximum requests for magic link endpoint
         window: 60 * 1000, // 1 minute
         message: "Too many requests, please try again later.",
-      }
-    }
+      },
+    },
   },
 });
+
+/**
+ * Helper functions for healthcare-specific permission checks
+ */
+async function checkHIPAACompliance(userId: string): Promise<boolean> {
+  // Implementation would check if user has completed HIPAA training
+  // This could query a separate training/certification table
+  return true; // Placeholder
+}
+
+async function checkBookingState(bookingId: string, requiredState: string): Promise<boolean> {
+  // Implementation would check if booking is in the correct workflow state
+  return true; // Placeholder
+}
+
+async function checkInterpretationAssignment(interpretationId: string, userId: string): Promise<boolean> {
+  // Implementation would verify the interpretation is assigned to this doctor
+  return true; // Placeholder
+}
+
+async function createDefaultHealthcareFacilitySetup(organizationId: string): Promise<void> {
+  // Implementation would create default procedure locations, device inventory, etc.
+  // This helps new healthcare facilities get started quickly
+}
+
+async function sendHealthcareFacilityWelcomeEmail(organization: any, user: any): Promise<void> {
+  // Implementation would send compliance and setup information
+}
