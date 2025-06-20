@@ -35,13 +35,17 @@ let _pool: Pool | null = null;
 function getPool() {
   if (!_pool) {
     _pool = new Pool(poolConfig);
-    
+
     _pool.on('error', (err) => {
       console.error('Unexpected error on idle client', err);
+
       if (process.env.NODE_ENV !== 'production') {
         console.error('Database error in development:', err);
-      } else {
-        process.exit(-1);
+      }
+
+      // Safe exit: only exit in full Node.js environments (not Edge Runtime)
+      if (typeof process !== 'undefined' && process.release?.name === 'node') {
+        process.exit(1);
       }
     });
 
@@ -53,8 +57,8 @@ function getPool() {
 }
 
 // Export the db instance with lazy initialization
-export const db = drizzle(getPool(), { 
-  logger: process.env.NODE_ENV === 'development' 
+export const db = drizzle(getPool(), {
+  logger: process.env.NODE_ENV === 'development'
 });
 
 // Utility function to run migrations
