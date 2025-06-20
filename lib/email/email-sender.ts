@@ -79,6 +79,14 @@ class EmailSender {
     return this.sendTemplateEmail("magic-link", to, data, options);
   }
 
+  async sendOrganizationInvitationEmail(
+    to: string,
+    data: TemplateData["organization-invitation"],
+    options?: { customSubject?: string }
+  ): Promise<EmailSendResult> {
+    return this.sendTemplateEmail("organization-invitation", to, data, options);
+  }
+
   async sendNotificationEmail(
     to: string | string[],
     data: TemplateData["notification"],

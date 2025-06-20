@@ -3,12 +3,12 @@ import { betterAuth } from "better-auth";
 import {
   magicLink,
   admin,
-  organization as organisationPlugin,
+  organization,
   captcha,
 } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db";
-import { sendMagicLinkEmail } from "@/app/actions/email-actions";
+import { sendMagicLinkEmail, sendOrganizationInvitationEmail } from "@/app/actions/email-actions";
 import {
   accounts,
   invitations,
@@ -38,7 +38,36 @@ export const auth = betterAuth({
     admin({
       defaultRole: "super_admin",
     }),
-    organisationPlugin(),
+    organization(
+      {
+        sendInvitationEmail: async (data) => {
+          const { email, organization, invitation, inviter} = data;
+          const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+          try {
+            const result = await sendOrganizationInvitationEmail({
+              email: email,
+              organizationName: organization.name || "Your Organization",
+              inviterName: inviter.user.name || "Admin",
+              invitationLink: `${baseUrl}/api/auth/organization/accept-invitation?token=${invitation.id}`,
+              expiresIn: invitation.expiresAt
+                ? `${Math.round((new Date(invitation.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))} days`
+                : "7 days",
+            });
+
+            if (!result.success) {
+              console.error("Failed to send invitation email:", result.error);
+              throw new Error(`Email sending failed: ${result.error}`);
+            }
+
+            console.log("Invitation email sent successfully:", result.messageId);
+          } catch (error) {
+            console.error("Invitation email error:", error);
+            throw error;
+          }
+        }
+      }
+    ),
     magicLink({
       disableSignUp: true,
       expiresIn: 300,

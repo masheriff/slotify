@@ -9,21 +9,6 @@ export const authClient = createAuthClient({
   plugins: [adminClient(), organizationClient(), magicLinkClient()],
 });
 
-export const { signIn, signOut, useSession } = authClient;
-
-export const signInWithMagicLink = async (email: string) => {
-  return await signIn.magicLink(
-    {
-      email,
-      callbackURL: "/admin/dashboard",
-    },
-    {
-      onSuccess: (result) => {
-        console.log("Magic link sent successfully:", result);
-      },
-      onError: (error) => {
-        console.error("Error sending magic link:", error);
-      },
-    }
-  );
-};
+export const { signOut, useSession } = authClient;
+export const admin = authClient.admin;
+export const organization = authClient.organization;

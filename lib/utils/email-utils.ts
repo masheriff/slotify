@@ -22,6 +22,15 @@ export const magicLinkEmailSchema = z.object({
   expiresIn: z.string().optional(),
 });
 
+// Organization invitation email validation
+export const organizationInvitationEmailSchema = z.object({
+  email: emailSchema,
+  organizationName: z.string().min(1, 'Organization name is required'),
+  inviterName: z.string().min(1, 'Inviter name is required'),
+  invitationLink: z.string().url('Invalid invitation URL'),
+  expiresIn: z.string().optional(),
+});
+
 // Notification email validation
 export const notificationEmailSchema = z.object({
   name: z.string().min(1, 'Name is required'),

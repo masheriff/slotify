@@ -8,7 +8,8 @@ import {
   bulkNotificationSchema,
   magicLinkEmailSchema,
   formatRecipientName,
-  sanitizeEmailContent 
+  sanitizeEmailContent, 
+  organizationInvitationEmailSchema
 } from '@/lib/utils/email-utils';
 import { EmailSendResult } from '@/types/email.types';
 
@@ -174,6 +175,31 @@ export async function sendMagicLinkEmail(data: {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to send magic link email',
+    };
+  }
+}
+
+export async function sendOrganizationInvitationEmail(data: {
+  email: string;
+  organizationName: string;
+  inviterName: string;
+  invitationLink: string;
+  expiresIn?: string;
+}): Promise<EmailSendResult> {
+  try {
+    const validatedData = organizationInvitationEmailSchema.parse(data);
+
+    return await emailSender.sendOrganizationInvitationEmail(validatedData.email, {
+      email: validatedData.email,
+      organizationName: validatedData.organizationName,
+      inviterName: validatedData.inviterName,
+      invitationLink: validatedData.invitationLink,
+      expiresIn: validatedData.expiresIn || '7 days',
+    });
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send organization invitation email',
     };
   }
 }
