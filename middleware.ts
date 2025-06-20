@@ -1,35 +1,50 @@
-// middleware.ts (in your project root)
+// middleware.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { getSessionCookie } from "better-auth/cookies"
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   
-  // Get session using Better Auth's helper
   const session = await getSessionCookie(request)
+  // console.log('Session:', session)
+  // console.log('Pathname:', pathname)
   
+  // Handle root path
   if (pathname === '/') {
-    if (!session) {
-      // User is not logged in, redirect to login
-      return NextResponse.redirect(new URL('/login', request.url))
-    } else {
-      // User is logged in, redirect to admin
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
+    return session 
+      ? NextResponse.redirect(new URL('/dashboard', request.url))
+      : NextResponse.redirect(new URL('/login', request.url))
   }
   
-  // If user is logged in and trying to access login page, redirect to admin
+  // If user is logged in and trying to access login, redirect to dashboard
   if (pathname === '/login' && session) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
   
-  // For all other paths, continue normally
+  // Allow public routes (auth API, login page, and static assets)
+  if (
+    pathname.startsWith('/api/auth') || 
+    pathname === '/login' ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/images/') ||
+    pathname.startsWith('/icons/') ||
+    pathname.startsWith('/static/') ||
+    pathname.includes('.') // This catches files with extensions (images, fonts, etc.)
+  ) {
+    return NextResponse.next()
+  }
+  
+  // Everything else requires authentication
+  if (!session) {
+    // console.log(`Blocking access to protected route: ${pathname}`)
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+  
   return NextResponse.next()
 }
 
-// Configure which paths the middleware should run on
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
