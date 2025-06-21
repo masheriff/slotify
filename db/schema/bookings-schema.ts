@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum, date } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema";
+import { organizations, users } from "./auth-schema";
 import { appointments } from "./appointments-schema";
 import { technicians } from "./technicians-schema";
 
@@ -29,7 +29,9 @@ export const procedureStatusEnum = pgEnum("procedure_status", [
 // Bookings table - Procedure execution phase
 export const bookings = pgTable("bookings", {
   id: text("id").primaryKey(),
-  
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   // Link to appointment
   appointmentId: text("appointment_id")
     .notNull()
@@ -107,6 +109,7 @@ export const bookings = pgTable("bookings", {
     .notNull()
     .references(() => users.id),
 },(table) => [
+  index("bookings_organization_id_idx").on(table.organizationId),
   index("bookings_appointment_id_idx").on(table.appointmentId),
   index("bookings_primary_technician_id_idx").on(table.primaryTechnicianId),
   index("bookings_assisting_technician_id_idx").on(table.assistingTechnicianId),

@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum, date } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema";
+import { organizations, users } from "./auth-schema";
 import { patients } from "./patients-schema";
 import { referringDoctors } from "./referring-doctors-schema";
 import { referringEntities } from "./referring-entity-location-schema";
@@ -26,7 +26,9 @@ export const appointmentPriorityEnum = pgEnum("appointment_priority", [
 // Appointments table - Initial request/scheduling phase
 export const appointments = pgTable("appointments", {
   id: text("id").primaryKey(),
-  
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   // Patient and referral information
   patientId: text("patient_id")
     .notNull()
@@ -85,6 +87,7 @@ export const appointments = pgTable("appointments", {
     .references(() => users.id),
 }, (table) => [
     index("appointments_patient_id_idx").on(table.patientId),
+    index("appointments_organization_id_idx").on(table.organizationId),
     index("appointments_referring_doctor_id_idx").on(table.referringDoctorId),
     index("appointments_referring_entity_id_idx").on(table.referringEntityId),
     index("appointments_procedure_location_id_idx").on(table.procedureLocationId),

@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema";
+import { organizations, users } from "./auth-schema";
 import { bookings } from "./bookings-schema";
 import { interpretingDoctors } from "./interpreting-doctors-schema";
 import { ta } from "zod/v4/locales";
@@ -39,7 +39,9 @@ export const reportStatusEnum = pgEnum("report_status", [
 // Interpretations table - Reading/analysis phase
 export const interpretations = pgTable("interpretations", {
   id: text("id").primaryKey(),
-  
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   // Link to booking
   bookingId: text("booking_id")
     .notNull()
@@ -132,6 +134,7 @@ export const interpretations = pgTable("interpretations", {
     .references(() => users.id),
 }, (table) => [
   //indexes for performance
+  index("interpretations_organization_id_idx").on(table.organizationId),
   index("interpretations_booking_id_idx").on(table.bookingId),
   index("interpretations_interpreting_doctor_id_idx").on(table.interpretingDoctorId),
   index("interpretations_reviewing_doctor_id_idx").on(table.reviewingDoctorId),

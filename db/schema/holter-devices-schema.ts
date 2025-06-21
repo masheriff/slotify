@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum, date } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema"; // Import users table for foreign key references
+import { organizations, users } from "./auth-schema"; // Import users table for foreign key references
 import { patients } from "./patients-schema"; // Import patients table
 import { table } from "console";
 
@@ -29,6 +29,9 @@ export const holterTypeEnum = pgEnum("holter_type", [
 // Holter Devices inventory table
 export const holterDevices = pgTable("holter_devices", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   serialNumber: text("serial_number").notNull().unique(),
   manufacturer: text("manufacturer").notNull(), // e.g., "Philips", "GE", "Spacelabs"
   model: text("model").notNull(), // e.g., "DigiTrak XT", "SEER 1000"
@@ -74,6 +77,7 @@ export const holterDevices = pgTable("holter_devices", {
     .references(() => users.id),
 }, (table) => [
   // Indexes for performance
+  index("holter_devices_organization_id_idx").on(table.organizationId),
   index("holter_devices_serial_idx").on(table.serialNumber),
   index("holter_devices_status_idx").on(table.status),
   index("holter_devices_current_patient_idx").on(table.currentPatientId),

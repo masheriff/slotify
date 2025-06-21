@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema"; // Import users table for foreign key references
+import { organizations, users } from "./auth-schema"; // Import users table for foreign key references
 import { table } from "console";
 
 // Enums for better type safety and data consistency
@@ -37,6 +37,9 @@ export const departmentTypeEnum = pgEnum("department_type", [
 // Referring Entity (Hospital, Clinic, Healthcare Organization, etc.)
 export const referringEntities = pgTable("referring_entities", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   name: text("name").notNull(),
   type: entityTypeEnum("type").notNull(),
   phone: text("phone"),
@@ -77,6 +80,9 @@ export const referringEntities = pgTable("referring_entities", {
 // Referring Location (Physical locations/branches of referring entities)
 export const referringLocations = pgTable("referring_locations", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   referringEntityId: text("referring_entity_id")
     .notNull()
     .references(() => referringEntities.id, { onDelete: "cascade" }),
@@ -110,6 +116,7 @@ export const referringLocations = pgTable("referring_locations", {
     .references(() => users.id),
 }, (table) => [
   // Indexes for better performance
+  index("referring_locations_organization_id_idx").on(table.organizationId),
   index("referring_locations_entity_id_idx").on(table.referringEntityId),
   index("referring_locations_name_idx").on(table.name),
   index("referring_locations_city_state_idx").on(table.city, table.state),

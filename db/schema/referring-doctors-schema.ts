@@ -1,9 +1,12 @@
 import { pgTable, text, timestamp, index, boolean } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema"; // Import users table for foreign key references
+import { organizations, users } from "./auth-schema"; // Import users table for foreign key references
 
 // Master table for medical specialties
 export const specialties = pgTable("specialties", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   name: text("name").notNull().unique(),
   description: text("description"),
   isActive: boolean("is_active").default(true).notNull(),
@@ -23,6 +26,7 @@ export const specialties = pgTable("specialties", {
     .references(() => users.id),
 }, (table) => [
   // indexes for better performance
+  index("specialties_organization_id_idx").on(table.organizationId),
   index("specialties_name_idx").on(table.name),
   index("specialties_is_active_idx").on(table.isActive),
   index("specialties_deleted_at_idx").on(table.deletedAt),
@@ -32,6 +36,9 @@ export const specialties = pgTable("specialties", {
 
 export const referringDoctors = pgTable("referring_doctors", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+    .notNull()
+    .references(() => organizations.id),
   firstName: text("first_name").notNull(),
   middleName: text("middle_name"),
   lastName: text("last_name").notNull(),
@@ -60,6 +67,7 @@ export const referringDoctors = pgTable("referring_doctors", {
     .references(() => users.id),
 }, (table) => [
   // Indexes for better performance
+  index("referring_doctors_organization_id_idx").on(table.organizationId),  
   index("referring_doctors_email_idx").on(table.email),
   index("referring_doctors_phone_idx").on(table.phone),
   index("referring_doctors_name_idx").on(table.firstName, table.lastName),

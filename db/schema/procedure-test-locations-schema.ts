@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum, jsonb } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema"; // Import users table for foreign key references
+import { organizations, users } from "./auth-schema"; // Import users table for foreign key references
 
 // Enums for procedure/test location types
 export const procedureLocationTypeEnum = pgEnum("procedure_location_type", [
@@ -60,6 +60,9 @@ export const facilitySpecialtyEnum = pgEnum("facility_specialty", [
 // Master table for procedure/test locations
 export const procedureTestLocations = pgTable("procedure_test_locations", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   name: text("name").notNull(),
   type: procedureLocationTypeEnum("type").notNull(),
   category: procedureCategoryEnum("category"),
@@ -116,6 +119,7 @@ export const procedureTestLocations = pgTable("procedure_test_locations", {
     .references(() => users.id),
 }, (table) => [
   // Indexes for better performance
+  index("procedure_test_locations_organization_id_idx").on(table.organizationId),
   index("procedure_test_locations_name_idx").on(table.name),
   index("procedure_test_locations_type_idx").on(table.type),
   index("procedure_test_locations_category_idx").on(table.category),

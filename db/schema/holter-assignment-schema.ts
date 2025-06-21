@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum, date, integer } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema";
+import { organizations, users } from "./auth-schema";
 import { bookings } from "./bookings-schema";
 import { holterDevices } from "./holter-devices-schema";
 import { patients } from "./patients-schema";
@@ -29,7 +29,9 @@ export const contactMethodEnum = pgEnum("contact_method", [
 // Holter Assignments table - Device tracking & patient follow-up
 export const holterAssignments = pgTable("holter_assignments", {
   id: text("id").primaryKey(),
-  
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   // Links
   bookingId: text("booking_id")
     .notNull()
@@ -112,6 +114,8 @@ export const holterAssignments = pgTable("holter_assignments", {
     .notNull()
     .references(() => users.id),
 }, (table) => [
+  // Indexes for performance
+  index("holter_assignments_organization_id_idx").on(table.organizationId),
   index("holter_assignments_booking_id_idx").on(table.bookingId),
   index("holter_assignments_device_id_idx").on(table.deviceId),
   index("holter_assignments_patient_id_idx").on(table.patientId),

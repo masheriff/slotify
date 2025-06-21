@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema"; // Import users table for foreign key references
+import { organizations, users } from "./auth-schema"; // Import users table for foreign key references
 import { facilitySpecialtyEnum } from "./procedure-test-locations-schema"; // Import specialty enum
 import { ta } from "zod/v4/locales";
 
@@ -25,6 +25,9 @@ export const employmentStatusEnum = pgEnum("employment_status", [
 // Technicians table
 export const technicians = pgTable("technicians", {
   id: text("id").primaryKey(),
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   firstName: text("first_name").notNull(),
   middleName: text("middle_name"),
   lastName: text("last_name").notNull(),
@@ -66,6 +69,7 @@ export const technicians = pgTable("technicians", {
     .references(() => users.id),
 }, (table) => [
   // Indexes for better performance
+  index("technicians_organization_id_idx").on(table.organizationId),
   index("technicians_email_idx").on(table.email),
   index("technicians_phone_idx").on(table.phone),
   index("technicians_name_idx").on(table.firstName, table.lastName),

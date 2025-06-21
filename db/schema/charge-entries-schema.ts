@@ -1,5 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum, decimal, date } from "drizzle-orm/pg-core";
-import { users } from "./auth-schema";
+import { organizations, users } from "./auth-schema";
 import { interpretations } from "./interpretations-schema";
 import { bookings } from "./bookings-schema";
 import { patients } from "./patients-schema";
@@ -58,7 +58,9 @@ export const paymentMethodEnum = pgEnum("payment_method", [
 // Charge Entries table - Billing and revenue cycle management
 export const chargeEntries = pgTable("charge_entries", {
   id: text("id").primaryKey(),
-  
+  organizationId: text("organization_id")
+  .notNull()
+  .references(() => organizations.id),
   // Links to procedures
   interpretationId: text("interpretation_id")
     .references(() => interpretations.id),
@@ -172,6 +174,7 @@ export const chargeEntries = pgTable("charge_entries", {
     .references(() => users.id),
 }, (table) => [
   // Indexes for performance
+  index("charge_entries_organization_id_idx").on(table.organizationId),
   index("charge_entries_interpretation_id_idx").on(table.interpretationId),
   index("charge_entries_booking_id_idx").on(table.bookingId),
   index("charge_entries_patient_id_idx").on(table.patientId),
