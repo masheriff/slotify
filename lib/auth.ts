@@ -17,7 +17,7 @@ import {
   verifications,
 } from "@/db/schema";
 import { nextCookies } from "better-auth/next-js";
-import { ac, clientRoles } from "./permissions/healthcare-access-control";
+import { ac, clientRoles, healthcareRoles } from "./permissions/healthcare-access-control";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -39,7 +39,7 @@ export const auth = betterAuth({
     }),
     organization({
       ac: ac,
-      roles: clientRoles,
+      roles: healthcareRoles,
       sendInvitationEmail: async (data) => {
         const { email, organization, invitation, inviter } = data;
         const baseUrl =

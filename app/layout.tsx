@@ -4,6 +4,7 @@ import "./globals.css";
 import { GlobalLoadingIndicator } from "@/components/ui/global-loading";
 import NextTopLoader from "nextjs-toploader";
 import { Toaster } from "@/components/ui/sonner"
+import { initializeJobs } from '@/lib/startup/jobs';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,6 +26,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  if (typeof window === 'undefined') { // Server-side only
+  initializeJobs();
+}
   return (
     <html lang="en">
       <body
