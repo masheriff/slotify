@@ -67,6 +67,9 @@ export const HEALTHCARE_RESOURCES = {
   REFERRING_DOCTOR: 'referring_doctor',
   REFERRING_ENTITY: 'referring_entity',
   PROCEDURE_LOCATION: 'procedure_location',
+  
+  // Audit and compliance
+  AUDIT_LOGS: 'audit_logs',
 } as const;
 
 export const HEALTHCARE_ACTIONS = {
@@ -100,23 +103,29 @@ export const HEALTHCARE_ACTIONS = {
   // Reporting actions
   GENERATE_REPORTS: 'generate_reports',
   VIEW_ANALYTICS: 'view_analytics',
+  
+  // Audit actions
+  VIEW_AUDIT_LOGS: 'view_audit_logs',
+  EXPORT_AUDIT_LOGS: 'export_audit_logs',
 } as const;
 
 // Healthcare-specific roles based on your schemas
 export const HEALTHCARE_ROLES = {
   // 5AM Corp admin organization roles (service provider)
   SYSTEM_ADMIN: 'system_admin',
+  FIVE_AM_ADMIN: 'five_am_admin',              // 5AM Corp admin (not super admin)
+  FIVE_AM_AGENT: 'five_am_agent',              // 5AM Corp agent with limited client access
   BILLING_MANAGER: 'billing_manager',
   COMPLIANCE_OFFICER: 'compliance_officer',
-  CLIENT_SUCCESS_MANAGER: 'client_success_manager', // Helps Hart Medical Center optimize workflows
+  CLIENT_SUCCESS_MANAGER: 'client_success_manager',
   
-  // Hart Medical Center client organization roles (healthcare facility)
-  FACILITY_ADMIN: 'facility_admin',        // Hart Medical Center administrator
-  TECHNICIAN: 'technician',                // Hart Medical Center technicians
-  LEAD_TECHNICIAN: 'lead_technician',      // Senior Hart Medical Center technicians
-  INTERPRETING_DOCTOR: 'interpreting_doctor', // Cardiologists/radiologists (may serve multiple facilities)
-  SCHEDULER: 'scheduler',                  // Hart Medical Center scheduling staff
-  FRONT_DESK: 'front_desk',               // Hart Medical Center reception staff
+  // Client organization roles (healthcare facilities)
+  CLIENT_ADMIN: 'client_admin',                // Client org admin (different from 5AM admin)
+  TECHNICIAN: 'technician',                    // Healthcare technicians
+  LEAD_TECHNICIAN: 'lead_technician',          // Senior healthcare technicians
+  INTERPRETING_DOCTOR: 'interpreting_doctor',  // Cardiologists/radiologists
+  SCHEDULER: 'scheduler',                      // Scheduling staff
+  FRONT_DESK: 'front_desk',                   // Reception staff
   
   // Default role
   MEMBER: 'member',
