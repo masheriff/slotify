@@ -110,18 +110,6 @@ CREATE TABLE "invitations" (
 	"updated_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "member_extensions" (
-	"id" text PRIMARY KEY NOT NULL,
-	"member_id" text NOT NULL,
-	"agent_assigned_orgs" jsonb DEFAULT '[]'::jsonb NOT NULL,
-	"assigned_location_ids" jsonb DEFAULT '[]'::jsonb NOT NULL,
-	"role_metadata" jsonb DEFAULT '{}'::jsonb NOT NULL,
-	"status" "member_status" DEFAULT 'active' NOT NULL,
-	"created_at" timestamp NOT NULL,
-	"updated_at" timestamp NOT NULL,
-	CONSTRAINT "member_extensions_member_id_unique" UNIQUE("member_id")
-);
---> statement-breakpoint
 CREATE TABLE "members" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
@@ -457,6 +445,53 @@ CREATE TABLE "interpreting_doctors" (
 	"updated_by" text NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "agent_organization_assignments" (
+	"id" text PRIMARY KEY NOT NULL,
+	"agent_user_id" text NOT NULL,
+	"agent_organization_id" text NOT NULL,
+	"client_organization_id" text NOT NULL,
+	"access_level" text DEFAULT 'standard' NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"assigned_at" timestamp NOT NULL,
+	"expires_at" timestamp,
+	"created_at" timestamp NOT NULL,
+	"updated_at" timestamp NOT NULL,
+	"created_by" text NOT NULL,
+	"updated_by" text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "front_desk_location_assignments" (
+	"id" text PRIMARY KEY NOT NULL,
+	"front_desk_user_id" text NOT NULL,
+	"organization_id" text NOT NULL,
+	"procedure_location_id" text NOT NULL,
+	"can_manage_bookings" boolean DEFAULT true NOT NULL,
+	"can_view_all_bookings" boolean DEFAULT true NOT NULL,
+	"can_assign_technicians" boolean DEFAULT true NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"assigned_at" timestamp NOT NULL,
+	"created_at" timestamp NOT NULL,
+	"updated_at" timestamp NOT NULL,
+	"created_by" text NOT NULL,
+	"updated_by" text NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "member_extensions" (
+	"id" text PRIMARY KEY NOT NULL,
+	"member_id" text NOT NULL,
+	"user_id" text NOT NULL,
+	"organization_id" text NOT NULL,
+	"assigned_organizations" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"assigned_location_ids" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"availability_settings" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"role_specific_data" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp NOT NULL,
+	"updated_at" timestamp NOT NULL,
+	"created_by" text NOT NULL,
+	"updated_by" text NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "patients" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
@@ -643,7 +678,6 @@ ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_user_id_users_id_fk" FOREIGN
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitations" ADD CONSTRAINT "invitations_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitations" ADD CONSTRAINT "invitations_inviter_id_users_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "member_extensions" ADD CONSTRAINT "member_extensions_member_id_members_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."members"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "members" ADD CONSTRAINT "members_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "members" ADD CONSTRAINT "members_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sessions" ADD CONSTRAINT "sessions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -696,6 +730,20 @@ ALTER TABLE "interpreting_doctors" ADD CONSTRAINT "interpreting_doctors_organiza
 ALTER TABLE "interpreting_doctors" ADD CONSTRAINT "interpreting_doctors_deleted_by_users_id_fk" FOREIGN KEY ("deleted_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "interpreting_doctors" ADD CONSTRAINT "interpreting_doctors_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "interpreting_doctors" ADD CONSTRAINT "interpreting_doctors_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_organization_assignments" ADD CONSTRAINT "agent_organization_assignments_agent_user_id_users_id_fk" FOREIGN KEY ("agent_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_organization_assignments" ADD CONSTRAINT "agent_organization_assignments_agent_organization_id_organization_id_fk" FOREIGN KEY ("agent_organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_organization_assignments" ADD CONSTRAINT "agent_organization_assignments_client_organization_id_organization_id_fk" FOREIGN KEY ("client_organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_organization_assignments" ADD CONSTRAINT "agent_organization_assignments_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "agent_organization_assignments" ADD CONSTRAINT "agent_organization_assignments_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "front_desk_location_assignments" ADD CONSTRAINT "front_desk_location_assignments_front_desk_user_id_users_id_fk" FOREIGN KEY ("front_desk_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "front_desk_location_assignments" ADD CONSTRAINT "front_desk_location_assignments_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "front_desk_location_assignments" ADD CONSTRAINT "front_desk_location_assignments_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "front_desk_location_assignments" ADD CONSTRAINT "front_desk_location_assignments_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member_extensions" ADD CONSTRAINT "member_extensions_member_id_members_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."members"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member_extensions" ADD CONSTRAINT "member_extensions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member_extensions" ADD CONSTRAINT "member_extensions_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member_extensions" ADD CONSTRAINT "member_extensions_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "member_extensions" ADD CONSTRAINT "member_extensions_updated_by_users_id_fk" FOREIGN KEY ("updated_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "patients" ADD CONSTRAINT "patients_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "patients" ADD CONSTRAINT "patients_deleted_by_users_id_fk" FOREIGN KEY ("deleted_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "patients" ADD CONSTRAINT "patients_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -755,10 +803,6 @@ CREATE INDEX "invitations_email_idx" ON "invitations" USING btree ("email");--> 
 CREATE INDEX "invitations_org_id_idx" ON "invitations" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "invitations_status_idx" ON "invitations" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "invitations_expires_at_idx" ON "invitations" USING btree ("expires_at");--> statement-breakpoint
-CREATE INDEX "member_ext_member_id_idx" ON "member_extensions" USING btree ("member_id");--> statement-breakpoint
-CREATE INDEX "member_ext_agent_orgs_idx" ON "member_extensions" USING gin ("agent_assigned_orgs");--> statement-breakpoint
-CREATE INDEX "member_ext_assigned_locations_idx" ON "member_extensions" USING gin ("assigned_location_ids");--> statement-breakpoint
-CREATE INDEX "member_ext_status_idx" ON "member_extensions" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "members_user_id_idx" ON "members" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "members_org_id_idx" ON "members" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "members_role_idx" ON "members" USING btree ("role");--> statement-breakpoint
@@ -856,6 +900,22 @@ CREATE INDEX "interpreting_doctors_is_active_idx" ON "interpreting_doctors" USIN
 CREATE INDEX "interpreting_doctors_deleted_at_idx" ON "interpreting_doctors" USING btree ("deleted_at");--> statement-breakpoint
 CREATE INDEX "interpreting_doctors_created_by_idx" ON "interpreting_doctors" USING btree ("created_by");--> statement-breakpoint
 CREATE INDEX "interpreting_doctors_updated_by_idx" ON "interpreting_doctors" USING btree ("updated_by");--> statement-breakpoint
+CREATE INDEX "agent_assignments_agent_user_idx" ON "agent_organization_assignments" USING btree ("agent_user_id");--> statement-breakpoint
+CREATE INDEX "agent_assignments_agent_org_idx" ON "agent_organization_assignments" USING btree ("agent_organization_id");--> statement-breakpoint
+CREATE INDEX "agent_assignments_client_org_idx" ON "agent_organization_assignments" USING btree ("client_organization_id");--> statement-breakpoint
+CREATE INDEX "agent_assignments_is_active_idx" ON "agent_organization_assignments" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX "agent_assignments_assigned_at_idx" ON "agent_organization_assignments" USING btree ("assigned_at");--> statement-breakpoint
+CREATE INDEX "agent_assignments_expires_at_idx" ON "agent_organization_assignments" USING btree ("expires_at");--> statement-breakpoint
+CREATE INDEX "front_desk_assignments_user_idx" ON "front_desk_location_assignments" USING btree ("front_desk_user_id");--> statement-breakpoint
+CREATE INDEX "front_desk_assignments_org_idx" ON "front_desk_location_assignments" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "front_desk_assignments_location_idx" ON "front_desk_location_assignments" USING btree ("procedure_location_id");--> statement-breakpoint
+CREATE INDEX "front_desk_assignments_is_active_idx" ON "front_desk_location_assignments" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX "member_extensions_member_id_idx" ON "member_extensions" USING btree ("member_id");--> statement-breakpoint
+CREATE INDEX "member_extensions_user_id_idx" ON "member_extensions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "member_extensions_organization_id_idx" ON "member_extensions" USING btree ("organization_id");--> statement-breakpoint
+CREATE INDEX "member_extensions_is_active_idx" ON "member_extensions" USING btree ("is_active");--> statement-breakpoint
+CREATE INDEX "member_extensions_created_by_idx" ON "member_extensions" USING btree ("created_by");--> statement-breakpoint
+CREATE INDEX "member_extensions_updated_by_idx" ON "member_extensions" USING btree ("updated_by");--> statement-breakpoint
 CREATE INDEX "patients_organization_id_idx" ON "patients" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "patients_email_idx" ON "patients" USING btree ("email");--> statement-breakpoint
 CREATE INDEX "patients_phone_idx" ON "patients" USING btree ("phone");--> statement-breakpoint

@@ -193,41 +193,6 @@ export const members = pgTable(
   ]
 );
 
-// Member extensions for healthcare-specific functionality
-export const memberExtensions = pgTable(
-  "member_extensions",
-  {
-    id: text("id").primaryKey(),
-    memberId: text("member_id")
-      .notNull()
-      .references(() => members.id, { onDelete: "cascade" })
-      .unique(), // One-to-one relationship
-    
-    // Agent-specific assignments
-    agentAssignedOrgs: jsonb("agent_assigned_orgs").default([]).notNull(),
-    assignedLocationIds: jsonb("assigned_location_ids").default([]).notNull(),
-    
-    // Additional role-specific metadata
-    roleMetadata: jsonb("role_metadata").default({}).notNull(),
-    
-    // Status tracking
-    status: memberStatusEnum("status").default("active").notNull(),
-    
-    // Audit fields
-    createdAt: timestamp("created_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-    updatedAt: timestamp("updated_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-  },
-  (table) => [
-    index("member_ext_member_id_idx").on(table.memberId),
-    index("member_ext_agent_orgs_idx").using("gin", table.agentAssignedOrgs),
-    index("member_ext_assigned_locations_idx").using("gin", table.assignedLocationIds),
-    index("member_ext_status_idx").on(table.status),
-  ]
-);
 
 export const invitations = pgTable(
   "invitations",

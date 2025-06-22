@@ -6,6 +6,7 @@ export * from "./holter-assignment-schema";
 export * from "./holter-devices-schema";
 export * from "./interpretations-schema";
 export * from "./interpreting-doctors-schema";
+export * from "./member-extensions-schema";
 export * from "./patients-schema";
 export * from "./procedure-test-locations-schema";
 export * from "./referring-doctors-schema";

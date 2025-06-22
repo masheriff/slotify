@@ -1,43 +1,64 @@
-// scripts/run-seed.ts
-import { seedOrganizations, cleanupSeedData } from './seed-organizations';
+// scripts/run-enhanced-seed.ts
+import { seedOrganizations, cleanupSeedData, resetSeedData } from './seed-organizations';
+import { checkDatabaseConnection } from '@/db';
 
 /**
- * Command line runner for seeding operations
- * 
- * Usage:
- * npm run seed              # Run seeding
- * npm run seed:clean        # Clean up seed data
- * npm run seed:reset        # Clean and re-seed
+ * Enhanced seed runner with better error handling and database checks
  */
 
-const command = process.argv[2];
-
 async function main() {
-  switch (command) {
-    case 'clean':
-      console.log('🧹 Running cleanup...');
-      await cleanupSeedData();
-      break;
-      
-    case 'reset':
-      console.log('🔄 Running reset (clean + seed)...');
-      await cleanupSeedData();
-      await seedOrganizations();
-      break;
-      
-    default:
-      console.log('🌱 Running seed...');
-      await seedOrganizations();
-      break;
+  const command = process.argv[2] || 'seed';
+  
+  console.log(`🚀 Running enhanced seed script with command: ${command}`);
+  
+  try {
+    // Check database connection first
+    console.log('🔍 Checking database connection...');
+    const isConnected = await checkDatabaseConnection();
+    
+    if (!isConnected) {
+      throw new Error('Cannot connect to database. Please check your database configuration.');
+    }
+    
+    console.log('✅ Database connection successful');
+    
+    // Execute based on command
+    switch (command.toLowerCase()) {
+      case 'clean':
+      case 'cleanup':
+        console.log('🧹 Starting cleanup operation...');
+        await cleanupSeedData();
+        console.log('✅ Cleanup operation completed');
+        break;
+        
+      case 'reset':
+        console.log('🔄 Starting reset operation...');
+        await resetSeedData();
+        console.log('✅ Reset operation completed');
+        break;
+        
+      case 'seed':
+      default:
+        console.log('🌱 Starting seed operation...');
+        await seedOrganizations();
+        console.log('✅ Seed operation completed');
+        break;
+    }
+    
+  } catch (error) {
+    console.error('💥 Operation failed:', error);
+    
+    // More detailed error information
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      if (error.stack) {
+        console.error('Stack trace:', error.stack);
+      }
+    }
+    
+    process.exit(1);
   }
 }
 
-main()
-  .then(() => {
-    console.log('✅ Operation completed successfully');
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error('❌ Operation failed:', error);
-    process.exit(1);
-  });
+// Run the script
+main();
