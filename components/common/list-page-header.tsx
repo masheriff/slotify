@@ -4,7 +4,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Plus } from "lucide-react";
+import { Search, Filter, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -22,7 +22,6 @@ interface ListPageHeaderProps {
   onCreateClick?: () => void;
   createButtonText?: string;
   filterComponent?: React.ReactNode;
-  totalCount?: number;
   breadcrumbItems?: Array<{
     title: string;
     href?: string;
@@ -30,6 +29,7 @@ interface ListPageHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   activeFiltersCount?: number;
+  onRefresh?: () => void;
 }
 
 export function ListPageHeader({
@@ -38,11 +38,11 @@ export function ListPageHeader({
   onCreateClick,
   createButtonText = "Create",
   filterComponent,
-  totalCount,
   breadcrumbItems = [],
   searchQuery,
   onSearchChange,
   activeFiltersCount = 0,
+  onRefresh,
 }: ListPageHeaderProps) {
   const [searchValue, setSearchValue] = useState(searchQuery);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
@@ -94,58 +94,64 @@ export function ListPageHeader({
               {breadcrumbItems.map((item, index) => (
                 <BreadcrumbItem key={index} className="hidden md:block">
                   {item.href ? (
-                    <BreadcrumbLink href={item.href}>
-                      {item.title}
-                    </BreadcrumbLink>
+                    <BreadcrumbLink href={item.href}>{item.title}</BreadcrumbLink>
                   ) : (
                     <BreadcrumbPage>{item.title}</BreadcrumbPage>
                   )}
                 </BreadcrumbItem>
               ))}
-              <BreadcrumbSeparator className="hidden md:block" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{title}</BreadcrumbPage>
-              </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
         </div>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-3">
           {/* Search */}
-          <div className="relative flex-1 sm:w-64">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={searchPlaceholder}
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
-              className="pl-10"
+              className="pl-8 w-[300px]"
             />
           </div>
 
-          {/* Filters Button */}
+          {/* Filter button */}
           {filterComponent && (
-            <div className="relative">
-              {filterComponent}
+            <Button variant="outline" size="sm">
+              <Filter className="h-4 w-4 mr-2" />
+              Filter
               {activeFiltersCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -right-1 -top-1 h-5 w-5 rounded-full p-0 text-xs"
-                >
+                <Badge variant="secondary" className="ml-2">
                   {activeFiltersCount}
                 </Badge>
               )}
-            </div>
+            </Button>
           )}
 
-          {/* Create Button */}
+          {/* Refresh button */}
+          {onRefresh && (
+            <Button variant="outline" size="sm" onClick={onRefresh}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
+
+          {/* Create button */}
           {onCreateClick && (
-            <Button onClick={onCreateClick} className="shrink-0">
-              <Plus className="mr-2 h-4 w-4" />
+            <Button onClick={onCreateClick} size="sm">
+              <Plus className="h-4 w-4 mr-2" />
               {createButtonText}
             </Button>
           )}
         </div>
       </div>
+
+      {/* Filter panel (you can add state management for showing/hiding) */}
+      {filterComponent && (
+        <div className="hidden">
+          {filterComponent}
+        </div>
+      )}
     </div>
   );
 }
