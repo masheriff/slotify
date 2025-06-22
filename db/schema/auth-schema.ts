@@ -7,7 +7,6 @@ import {
   index,
   unique,
   pgEnum,
-  uniqueIndex,
   integer,
 } from "drizzle-orm/pg-core";
 
@@ -36,7 +35,7 @@ export const actionTypeEnum = pgEnum("action_type", [
   "LOGOUT",
 ]);
 
-// Better Auth default tables (keeping them unchanged for compatibility)
+// Better Auth core tables (kept minimal for compatibility)
 export const users = pgTable(
   "users",
   {
@@ -130,7 +129,7 @@ export const verifications = pgTable(
   ]
 );
 
-// Enhanced organizations table with healthcare-specific fields
+// Organizations table with metadata for custom fields
 export const organizations = pgTable(
   "organization",
   {
@@ -139,26 +138,27 @@ export const organizations = pgTable(
     slug: text("slug").unique(),
     logo: text("logo"),
     createdAt: timestamp("created_at").notNull(),
-    metadata: text("metadata"),
-
-    // Enhanced fields for healthcare organizations
-    type: organizationTypeEnum("type").notNull().default("client"),
-    contactEmail: text("contact_email"),
-    contactPhone: text("contact_phone"),
-    addressLine1: text("address_line1"),
-    addressLine2: text("address_line2"),
-    city: text("city"),
-    state: text("state"),
-    postalCode: text("postal_code"),
-    country: text("country"),
-    timezone: text("timezone").default("UTC"),
-    isActive: boolean("is_active").default(true).notNull(),
-    settings: jsonb("settings").default({}),
-
-    // HIPAA compliance fields
-    hipaaOfficer: text("hipaa_officer"), // Privacy Officer contact
-    businessAssociateAgreement: boolean("baa_signed").default(false),
-    dataRetentionYears: text("data_retention_years").default("7"),
+    
+    // All custom fields moved to metadata as JSON
+    metadata: jsonb("metadata").default({}).notNull(),
+    // metadata will contain:
+    // {
+    //   type: "admin" | "client",
+    //   contactEmail: string,
+    //   contactPhone: string,
+    //   addressLine1: string,
+    //   addressLine2: string,
+    //   city: string,
+    //   state: string,
+    //   postalCode: string,
+    //   country: string,
+    //   timezone: string,
+    //   isActive: boolean,
+    //   settings: object,
+    //   hipaaOfficer: string,
+    //   businessAssociateAgreement: boolean,
+    //   dataRetentionYears: string
+    // }
 
     updatedAt: timestamp("updated_at")
       .$defaultFn(() => new Date())
@@ -166,54 +166,12 @@ export const organizations = pgTable(
   },
   (table) => [
     index("org_slug_idx").on(table.slug),
-    index("org_type_idx").on(table.type),
-    index("org_is_active_idx").on(table.isActive),
+    // Index on metadata fields for performance
+    index("org_metadata_type_idx").using("gin", table.metadata),
   ]
 );
 
-// New RBAC tables - Define roles first since it's referenced by members
-export const roles = pgTable(
-  "roles",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organizations.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    description: text("description"),
-    isSystemRole: boolean("is_system_role").default(false).notNull(),
-    permissions: jsonb("permissions").notNull().default([]),
-    createdAt: timestamp("created_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-    updatedAt: timestamp("updated_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-  },
-  (table) => [
-    unique("role_org_name_unique").on(table.organizationId, table.name),
-    index("roles_org_id_idx").on(table.organizationId),
-  ]
-);
-
-export const permissions = pgTable(
-  "permissions",
-  {
-    id: text("id").primaryKey(),
-    name: text("name").unique().notNull(),
-    description: text("description"),
-    category: text("category"),
-    createdAt: timestamp("created_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-  },
-  (table) => [
-    index("permissions_name_idx").on(table.name),
-    index("permissions_category_idx").on(table.category),
-  ]
-);
-
-// Enhanced members table with role references
+// Minimal members table for Better Auth compatibility
 export const members = pgTable(
   "members",
   {
@@ -225,28 +183,49 @@ export const members = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     role: text("role").default("member").notNull(),
-    agentAssignedOrgs: jsonb("agent_assigned_orgs").default([]),
-    assignedLocationIds: jsonb("assigned_location_ids").default([]),
     createdAt: timestamp("created_at").notNull(),
+  },
+  (table) => [
+    unique("user_org_unique").on(table.userId, table.organizationId),
+    index("members_user_id_idx").on(table.userId),
+    index("members_org_id_idx").on(table.organizationId),
+    index("members_role_idx").on(table.role),
+  ]
+);
 
-    // Enhanced fields
+// Member extensions for healthcare-specific functionality
+export const memberExtensions = pgTable(
+  "member_extensions",
+  {
+    id: text("id").primaryKey(),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" })
+      .unique(), // One-to-one relationship
+    
+    // Agent-specific assignments
+    agentAssignedOrgs: jsonb("agent_assigned_orgs").default([]).notNull(),
+    assignedLocationIds: jsonb("assigned_location_ids").default([]).notNull(),
+    
+    // Additional role-specific metadata
+    roleMetadata: jsonb("role_metadata").default({}).notNull(),
+    
+    // Status tracking
     status: memberStatusEnum("status").default("active").notNull(),
-    roleId: text("role_id").references(() => roles.id),
-    invitedBy: text("invited_by").references(() => users.id),
-    invitedAt: timestamp("invited_at"),
-    joinedAt: timestamp("joined_at").$defaultFn(() => new Date()),
+    
+    // Audit fields
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
     updatedAt: timestamp("updated_at")
       .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [
-    unique("user_org_unique").on(table.userId, table.organizationId),
-    index("members_agent_assigned_orgs_idx").on(table.agentAssignedOrgs),
-    index("members_assigned_locations_idx").on(table.assignedLocationIds),
-    index("members_user_id_idx").on(table.userId),
-    index("members_org_id_idx").on(table.organizationId),
-    index("members_status_idx").on(table.status),
-    index("members_role_id_idx").on(table.roleId),
+    index("member_ext_member_id_idx").on(table.memberId),
+    index("member_ext_agent_orgs_idx").using("gin", table.agentAssignedOrgs),
+    index("member_ext_assigned_locations_idx").using("gin", table.assignedLocationIds),
+    index("member_ext_status_idx").on(table.status),
   ]
 );
 
@@ -264,9 +243,6 @@ export const invitations = pgTable(
     inviterId: text("inviter_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-
-    // Enhanced fields
-    roleId: text("role_id").references(() => roles.id),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),
@@ -306,18 +282,9 @@ export const auditLogs = pgTable(
     index("audit_created_at_idx").on(table.createdAt),
     index("audit_resource_idx").on(table.resourceType, table.resourceId),
     index("audit_action_idx").on(table.action),
-    index("audit_user_action_idx").on(
-      table.userId,
-      table.action,
-      table.createdAt
-    ),
-    index("audit_org_action_idx").on(
-      table.organizationId,
-      table.action,
-      table.createdAt
-    ),
   ]
 );
+
 
 // Add new table to auth-schema.ts
 export const auditCleanupLogs = pgTable("audit_cleanup_logs", {

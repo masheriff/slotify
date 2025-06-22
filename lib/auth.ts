@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth";
 import { magicLink, admin, organization, captcha } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db";
+import { eq } from "drizzle-orm";
 import {
   sendMagicLinkEmail,
   sendOrganizationInvitationEmail,
@@ -17,7 +18,10 @@ import {
   verifications,
 } from "@/db/schema";
 import { nextCookies } from "better-auth/next-js";
-import { ac, clientRoles, healthcareRoles } from "./permissions/healthcare-access-control";
+import {
+  ac,
+  healthcareRoles,
+} from "./permissions/healthcare-access-control";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -35,11 +39,13 @@ export const auth = betterAuth({
   }),
   plugins: [
     admin({
+      // Set default role for admin users
       defaultRole: "super_admin",
     }),
     organization({
       ac: ac,
       roles: healthcareRoles,
+      creatorRole: "super_admin", // Role that can create organizations
       sendInvitationEmail: async (data) => {
         const { email, organization, invitation, inviter } = data;
         const baseUrl =
@@ -67,6 +73,27 @@ export const auth = betterAuth({
           throw error;
         }
       },
+      organizationCreatorRole: "super_admin", // Role that can create organizations
+      // Only super_admins can create organizations
+      allowUserToCreateOrganization: async (user) => {
+        // Example: Check if user is super_admin
+        const foundUsers = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, user.id));
+        const foundUser = foundUsers[0];
+        if (!foundUser) {
+          throw new Error("User not found");
+        }
+        if (foundUser.role !== "super_admin") {
+          throw new Error("Only super_admins can create organizations");
+        }
+        return true;
+      },
+      //does not exist in the organization plugin
+      // allowMemberToLeaveOrganization: async (member) => {
+      //   return member.role !== "super_admin";
+      // },
     }),
     magicLink({
       disableSignUp: true,
@@ -99,6 +126,13 @@ export const auth = betterAuth({
     }),
     nextCookies(),
   ],
+  // Enhanced session management
+  session: {
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
+    updateAge: 60 * 60 * 24, // 1 day
+  },
+  // Security settings
+  trustedOrigins: [process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"],
   rateLimit: {
     enabled: process.env.NODE_ENV === "production", // Enable rate limiting
     max: 10, // Maximum requests per IP per minute
@@ -112,6 +146,7 @@ export const auth = betterAuth({
       },
     },
   },
+  
 });
 
 /**
@@ -123,21 +158,32 @@ async function checkHIPAACompliance(userId: string): Promise<boolean> {
   return true; // Placeholder
 }
 
-async function checkBookingState(bookingId: string, requiredState: string): Promise<boolean> {
+async function checkBookingState(
+  bookingId: string,
+  requiredState: string
+): Promise<boolean> {
   // Implementation would check if booking is in the correct workflow state
   return true; // Placeholder
 }
 
-async function checkInterpretationAssignment(interpretationId: string, userId: string): Promise<boolean> {
+async function checkInterpretationAssignment(
+  interpretationId: string,
+  userId: string
+): Promise<boolean> {
   // Implementation would verify the interpretation is assigned to this doctor
   return true; // Placeholder
 }
 
-async function createDefaultHealthcareFacilitySetup(organizationId: string): Promise<void> {
+async function createDefaultHealthcareFacilitySetup(
+  organizationId: string
+): Promise<void> {
   // Implementation would create default procedure locations, device inventory, etc.
   // This helps new healthcare facilities get started quickly
 }
 
-async function sendHealthcareFacilityWelcomeEmail(organization: any, user: any): Promise<void> {
+async function sendHealthcareFacilityWelcomeEmail(
+  organization: any,
+  user: any
+): Promise<void> {
   // Implementation would send compliance and setup information
 }
