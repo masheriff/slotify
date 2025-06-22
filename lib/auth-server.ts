@@ -20,8 +20,8 @@ export async function requireSuperAdmin() {
   const session = await requireAuth();
   const user = session.user;
   
-  if (!user.role?.includes('super_admin')) {
-    throw new Error('Super admin access required');
+  if (!user.role?.includes('system_admin')) {
+    throw new Error('System admin access required');
   }
   
   return { session, user };
