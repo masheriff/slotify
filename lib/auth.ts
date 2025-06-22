@@ -41,6 +41,7 @@ export const auth = betterAuth({
     admin({
       // Set default role for admin users
       defaultRole: "super_admin",
+      roles: healthcareRoles,
     }),
     organization({
       ac: ac,

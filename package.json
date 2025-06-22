@@ -12,7 +12,10 @@
     "db:pull": "pnpm drizzle-kit pull",
     "db:push": "pnpm drizzle-kit push",
     "db:studio": "pnpm drizzle-kit studio",
-    "db:check": "pnpm drizzle-kit check"
+    "db:check": "pnpm drizzle-kit check",
+    "seed": "tsx scripts/run-seed.ts",
+    "seed:clean": "tsx scripts/run-seed.ts clean",
+    "seed:reset": "tsx scripts/run-seed.ts reset"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
