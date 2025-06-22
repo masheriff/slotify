@@ -40,13 +40,13 @@ export const auth = betterAuth({
   plugins: [
     admin({
       // Set default role for admin users
-      defaultRole: "super_admin",
+      defaultRole: "system_admin",
       roles: healthcareRoles,
     }),
     organization({
       ac: ac,
       roles: healthcareRoles,
-      creatorRole: "super_admin", // Role that can create organizations
+      creatorRole: "system_admin", // Role that can create organizations
       sendInvitationEmail: async (data) => {
         const { email, organization, invitation, inviter } = data;
         const baseUrl =
