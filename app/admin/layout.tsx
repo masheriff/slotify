@@ -8,7 +8,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Use Better Auth server-side protection
+  // Use Better Auth server-side protection - only super admins can access
   await requireSuperAdmin();
 
   return (
@@ -17,7 +17,11 @@ export default async function AdminLayout({
       <SidebarInset>
         {/* Better Auth impersonation banner */}
         <ImpersonationBanner />
-        {children}
+        
+        {/* Main content - each page will have its own header */}
+        <div className="flex flex-1 flex-col">
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );
