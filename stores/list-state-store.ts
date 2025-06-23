@@ -1,8 +1,8 @@
-// stores/list-state-store.ts
+// stores/list-state-store.ts - Optimized to reduce network calls
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 
 export interface FilterConfig {
   key: string
@@ -146,7 +146,7 @@ const useListStateStore = create<ListStateStore>()(
   }))
 )
 
-// Hook for list state management with URL sync
+// Hook for list state management with URL sync - OPTIMIZED VERSION
 interface UseListStateProps {
   defaultPageSize?: number
   defaultSort?: { column: string; direction: 'asc' | 'desc' }
@@ -166,8 +166,16 @@ export function useListState({
   
   const store = useListStateStore()
   
-  // Initialize state from URL on mount
+  // Track initialization to prevent multiple URL syncs
+  const isInitialized = useRef(false)
+  const lastUrlRef = useRef('')
+  
+  // Initialize state from URL on mount - ONLY ONCE
   useEffect(() => {
+    if (isInitialized.current) return
+    
+    console.log('🔄 Initializing list state from URL')
+    
     const urlSearchQuery = searchParams.get('search') || ''
     const urlCurrentPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
     const urlPageSize = parseInt(searchParams.get('pageSize') || defaultPageSize.toString(), 10)
@@ -192,17 +200,28 @@ export function useListState({
       sortDirection: urlSortDirection,
       filters: urlFilters
     })
-  }, []) // Only run on mount
-  
-  // Sync URL when store state changes
-  useEffect(() => {
-    const params = store.getUrlParams()
-    const newUrl = `${pathname}?${params.toString()}`
     
-    // Only update URL if it's different
-    if (newUrl !== `${pathname}?${searchParams.toString()}`) {
-      router.push(newUrl)
-    }
+    isInitialized.current = true
+  }, []) // Empty dependency array - only run once
+  
+  // Sync URL when store state changes - DEBOUNCED AND OPTIMIZED
+  useEffect(() => {
+    if (!isInitialized.current) return
+    
+    // Debounce URL updates to prevent excessive calls
+    const timeoutId = setTimeout(() => {
+      const params = store.getUrlParams()
+      const newUrl = `${pathname}?${params.toString()}`
+      
+      // Only update URL if it's actually different
+      if (newUrl !== lastUrlRef.current) {
+        console.log('🔗 Updating URL:', newUrl)
+        router.replace(newUrl, { scroll: false }) // Use replace instead of push to prevent history pollution
+        lastUrlRef.current = newUrl
+      }
+    }, 100) // 100ms debounce
+    
+    return () => clearTimeout(timeoutId)
   }, [
     store.searchQuery,
     store.currentPage,

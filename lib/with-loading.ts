@@ -1,4 +1,5 @@
 // lib/with-loading.ts
+import { useCallback } from 'react';
 import { useLoadingStore } from '@/stores/loading-store';
 
 // For client-side usage (in components)
@@ -37,34 +38,35 @@ export function createLoadingAction<T extends any[], R>(
   };
 }
 
-// Hook for manual loading control
+// Hook for manual loading control - IMPROVED WITH STABLE REFERENCES
 export function useLoadingControl() {
   const setLoading = useLoadingStore((state) => state.setLoading);
   const clearLoading = useLoadingStore((state) => state.clearLoading);
   const isLoading = useLoadingStore((state) => state.isLoading);
   const getMessage = useLoadingStore((state) => state.getMessage);
   
-  const startLoading = (key: string, message?: string) => {
+  // Use useCallback to create stable function references
+  const startLoading = useCallback((key: string, message?: string) => {
     setLoading(key, true, message);
-  };
+  }, [setLoading]);
   
-  const stopLoading = (key: string) => {
+  const stopLoading = useCallback((key: string) => {
     clearLoading(key);
-  };
+  }, [clearLoading]);
   
-  const withLoadingState = async <T>(
+  const withLoadingState = useCallback(async <T>(
     key: string,
     action: () => Promise<T>,
     message?: string
   ): Promise<T> => {
     try {
-      startLoading(key, message);
+      setLoading(key, true, message);
       const result = await action();
       return result;
     } finally {
-      stopLoading(key);
+      clearLoading(key);
     }
-  };
+  }, [setLoading, clearLoading]); // Stable dependencies from zustand
   
   return {
     startLoading,

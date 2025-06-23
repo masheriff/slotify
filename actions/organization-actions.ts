@@ -31,11 +31,23 @@ export async function getOrganizations(
   params: PaginationParams
 ): Promise<OrganizationResponse> {
   try {
+    console.log('🔍 getOrganizations called with params:', params);
+    
     await requireSuperAdmin();
 
     // Use Better Auth's organization API to list organizations
     const organizations = await auth.api.listOrganizations({
       headers: await headers(),
+    });
+
+    console.log('📋 Raw organizations from Better Auth:', {
+      count: organizations.length,
+      organizations: organizations.map(org => ({
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        metadata: org.metadata
+      }))
     });
 
     // Apply client-side filtering and pagination since Better Auth doesn't support server-side filtering yet
@@ -52,6 +64,7 @@ export async function getOrganizations(
             ?.toLowerCase()
             .includes(searchTerm)
       );
+      console.log(`🔍 After search filtering (${searchTerm}):`, filteredOrgs.length);
     }
 
     // Apply additional filters
@@ -86,6 +99,10 @@ export async function getOrganizations(
           }
         }
       });
+      console.log('🎯 After applying filters:', {
+        filters: params.filters,
+        resultCount: filteredOrgs.length
+      });
     }
 
     // Apply sorting
@@ -114,12 +131,22 @@ export async function getOrganizations(
         if (aValue > bValue) return params.sortDirection === "asc" ? 1 : -1;
         return 0;
       });
+      console.log(`🔄 After sorting by ${params.sortBy} ${params.sortDirection}`);
     }
 
     // Apply pagination
     const startIndex = (params.page - 1) * params.pageSize;
     const endIndex = startIndex + params.pageSize;
     const paginatedOrgs = filteredOrgs.slice(startIndex, endIndex);
+
+    console.log('📄 Pagination applied:', {
+      page: params.page,
+      pageSize: params.pageSize,
+      startIndex,
+      endIndex,
+      paginatedCount: paginatedOrgs.length,
+      totalFiltered: filteredOrgs.length
+    });
 
     // Transform to include member count
     const enrichedOrgs = await Promise.all(
@@ -131,7 +158,7 @@ export async function getOrganizations(
             headers: await headers(),
           });
 
-          return {
+          const enriched = {
             id: org.id,
             name: org.name,
             slug: org.slug,
@@ -142,7 +169,16 @@ export async function getOrganizations(
             contactEmail: (org.metadata as any)?.contactEmail || "",
             metadata: org.metadata,
           };
+
+          console.log(`👥 Enriched org ${org.name}:`, {
+            memberCount: enriched.memberCount,
+            type: enriched.type,
+            status: enriched.status
+          });
+
+          return enriched;
         } catch (error) {
+          console.warn(`⚠️ Failed to get full org data for ${org.name}:`, error);
           // Fallback if can't get full org data
           return {
             id: org.id,
@@ -161,7 +197,7 @@ export async function getOrganizations(
 
     const totalPages = Math.ceil(filteredOrgs.length / params.pageSize);
 
-    return {
+    const result = {
       data: enrichedOrgs,
       page: params.page,
       pageSize: params.pageSize,
@@ -169,8 +205,18 @@ export async function getOrganizations(
       hasNextPage: params.page < totalPages,
       hasPreviousPage: params.page > 1,
     };
+
+    console.log('✅ Final result:', {
+      dataCount: result.data.length,
+      page: result.page,
+      totalPages: result.totalPages,
+      hasNextPage: result.hasNextPage,
+      hasPreviousPage: result.hasPreviousPage
+    });
+
+    return result;
   } catch (error) {
-    console.error("Failed to fetch organizations:", error);
+    console.error("❌ Failed to fetch organizations:", error);
     throw new Error("Failed to fetch organizations");
   }
 }

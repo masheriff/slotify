@@ -1,7 +1,8 @@
+// hooks/use-organizations.ts - Optimized version
 import { getOrganizations, OrganizationResponse, PaginationParams } from "@/actions/organization-actions"
 import { useLoadingControl } from "@/lib/with-loading"
 import { FilterConfig, useListState } from "@/stores/list-state-store"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, useRef } from "react"
 import { toast } from "sonner"
 
 // Organization filter configuration
@@ -51,7 +52,11 @@ export function useOrganizations() {
     hasPreviousPage: false
   })
 
-  // Fetch organizations function
+  // Track if we've made an initial load to prevent duplicate calls
+  const hasInitialLoad = useRef(false)
+  const lastParamsRef = useRef<string>('')
+
+  // Fetch organizations function - OPTIMIZED WITH DEDUPLICATION
   const fetchOrganizations = useCallback(async () => {
     const params: PaginationParams = {
       page: listState.currentPage,
@@ -62,6 +67,18 @@ export function useOrganizations() {
       filters: listState.filters
     }
 
+    // Create a key to track parameter changes
+    const paramsKey = JSON.stringify(params)
+    
+    // Prevent duplicate calls with same parameters
+    if (paramsKey === lastParamsRef.current) {
+      console.log('🚫 Skipping duplicate fetch with same parameters')
+      return
+    }
+    
+    lastParamsRef.current = paramsKey
+    console.log('📡 Fetching organizations with params:', params)
+
     try {
       const result = await withLoadingState(
         'organizations-fetch',
@@ -69,9 +86,16 @@ export function useOrganizations() {
         'Loading organizations...'
       )
       
+      console.log('✅ Organizations fetched successfully:', {
+        count: result.data.length,
+        page: result.page,
+        totalPages: result.totalPages
+      })
+      
       setOrganizationData(result)
+      hasInitialLoad.current = true
     } catch (error) {
-      console.error('Failed to fetch organizations:', error)
+      console.error('❌ Failed to fetch organizations:', error)
       toast.error('Failed to load organizations. Please try again.')
       
       // Set empty state on error
@@ -94,13 +118,20 @@ export function useOrganizations() {
     withLoadingState
   ])
 
-  // Fetch data when dependencies change
+  // Fetch data when dependencies change - DEBOUNCED
   useEffect(() => {
-    fetchOrganizations()
+    // Debounce the fetch to prevent rapid-fire calls
+    const timeoutId = setTimeout(() => {
+      fetchOrganizations()
+    }, 200) // 200ms debounce
+
+    return () => clearTimeout(timeoutId)
   }, [fetchOrganizations])
 
   // Manual refresh function
   const refreshOrganizations = useCallback(() => {
+    console.log('🔄 Manual refresh triggered')
+    lastParamsRef.current = '' // Reset to force fetch
     fetchOrganizations()
   }, [fetchOrganizations])
 
@@ -112,6 +143,8 @@ export function useOrganizations() {
     hasNextPage: organizationData.hasNextPage,
     hasPreviousPage: organizationData.hasPreviousPage,
     listState,
-    refreshOrganizations
+    refreshOrganizations,
+    // Add loading state for better UX
+    isLoading: hasInitialLoad.current === false
   }
 }

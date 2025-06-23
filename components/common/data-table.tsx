@@ -141,23 +141,8 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              // Loading skeleton rows
-              Array.from({ length: pageSize }).map((_, index) => (
-                <TableRow key={`loading-${index}`}>
-                  {columns.map((_, cellIndex) => (
-                    <TableCell key={`loading-cell-${cellIndex}`}>
-                      <div className="flex items-center space-x-2">
-                        {cellIndex === 0 && (
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                        )}
-                        <div className="h-6 bg-muted animate-pulse rounded flex-1" />
-                      </div>
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : table.getRowModel().rows?.length ? (
+            {/* REMOVED SKELETON LOADING - Just show data or empty state */}
+            {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -181,8 +166,17 @@ export function DataTable<TData, TValue>({
                   className="h-24 text-center"
                 >
                   <div className="flex flex-col items-center justify-center space-y-2 text-muted-foreground">
-                    <div className="text-lg">📭</div>
-                    <p>{emptyMessage}</p>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                        <p>Loading...</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-lg">📭</div>
+                        <p>{emptyMessage}</p>
+                      </>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>
