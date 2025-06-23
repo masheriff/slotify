@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Filter, X } from "lucide-react"
+import { OrganizationFiltersFormProps } from "@/types"
 
 // Filter form schema
 const organizationFiltersSchema = z.object({
@@ -43,12 +44,7 @@ const organizationFiltersSchema = z.object({
 
 type OrganizationFiltersFormData = z.infer<typeof organizationFiltersSchema>
 
-interface OrganizationFiltersFormProps {
-  currentFilters: Record<string, string>
-  onFilterChange: (key: string, value: string) => void
-  onClearAllFilters: () => void
-  triggerClassName?: string
-}
+
 
 export function OrganizationFiltersForm({
   currentFilters,

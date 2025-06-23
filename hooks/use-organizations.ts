@@ -1,60 +1,70 @@
 // hooks/use-organizations.ts - Optimized version
-import { getOrganizations, OrganizationResponse, PaginationParams } from "@/actions/organization-actions"
-import { useLoadingControl } from "@/lib/with-loading"
-import { FilterConfig, useListState } from "@/stores/list-state-store"
-import { useCallback, useEffect, useState, useRef } from "react"
-import { toast } from "sonner"
+import {
+  getOrganizations,
+  OrganizationResponse,
+  PaginationParams,
+} from "@/actions/organization-actions";
+import { useLoadingControl } from "@/lib/with-loading";
+import { useListState } from "@/stores/list-state-store";
+import { FilterConfig } from "@/types";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { toast } from "sonner";
 
 // Organization filter configuration
 const organizationFilters: FilterConfig[] = [
   {
-    key: 'type',
-    type: 'select',
+    label: "Organization Type",
+    key: "type",
+    type: "select",
     options: [
-      { value: 'admin', label: 'Admin Organization' },
-      { value: 'client', label: 'Client Organization' },
-    ]
+      { value: "admin", label: "Admin Organization" },
+      { value: "client", label: "Client Organization" },
+    ],
   },
   {
-    key: 'status',
-    type: 'select',
+    label: "Status",
+    key: "status",
+    type: "select",
     options: [
-      { value: 'active', label: 'Active' },
-      { value: 'inactive', label: 'Inactive' },
-      { value: 'suspended', label: 'Suspended' },
-    ]
+      { value: "active", label: "Active" },
+      { value: "inactive", label: "Inactive" },
+      { value: "suspended", label: "Suspended" },
+    ],
   },
   {
-    key: 'createdAfter',
-    type: 'date',
+    label: "Created After",
+    key: "createdAfter",
+    type: "date",
   },
   {
-    key: 'contactEmail',
-    type: 'text',
-  }
-]
+    label: "Contact Email",
+    key: "contactEmail",
+    type: "text",
+  },
+];
 
 // Custom hook for organization data fetching with Better Auth
 export function useOrganizations() {
   const listState = useListState({
     defaultPageSize: 10,
-    defaultSort: { column: 'name', direction: 'asc' },
-    filterConfig: organizationFilters
-  })
+    defaultSort: { column: "name", direction: "asc" },
+    filterConfig: organizationFilters,
+  });
 
-  const { withLoadingState } = useLoadingControl()
-  const [organizationData, setOrganizationData] = useState<OrganizationResponse>({
-    data: [],
-    page: 1,
-    pageSize: 10,
-    totalPages: 0,
-    hasNextPage: false,
-    hasPreviousPage: false
-  })
+  const { withLoadingState } = useLoadingControl();
+  const [organizationData, setOrganizationData] =
+    useState<OrganizationResponse>({
+      data: [],
+      page: 1,
+      pageSize: 10,
+      totalPages: 0,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    });
 
   // Track if we've made an initial load to prevent duplicate calls
-  const hasInitialLoad = useRef(false)
-  const lastParamsRef = useRef<string>('')
+  const hasInitialLoad = useRef(false);
+  const lastParamsRef = useRef<string>("");
 
   // Fetch organizations function - OPTIMIZED WITH DEDUPLICATION
   const fetchOrganizations = useCallback(async () => {
@@ -64,40 +74,40 @@ export function useOrganizations() {
       searchQuery: listState.searchQuery,
       sortBy: listState.sortBy,
       sortDirection: listState.sortDirection,
-      filters: listState.filters
-    }
+      filters: listState.filters,
+    };
 
     // Create a key to track parameter changes
-    const paramsKey = JSON.stringify(params)
-    
+    const paramsKey = JSON.stringify(params);
+
     // Prevent duplicate calls with same parameters
     if (paramsKey === lastParamsRef.current) {
-      console.log('🚫 Skipping duplicate fetch with same parameters')
-      return
+      console.log("🚫 Skipping duplicate fetch with same parameters");
+      return;
     }
-    
-    lastParamsRef.current = paramsKey
-    console.log('📡 Fetching organizations with params:', params)
+
+    lastParamsRef.current = paramsKey;
+    console.log("📡 Fetching organizations with params:", params);
 
     try {
       const result = await withLoadingState(
-        'organizations-fetch',
+        "organizations-fetch",
         () => getOrganizations(params),
-        'Loading organizations...'
-      )
-      
-      console.log('✅ Organizations fetched successfully:', {
+        "Loading organizations..."
+      );
+
+      console.log("✅ Organizations fetched successfully:", {
         count: result.data.length,
         page: result.page,
-        totalPages: result.totalPages
-      })
-      
-      setOrganizationData(result)
-      hasInitialLoad.current = true
+        totalPages: result.totalPages,
+      });
+
+      setOrganizationData(result);
+      hasInitialLoad.current = true;
     } catch (error) {
-      console.error('❌ Failed to fetch organizations:', error)
-      toast.error('Failed to load organizations. Please try again.')
-      
+      console.error("❌ Failed to fetch organizations:", error);
+      toast.error("Failed to load organizations. Please try again.");
+
       // Set empty state on error
       setOrganizationData({
         data: [],
@@ -105,8 +115,8 @@ export function useOrganizations() {
         pageSize: listState.pageSize,
         totalPages: 0,
         hasNextPage: false,
-        hasPreviousPage: false
-      })
+        hasPreviousPage: false,
+      });
     }
   }, [
     listState.currentPage,
@@ -115,25 +125,25 @@ export function useOrganizations() {
     listState.sortBy,
     listState.sortDirection,
     listState.filters,
-    withLoadingState
-  ])
+    withLoadingState,
+  ]);
 
   // Fetch data when dependencies change - DEBOUNCED
   useEffect(() => {
     // Debounce the fetch to prevent rapid-fire calls
     const timeoutId = setTimeout(() => {
-      fetchOrganizations()
-    }, 200) // 200ms debounce
+      fetchOrganizations();
+    }, 200); // 200ms debounce
 
-    return () => clearTimeout(timeoutId)
-  }, [fetchOrganizations])
+    return () => clearTimeout(timeoutId);
+  }, [fetchOrganizations]);
 
   // Manual refresh function
   const refreshOrganizations = useCallback(() => {
-    console.log('🔄 Manual refresh triggered')
-    lastParamsRef.current = '' // Reset to force fetch
-    fetchOrganizations()
-  }, [fetchOrganizations])
+    console.log("🔄 Manual refresh triggered");
+    lastParamsRef.current = ""; // Reset to force fetch
+    fetchOrganizations();
+  }, [fetchOrganizations]);
 
   return {
     organizations: organizationData.data,
@@ -145,6 +155,6 @@ export function useOrganizations() {
     listState,
     refreshOrganizations,
     // Add loading state for better UX
-    isLoading: hasInitialLoad.current === false
-  }
+    isLoading: hasInitialLoad.current === false,
+  };
 }

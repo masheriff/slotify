@@ -14,19 +14,12 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
+import { OrganizationColumns } from "@/types"
 
 // Organization type definition
-export interface Organization {
-  id: string
-  name: string
-  type: 'admin' | 'client'
-  status: 'active' | 'inactive' | 'suspended'
-  memberCount: number
-  createdAt: string
-  contactEmail: string
-}
 
-export const organizationColumns: ColumnDef<Organization>[] = [
+
+export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => {

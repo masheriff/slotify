@@ -3,40 +3,7 @@ import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
 import { useEffect, useCallback, useRef } from 'react'
-
-export interface FilterConfig {
-  key: string
-  type: 'select' | 'text' | 'date'
-  options?: Array<{
-    value: string
-    label: string
-  }>
-}
-
-interface ListState {
-  searchQuery: string
-  currentPage: number
-  pageSize: number
-  sortBy: string | null
-  sortDirection: 'asc' | 'desc'
-  filters: Record<string, string>
-}
-
-interface ListStateStore extends ListState {
-  // Actions
-  setSearchQuery: (query: string) => void
-  setCurrentPage: (page: number) => void
-  setPageSize: (size: number) => void
-  setSorting: (column: string, direction: 'asc' | 'desc') => void
-  setFilters: (filters: Record<string, string>) => void
-  setFilter: (key: string, value: string) => void
-  resetFilters: (filterKeys: string[]) => void
-  resetToDefaults: (defaults: Partial<ListState>) => void
-  
-  // Computed
-  hasActiveFilters: (filterKeys: string[]) => boolean
-  getUrlParams: () => URLSearchParams
-}
+import { ListState, ListStateStore, UseListStateProps } from '@/types'
 
 // Create the store
 const useListStateStore = create<ListStateStore>()(
@@ -146,13 +113,6 @@ const useListStateStore = create<ListStateStore>()(
   }))
 )
 
-// Hook for list state management with URL sync - OPTIMIZED VERSION
-interface UseListStateProps {
-  defaultPageSize?: number
-  defaultSort?: { column: string; direction: 'asc' | 'desc' }
-  filterConfig?: FilterConfig[]
-  stateKey?: string // Optional key for multiple list states on same page
-}
 
 export function useListState({
   defaultPageSize = 10,

@@ -34,23 +34,9 @@ import {
   Loader2
 } from "lucide-react"
 import { useLoadingStore } from "@/stores/loading-store"
+import { DataTableProps } from "@/types"
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  currentPage: number
-  pageSize: number
-  totalPages: number
-  hasNextPage: boolean
-  hasPreviousPage: boolean
-  onPageChange: (page: number) => void
-  onPageSizeChange: (pageSize: number) => void
-  sortBy?: string | null
-  sortDirection?: 'asc' | 'desc'
-  onSortingChange?: (column: string, direction: 'asc' | 'desc') => void
-  loadingKey?: string // Key to track loading state
-  emptyMessage?: string
-}
+
 
 export function DataTable<TData, TValue>({
   columns,

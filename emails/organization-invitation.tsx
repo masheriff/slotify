@@ -6,14 +6,9 @@ import {
   Section,
 } from '@react-email/components';
 import { EmailLayout } from './components/email-layout';
+import { OrganizationInvitationEmailProps } from '@/types';
 
-export interface OrganizationInvitationEmailProps {
-  email: string;
-  organizationName: string;
-  inviterName: string;
-  invitationLink: string;
-  expiresIn?: string;
-}
+
 
 export function OrganizationInvitationEmail({ 
   email,

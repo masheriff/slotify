@@ -3,9 +3,8 @@ import { smtpClient } from "./smtp-client";
 import {
   templateRenderer,
   EmailTemplate,
-  TemplateData,
 } from "./template-renderer";
-import { EmailSendResult } from "../../types/email.types";
+import { EmailSendResult, TemplateData } from "../../types/email.types";
 
 class EmailSender {
   constructor() {

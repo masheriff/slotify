@@ -15,22 +15,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { ListPageHeaderProps } from "@/types";
 
-interface ListPageHeaderProps {
-  title: string;
-  searchPlaceholder?: string;
-  onCreateClick?: () => void;
-  createButtonText?: string;
-  filterComponent?: React.ReactNode;
-  breadcrumbItems?: Array<{
-    title: string;
-    href?: string;
-  }>;
-  searchQuery: string;
-  onSearchChange: (query: string) => void;
-  activeFiltersCount?: number;
-  onRefresh?: () => void;
-}
 
 export function ListPageHeader({
   title,

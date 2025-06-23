@@ -42,3 +42,23 @@ export interface SMTPConfig {
     pass: string;
   };
 }
+
+export interface TemplateData {
+  welcome: WelcomeEmailProps;
+  notification: NotificationEmailProps;
+  "magic-link": MagicLinkEmailProps;
+  "organization-invitation": OrganizationInvitationEmailProps;
+}
+
+export interface EmailLayoutProps {
+  children: React.ReactNode;
+  previewText?: string;
+}
+
+export interface OrganizationInvitationEmailProps {
+  email: string;
+  organizationName: string;
+  inviterName: string;
+  invitationLink: string;
+  expiresIn?: string;
+}

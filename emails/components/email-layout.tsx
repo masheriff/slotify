@@ -1,4 +1,5 @@
 // emails/components/email-layout.tsx
+import { EmailLayoutProps } from '@/types';
 import {
   Html,
   Head,
@@ -10,10 +11,7 @@ import {
   Text,
 } from '@react-email/components';
 
-interface EmailLayoutProps {
-  children: React.ReactNode;
-  previewText?: string;
-}
+
 
 export function EmailLayout({ children, previewText }: EmailLayoutProps) {
   return (

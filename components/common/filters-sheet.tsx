@@ -21,26 +21,9 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Filter, X } from "lucide-react"
-import { useSearchParams, useRouter, usePathname } from "next/navigation"
+import { FiltersSheetProps } from "@/types"
 
-export interface FilterConfig {
-  key: string
-  label: string
-  type: 'select' | 'text' | 'date'
-  options?: Array<{
-    value: string
-    label: string
-  }>
-  placeholder?: string
-}
 
-interface FiltersSheetProps {
-  filters: FilterConfig[]
-  triggerClassName?: string
-  currentFilters: Record<string, string>
-  onFilterChange: (key: string, value: string) => void
-  onClearAllFilters: () => void
-}
 
 export function FiltersSheet({
   filters,
