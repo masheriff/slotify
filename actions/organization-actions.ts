@@ -1,13 +1,11 @@
-// actions/organization-actions.ts
+// actions/organization-actions.ts - Simple DB-only approach
 "use server";
 
-import { auth } from "@/lib/auth";
-import { requireSuperAdmin, requireOrgAdmin } from "@/lib/auth-server";
-import { HEALTHCARE_ROLES } from "@/lib/permissions/healthcare-permissions-constants";
-import { headers } from "next/headers";
-import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/auth-server";
+import { db } from "@/db";
+import { organizations, members } from "@/db/schema";
+import { eq, count, like, ilike, or, gte, sql } from "drizzle-orm";
 
-// Define pagination and filtering types
 export type PaginationParams = {
   page: number;
   pageSize: number;
@@ -26,160 +24,156 @@ export type OrganizationResponse = {
   hasPreviousPage: boolean;
 };
 
-// Organization management actions for Super Admins and Admins
 export async function getOrganizations(
   params: PaginationParams
 ): Promise<OrganizationResponse> {
   try {
-    console.log('🔍 getOrganizations called with params:', params);
+    console.log('🔍 getOrganizations (DB-only) called with params:', params);
     
+    // Check permissions - only system admins can list all organizations
     await requireSuperAdmin();
 
-    // Use Better Auth's organization API to list organizations
-    const organizations = await auth.api.listOrganizations({
-      headers: await headers(),
-    });
-
-    console.log('📋 Raw organizations from Better Auth:', {
-      count: organizations.length,
-      organizations: organizations.map(org => ({
-        id: org.id,
-        name: org.name,
-        slug: org.slug,
-        metadata: org.metadata
-      }))
-    });
-
-    // Apply client-side filtering and pagination since Better Auth doesn't support server-side filtering yet
-    let filteredOrgs = organizations;
-
+    // Build where conditions first
+    const whereConditions: any[] = [];
+    
     // Apply search filter
     if (params.searchQuery?.trim()) {
-      const searchTerm = params.searchQuery.toLowerCase();
-      filteredOrgs = filteredOrgs.filter(
-        (org) =>
-          org.name.toLowerCase().includes(searchTerm) ||
-          org.slug?.toLowerCase().includes(searchTerm) ||
-          (org.metadata as any)?.contactEmail
-            ?.toLowerCase()
-            .includes(searchTerm)
+      const searchTerm = `%${params.searchQuery.toLowerCase()}%`;
+      whereConditions.push(
+        or(
+          ilike(organizations.name, searchTerm),
+          ilike(organizations.slug, searchTerm),
+          sql`${organizations.metadata}->>'contactEmail' ILIKE ${searchTerm}`
+        )
       );
-      console.log(`🔍 After search filtering (${searchTerm}):`, filteredOrgs.length);
     }
 
-    // Apply additional filters
+    // Apply metadata-based filters
     if (params.filters) {
       Object.entries(params.filters).forEach(([key, value]) => {
         if (value?.trim()) {
           switch (key) {
             case "type":
-              filteredOrgs = filteredOrgs.filter(
-                (org) => (org.metadata as any)?.type === value
+              whereConditions.push(
+                sql`${organizations.metadata}->>'type' = ${value}`
               );
               break;
             case "status":
-              filteredOrgs = filteredOrgs.filter(
-                (org) =>
-                  (org.metadata as any)?.isActive === (value === "active")
+              const isActive = value === "active";
+              whereConditions.push(
+                sql`(${organizations.metadata}->>'isActive')::boolean = ${isActive}`
               );
               break;
             case "contactEmail":
-              filteredOrgs = filteredOrgs.filter((org) =>
-                (org.metadata as any)?.contactEmail
-                  ?.toLowerCase()
-                  .includes(value.toLowerCase())
+              whereConditions.push(
+                sql`${organizations.metadata}->>'contactEmail' ILIKE ${'%' + value.toLowerCase() + '%'}`
               );
               break;
             case "createdAfter":
-              const filterDate = new Date(value);
-              filteredOrgs = filteredOrgs.filter(
-                (org) => new Date(org.createdAt) >= filterDate
+              whereConditions.push(
+                gte(organizations.createdAt, new Date(value))
               );
               break;
           }
         }
       });
-      console.log('🎯 After applying filters:', {
-        filters: params.filters,
-        resultCount: filteredOrgs.length
-      });
     }
 
-    // Apply sorting
+    // Combine all where conditions
+    const whereClause = whereConditions.length > 0 
+      ? whereConditions.reduce((acc, condition) => 
+          acc ? sql`${acc} AND ${condition}` : condition, 
+          null as any
+        )
+      : undefined;
+
+    // Get total count for pagination
+    const [{ count: totalCount }] = await db
+      .select({ count: count() })
+      .from(organizations)
+      .where(whereClause);
+
+    // Build order by clause
+    let orderByClause;
     if (params.sortBy) {
-      filteredOrgs.sort((a, b) => {
-        let aValue: any, bValue: any;
-
-        switch (params.sortBy) {
-          case "name":
-            aValue = a.name;
-            bValue = b.name;
-            break;
-          case "createdAt":
-            aValue = new Date(a.createdAt);
-            bValue = new Date(b.createdAt);
-            break;
-          case "type":
-            aValue = (a.metadata as any)?.type || "";
-            bValue = (b.metadata as any)?.type || "";
-            break;
-          default:
-            return 0;
-        }
-
-        if (aValue < bValue) return params.sortDirection === "asc" ? -1 : 1;
-        if (aValue > bValue) return params.sortDirection === "asc" ? 1 : -1;
-        return 0;
-      });
-      console.log(`🔄 After sorting by ${params.sortBy} ${params.sortDirection}`);
+      switch (params.sortBy) {
+        case "name":
+          orderByClause = params.sortDirection === "asc" 
+            ? organizations.name 
+            : sql`${organizations.name} DESC`;
+          break;
+        case "createdAt":
+          orderByClause = params.sortDirection === "asc" 
+            ? organizations.createdAt 
+            : sql`${organizations.createdAt} DESC`;
+          break;
+        case "type":
+          orderByClause = params.sortDirection === "asc" 
+            ? sql`${organizations.metadata}->>'type'`
+            : sql`${organizations.metadata}->>'type' DESC`;
+          break;
+        default:
+          orderByClause = organizations.name;
+      }
+    } else {
+      orderByClause = organizations.name; // Default sort
     }
 
-    // Apply pagination
-    const startIndex = (params.page - 1) * params.pageSize;
-    const endIndex = startIndex + params.pageSize;
-    const paginatedOrgs = filteredOrgs.slice(startIndex, endIndex);
+    // Build and execute main query
+    const offset = (params.page - 1) * params.pageSize;
+    
+    let mainQuery = db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        slug: organizations.slug,
+        createdAt: organizations.createdAt,
+        updatedAt: organizations.updatedAt,
+        metadata: organizations.metadata,
+        logo: organizations.logo,
+      })
+      .from(organizations)
+      .orderBy(orderByClause)
+      .limit(params.pageSize)
+      .offset(offset);
 
-    console.log('📄 Pagination applied:', {
+    // Apply where clause if exists
+    const orgs = whereClause 
+      ? await mainQuery.where(whereClause)
+      : await mainQuery;
+
+    console.log('📋 DB organizations loaded:', {
+      count: orgs.length,
+      totalCount,
       page: params.page,
-      pageSize: params.pageSize,
-      startIndex,
-      endIndex,
-      paginatedCount: paginatedOrgs.length,
-      totalFiltered: filteredOrgs.length
+      pageSize: params.pageSize
     });
 
-    // Transform to include member count
+    // Enrich with member counts
     const enrichedOrgs = await Promise.all(
-      paginatedOrgs.map(async (org) => {
+      orgs.map(async (org) => {
         try {
-          // Get organization members count
-          const fullOrg = await auth.api.getFullOrganization({
-            query: { organizationId: org.id },
-            headers: await headers(),
-          });
+          // Get member count
+          const [memberCountResult] = await db
+            .select({ count: count() })
+            .from(members)
+            .where(eq(members.organizationId, org.id));
 
-          const enriched = {
+          const memberCount = memberCountResult?.count || 0;
+
+          return {
             id: org.id,
             name: org.name,
             slug: org.slug,
             type: (org.metadata as any)?.type || "client",
             status: (org.metadata as any)?.isActive ? "active" : "inactive",
-            memberCount: fullOrg?.members?.length || 0,
+            memberCount,
             createdAt: org.createdAt,
             contactEmail: (org.metadata as any)?.contactEmail || "",
             metadata: org.metadata,
           };
-
-          console.log(`👥 Enriched org ${org.name}:`, {
-            memberCount: enriched.memberCount,
-            type: enriched.type,
-            status: enriched.status
-          });
-
-          return enriched;
         } catch (error) {
-          console.warn(`⚠️ Failed to get full org data for ${org.name}:`, error);
-          // Fallback if can't get full org data
+          console.warn(`⚠️ Failed to get member count for ${org.name}:`, error);
           return {
             id: org.id,
             name: org.name,
@@ -195,7 +189,7 @@ export async function getOrganizations(
       })
     );
 
-    const totalPages = Math.ceil(filteredOrgs.length / params.pageSize);
+    const totalPages = Math.ceil(totalCount / params.pageSize);
 
     const result = {
       data: enrichedOrgs,
@@ -206,382 +200,56 @@ export async function getOrganizations(
       hasPreviousPage: params.page > 1,
     };
 
-    console.log('✅ Final result:', {
+    console.log('✅ Final DB result:', {
       dataCount: result.data.length,
+      totalCount,
       page: result.page,
-      totalPages: result.totalPages,
-      hasNextPage: result.hasNextPage,
-      hasPreviousPage: result.hasPreviousPage
+      totalPages: result.totalPages
     });
 
     return result;
   } catch (error) {
-    console.error("❌ Failed to fetch organizations:", error);
-    throw new Error("Failed to fetch organizations");
+    console.error("❌ Failed to fetch organizations (DB):", error);
+    throw new Error(`Failed to fetch organizations: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
+// Keep other functions that might still need Better Auth
 export async function getOrganizationById(organizationId: string) {
   try {
     await requireSuperAdmin();
 
-    const organization = await auth.api.getFullOrganization({
-      query: { organizationId },
-      headers: await headers(),
-    });
+    // For individual organization, you can still use Better Auth or DB
+    // Using DB for consistency:
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, organizationId));
 
-    return {
-      success: true,
-      data: organization,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to fetch organization",
-    };
-  }
-}
-
-// Organization creation schema
-const CreateOrganizationSchema = z.object({
-  name: z.string().min(1, "Organization name is required"),
-  slug: z.string().min(1, "Organization slug is required"),
-  type: z.enum(["admin", "client"]),
-  contactEmail: z.string().email("Valid email is required"),
-  contactPhone: z.string().optional(),
-  addressLine1: z.string().optional(),
-  addressLine2: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  postalCode: z.string().optional(),
-  country: z.string().optional(),
-  timezone: z.string().optional(),
-  hipaaOfficer: z.string().optional(),
-});
-
-export type CreateOrganizationInput = z.infer<typeof CreateOrganizationSchema>;
-
-export async function createOrganization(input: CreateOrganizationInput) {
-  try {
-    await requireSuperAdmin();
-
-    const validatedInput = CreateOrganizationSchema.parse(input);
-
-    // Check if slug is unique
-    try {
-      await auth.api.checkOrganizationSlug({
-        body: { slug: validatedInput.slug },
-      });
-    } catch (error) {
-      return {
-        success: false,
-        error: "Organization slug already exists",
-      };
-    }
-
-    // Create organization with metadata
-    const result = await auth.api.createOrganization({
-      body: {
-        name: validatedInput.name,
-        slug: validatedInput.slug,
-        metadata: {
-          type: validatedInput.type,
-          contactEmail: validatedInput.contactEmail,
-          contactPhone: validatedInput.contactPhone,
-          addressLine1: validatedInput.addressLine1,
-          addressLine2: validatedInput.addressLine2,
-          city: validatedInput.city,
-          state: validatedInput.state,
-          postalCode: validatedInput.postalCode,
-          country: validatedInput.country,
-          timezone: validatedInput.timezone,
-          isActive: true,
-          settings: {},
-          hipaaOfficer: validatedInput.hipaaOfficer,
-        },
-      },
-    });
-
-    return {
-      success: true,
-      data: result,
-    };
-  } catch (error) {
-    console.error("Failed to create organization:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to create organization",
-    };
-  }
-}
-
-export async function updateOrganization(
-  organizationId: string,
-  input: Partial<CreateOrganizationInput>
-) {
-  try {
-    await requireOrgAdmin(organizationId);
-
-    // Get current organization
-    const currentOrg = await auth.api.getFullOrganization({
-      query: { organizationId },
-      headers: await headers(),
-    });
-
-    if (!currentOrg) {
+    if (!organization) {
       return {
         success: false,
         error: "Organization not found",
       };
     }
 
-    // Update organization
-    const result = await auth.api.updateOrganization({
-        body: {
-            organizationId,
-            data: {
-                name: input.name || currentOrg.name,
-                slug: input.slug || currentOrg.slug,
-                metadata: {
-                    ...(currentOrg.metadata as any),
-                    ...(input.type && { type: input.type }),
-                    ...(input.contactEmail && { contactEmail: input.contactEmail }),
-                    ...(input.contactPhone && { contactPhone: input.contactPhone }),
-                    ...(input.addressLine1 && { addressLine1: input.addressLine1 }),
-                    ...(input.addressLine2 && { addressLine2: input.addressLine2 }),
-                    ...(input.city && { city: input.city }),
-                    ...(input.state && { state: input.state }),
-                    ...(input.postalCode && { postalCode: input.postalCode }),
-                    ...(input.country && { country: input.country }),
-                    ...(input.timezone && { timezone: input.timezone }),
-                    ...(input.hipaaOfficer && { hipaaOfficer: input.hipaaOfficer }),
-                },
-            },
-        },
-        headers: await headers()
-    });
+    // Get members
+    const orgMembers = await db
+      .select()
+      .from(members)
+      .where(eq(members.organizationId, organizationId));
 
     return {
       success: true,
-      data: result,
-    };
-  } catch (error) {
-    console.error("Failed to update organization:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to update organization",
-    };
-  }
-}
-
-export async function deleteOrganization(organizationId: string) {
-  try {
-    await requireSuperAdmin();
-
-    await auth.api.deleteOrganization({
-        body: { organizationId },
-        headers: await headers()
-    });
-
-    return {
-      success: true,
-    };
-  } catch (error) {
-    console.error("Failed to delete organization:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to delete organization",
-    };
-  }
-}
-
-// Organization member management
-export async function getOrganizationMembers(
-  organizationId: string,
-  params: PaginationParams
-) {
-  try {
-    await requireOrgAdmin(organizationId);
-
-    const fullOrg = await auth.api.getFullOrganization({
-      query: { organizationId },
-      headers: await headers(),
-    });
-
-    if (!fullOrg?.members) {
-      return {
-        data: [],
-        page: params.page,
-        pageSize: params.pageSize,
-        totalPages: 0,
-        hasNextPage: false,
-        hasPreviousPage: false,
-      };
-    }
-
-    let filteredMembers = fullOrg.members;
-
-    // Apply search filter
-    if (params.searchQuery?.trim()) {
-      const searchTerm = params.searchQuery.toLowerCase();
-      filteredMembers = filteredMembers.filter(
-        (member) =>
-          member.user.name?.toLowerCase().includes(searchTerm) ||
-          member.user.email.toLowerCase().includes(searchTerm) ||
-          member.role.toLowerCase().includes(searchTerm)
-      );
-    }
-
-    // Apply filters
-    if (params.filters?.role) {
-      filteredMembers = filteredMembers.filter(
-        (member) => member.role === params.filters!.role
-      );
-    }
-
-    // Apply sorting
-    if (params.sortBy) {
-      filteredMembers.sort((a, b) => {
-        let aValue: any, bValue: any;
-
-        switch (params.sortBy) {
-          case "name":
-            aValue = a.user.name || "";
-            bValue = b.user.name || "";
-            break;
-          case "email":
-            aValue = a.user.email;
-            bValue = b.user.email;
-            break;
-          case "role":
-            aValue = a.role;
-            bValue = b.role;
-            break;
-          case "createdAt":
-            aValue = new Date(a.createdAt);
-            bValue = new Date(b.createdAt);
-            break;
-          default:
-            return 0;
-        }
-
-        if (aValue < bValue) return params.sortDirection === "asc" ? -1 : 1;
-        if (aValue > bValue) return params.sortDirection === "asc" ? 1 : -1;
-        return 0;
-      });
-    }
-
-    // Apply pagination
-    const startIndex = (params.page - 1) * params.pageSize;
-    const endIndex = startIndex + params.pageSize;
-    const paginatedMembers = filteredMembers.slice(startIndex, endIndex);
-
-    const totalPages = Math.ceil(filteredMembers.length / params.pageSize);
-
-    return {
-      data: paginatedMembers,
-      page: params.page,
-      pageSize: params.pageSize,
-      totalPages,
-      hasNextPage: params.page < totalPages,
-      hasPreviousPage: params.page > 1,
-    };
-  } catch (error) {
-    console.error("Failed to fetch organization members:", error);
-    throw new Error("Failed to fetch organization members");
-  }
-}
-
-export async function inviteUserToOrganization(
-  organizationId: string,
-  email: string,
-  role: (typeof HEALTHCARE_ROLES)[keyof typeof HEALTHCARE_ROLES]
-) {
-  try {
-    await requireOrgAdmin(organizationId);
-
-    const result = await auth.api.createInvitation({
-      body: {
-        organizationId,
-        email,
-        role,
+      data: {
+        ...organization,
+        members: orgMembers,
       },
-    });
-
-    return {
-      success: true,
-      data: result,
     };
   } catch (error) {
-    console.error("Failed to invite user:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to invite user",
-    };
-  }
-}
-
-export async function updateMemberRole(
-  organizationId: string,
-  memberId: string,
-  role: (typeof HEALTHCARE_ROLES)[keyof typeof HEALTHCARE_ROLES]
-) {
-  try {
-    await requireOrgAdmin(organizationId);
-
-    await auth.api.updateMemberRole({
-      body: {
-        organizationId,
-        memberId,
-        role,
-      },
-    });
-
-    return {
-      success: true,
-    };
-  } catch (error) {
-    console.error("Failed to update member role:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to update member role",
-    };
-  }
-}
-
-export async function removeMemberFromOrganization(
-  organizationId: string,
-  memberIdOrEmail: string
-) {
-  try {
-    await requireOrgAdmin(organizationId);
-
-    await auth.api.removeMember({
-      body: {
-        organizationId,
-        memberIdOrEmail,
-      },
-    });
-
-    return {
-      success: true,
-    };
-  } catch (error) {
-    console.error("Failed to remove member:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to remove member",
+      error: error instanceof Error ? error.message : "Failed to fetch organization",
     };
   }
 }
