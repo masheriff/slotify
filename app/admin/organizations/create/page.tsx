@@ -1,8 +1,8 @@
 // app/admin/organizations/create/page.tsx
-"use client"
+"use client";
 
-import { useRouter } from "next/navigation"
-import { OrganizationForm } from "@/components/admin/forms/organization-form"
+import { useRouter } from "next/navigation";
+import { OrganizationForm } from "@/components/admin/forms/organization-form";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,20 +10,20 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 export default function CreateOrganizationPage() {
-  const router = useRouter()
+  const router = useRouter();
 
   const handleSuccess = () => {
-    router.push('/admin/organizations')
-  }
+    router.push("/admin/organizations");
+  };
 
   const handleBack = () => {
-    router.push('/admin/organizations')
-  }
+    router.push("/admin/organizations");
+  };
 
   return (
     <div className="flex-1 space-y-4 p-4">
@@ -39,13 +39,17 @@ export default function CreateOrganizationPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-2xl font-bold tracking-tight">Create Organization</h2>
+            <h2 className="text-2xl font-bold tracking-tight">
+              Create Organization
+            </h2>
           </div>
-          
+
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
-                <BreadcrumbLink href="/admin/organizations">Organizations</BreadcrumbLink>
+                <BreadcrumbLink href="/admin/organizations">
+                  Organizations
+                </BreadcrumbLink>
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
@@ -57,10 +61,7 @@ export default function CreateOrganizationPage() {
       </div>
 
       {/* Form */}
-      <OrganizationForm 
-        mode="create"
-        onSuccess={handleSuccess}
-      />
+      <OrganizationForm mode="create" />
     </div>
-  )
+  );
 }

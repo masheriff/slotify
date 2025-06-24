@@ -1,6 +1,6 @@
 // hooks/use-organizations.ts - Optimized version
 import {
-  getOrganizations,
+  listOrganizations,
   OrganizationResponse,
   PaginationParams,
 } from "@/actions/organization-actions";
@@ -92,7 +92,7 @@ export function useOrganizations() {
     try {
       const result = await withLoadingState(
         "organizations-fetch",
-        () => getOrganizations(params),
+        () => listOrganizations(params),
         "Loading organizations..."
       );
 

@@ -123,26 +123,26 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
   },
 
   // Status Column
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as string
-      return (
-        <Badge 
-          variant={
-            status === "active" 
-              ? "default" 
-              : status === "inactive" 
-              ? "secondary" 
-              : "destructive"
-          }
-        >
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </Badge>
-      )
-    },
-  },
+  // {
+  //   accessorKey: "status",
+  //   header: "Status",
+  //   cell: ({ row }) => {
+  //     const status = row.getValue("status") as string
+  //     return (
+  //       <Badge 
+  //         variant={
+  //           status === "active" 
+  //             ? "default" 
+  //             : status === "inactive" 
+  //             ? "secondary" 
+  //             : "destructive"
+  //         }
+  //       >
+  //         {status.charAt(0).toUpperCase() + status.slice(1)}
+  //       </Badge>
+  //     )
+  //   },
+  // },
 
   // Created Date Column
   {
