@@ -81,6 +81,7 @@ const statements = {
 } as const;
 
 export const ac = createAccessControl(statements);
+console.log("Access Control initialized with statements:", ac);
 
 /**
  * Complete Healthcare role definitions with permissions

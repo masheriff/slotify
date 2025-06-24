@@ -5,6 +5,17 @@ import { sql } from 'drizzle-orm';
 import { auditLogs, auditCleanupLogs, organizations } from '@/db/schema';
 import { eq, lt, and } from 'drizzle-orm';
 
+interface OrganizationWithMetadata {
+  id: string;
+  name: string;
+  metadata: {
+    type?: "admin" | "client";
+    isActive?: boolean;
+    dataRetentionYears?: string;
+    [key: string]: any;
+  };
+}
+
 /**
  * Audit Log Cleanup Job
  * Runs on the 1st day of every month at 2 AM UTC
@@ -22,27 +33,33 @@ export function startAuditCleanupJob() {
     let failedOrgs = 0;
     
     try {
-      // Get all active organizations with their retention policies
-      const orgs = await db
+      // Get all organizations and filter active ones with metadata
+      const allOrgs = await db
         .select({
           id: organizations.id,
           name: organizations.name,
-          dataRetentionYears: organizations.dataRetentionYears,
-          isActive: organizations.isActive,
+          metadata: organizations.metadata,
         })
-        .from(organizations)
-        .where(eq(organizations.isActive, true));
+        .from(organizations);
 
-      console.log(`📋 Found ${orgs.length} active organizations to process`);
+      // Filter active organizations based on metadata.isActive
+      const activeOrgs = allOrgs.filter((org) => {
+        const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+        return metadata?.isActive === true;
+      });
 
-      for (const org of orgs) {
+      console.log(`📋 Found ${activeOrgs.length} active organizations to process (${allOrgs.length} total)`);
+
+      for (const org of activeOrgs) {
         const orgJobStart = new Date();
         let deletedCount = 0;
         let status = 'success';
         let errorMessage = null;
 
         try {
-          const retentionYears = parseInt(org.dataRetentionYears || '7');
+          const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+          const retentionYears = parseInt(metadata?.dataRetentionYears || '7');
+          
           console.log(`🏥 Processing ${org.name} (retention: ${retentionYears} years)`);
 
           // Calculate cutoff date
@@ -78,7 +95,7 @@ export function startAuditCleanupJob() {
             id: `cleanup_${org.id}_${Date.now()}`,
             organizationId: org.id,
             deletedRecords: deletedCount,
-            retentionYears: parseInt(org.dataRetentionYears || '7'),
+            retentionYears: parseInt((org.metadata as any)?.dataRetentionYears || '7'),
             cleanupDate: new Date(),
             jobStartTime: orgJobStart,
             jobEndTime: new Date(),
@@ -96,7 +113,7 @@ export function startAuditCleanupJob() {
       console.log(`🎉 Audit cleanup completed successfully!`);
       console.log(`📊 Summary:`);
       console.log(`   • Total audit logs deleted: ${totalDeleted}`);
-      console.log(`   • Organizations processed: ${orgs.length}`);
+      console.log(`   • Organizations processed: ${activeOrgs.length}`);
       console.log(`   • Successful: ${successfulOrgs}`);
       console.log(`   • Failed: ${failedOrgs}`);
       console.log(`   • Duration: ${Math.round(duration / 1000)}s`);
@@ -151,21 +168,22 @@ export async function runAuditCleanupNow(organizationId?: string): Promise<{
 
     if (organizationId) {
       // Clean specific organization
-      const org = await db
+      const [org] = await db
         .select({
           id: organizations.id,
           name: organizations.name,
-          dataRetentionYears: organizations.dataRetentionYears,
+          metadata: organizations.metadata,
         })
         .from(organizations)
         .where(eq(organizations.id, organizationId))
         .limit(1);
 
-      if (!org.length) {
+      if (!org) {
         throw new Error(`Organization ${organizationId} not found`);
       }
 
-      const retentionYears = parseInt(org[0].dataRetentionYears || '7');
+      const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+      const retentionYears = parseInt(metadata?.dataRetentionYears || '7');
       const cutoffDate = new Date();
       cutoffDate.setFullYear(cutoffDate.getFullYear() - retentionYears);
 
@@ -179,21 +197,27 @@ export async function runAuditCleanupNow(organizationId?: string): Promise<{
         );
 
       totalDeleted = deleteResult.rowCount || 0;
-      console.log(`✅ Manual cleanup: Deleted ${totalDeleted} audit logs for ${org[0].name}`);
+      console.log(`✅ Manual cleanup: Deleted ${totalDeleted} audit logs for ${org.name}`);
 
     } else {
       // Clean all organizations (same logic as cron job but synchronous)
-      const orgs = await db
+      const allOrgs = await db
         .select({
           id: organizations.id,
           name: organizations.name,
-          dataRetentionYears: organizations.dataRetentionYears,
+          metadata: organizations.metadata,
         })
-        .from(organizations)
-        .where(eq(organizations.isActive, true));
+        .from(organizations);
 
-      for (const org of orgs) {
-        const retentionYears = parseInt(org.dataRetentionYears || '7');
+      // Filter active organizations based on metadata.isActive
+      const activeOrgs = allOrgs.filter((org) => {
+        const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+        return metadata?.isActive === true;
+      });
+
+      for (const org of activeOrgs) {
+        const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+        const retentionYears = parseInt(metadata?.dataRetentionYears || '7');
         const cutoffDate = new Date();
         cutoffDate.setFullYear(cutoffDate.getFullYear() - retentionYears);
 
@@ -252,5 +276,95 @@ export async function getCleanupStats() {
   } catch (error) {
     console.error('Failed to get cleanup stats:', error);
     return null;
+  }
+}
+
+/**
+ * Get organization-specific cleanup history
+ * Useful for admin dashboard to show per-organization cleanup activities
+ */
+export async function getOrganizationCleanupHistory(organizationId: string, limit = 10) {
+  try {
+    const history = await db
+      .select({
+        id: auditCleanupLogs.id,
+        deletedRecords: auditCleanupLogs.deletedRecords,
+        retentionYears: auditCleanupLogs.retentionYears,
+        cleanupDate: auditCleanupLogs.cleanupDate,
+        status: auditCleanupLogs.status,
+        errorMessage: auditCleanupLogs.errorMessage,
+        duration: sql<number>`extract(epoch from (job_end_time - job_start_time))`,
+      })
+      .from(auditCleanupLogs)
+      .where(eq(auditCleanupLogs.organizationId, organizationId))
+      .orderBy(sql`cleanup_date DESC`)
+      .limit(limit);
+
+    return history;
+  } catch (error) {
+    console.error('Failed to get organization cleanup history:', error);
+    return [];
+  }
+}
+
+/**
+ * Check how many audit logs would be deleted for an organization without actually deleting
+ * Useful for preview/estimation before running cleanup
+ */
+export async function estimateCleanupForOrganization(organizationId: string): Promise<{
+  organizationName: string;
+  retentionYears: number;
+  cutoffDate: Date;
+  estimatedDeletions: number;
+  totalAuditLogs: number;
+}> {
+  try {
+    // Get organization details
+    const [org] = await db
+      .select({
+        name: organizations.name,
+        metadata: organizations.metadata,
+      })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+
+    if (!org) {
+      throw new Error(`Organization ${organizationId} not found`);
+    }
+
+    const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+    const retentionYears = parseInt(metadata?.dataRetentionYears || '7');
+    const cutoffDate = new Date();
+    cutoffDate.setFullYear(cutoffDate.getFullYear() - retentionYears);
+
+    // Count total audit logs for this organization
+    const [totalCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(auditLogs)
+      .where(eq(auditLogs.organizationId, organizationId));
+
+    // Count audit logs that would be deleted
+    const [deletionCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(auditLogs)
+      .where(
+        and(
+          eq(auditLogs.organizationId, organizationId),
+          lt(auditLogs.createdAt, cutoffDate)
+        )
+      );
+
+    return {
+      organizationName: org.name,
+      retentionYears,
+      cutoffDate,
+      estimatedDeletions: deletionCount?.count || 0,
+      totalAuditLogs: totalCount?.count || 0,
+    };
+
+  } catch (error) {
+    console.error('Failed to estimate cleanup:', error);
+    throw error;
   }
 }

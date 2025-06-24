@@ -1,4 +1,4 @@
-// app/admin/organizations/create/page.tsx
+// app/admin/organizations/[id]/edit/page.tsx
 "use client"
 
 import { useRouter } from "next/navigation"
@@ -14,15 +14,22 @@ import {
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 
-export default function CreateOrganizationPage() {
+interface EditOrganizationPageProps {
+  params: {
+    id: string
+  }
+}
+
+export default function EditOrganizationPage({ params }: EditOrganizationPageProps) {
   const router = useRouter()
+  const organizationId = params.id
 
   const handleSuccess = () => {
-    router.push('/admin/organizations')
+    router.push(`/admin/organizations/${organizationId}`)
   }
 
   const handleBack = () => {
-    router.push('/admin/organizations')
+    router.push(`/admin/organizations/${organizationId}`)
   }
 
   return (
@@ -39,7 +46,7 @@ export default function CreateOrganizationPage() {
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
-            <h2 className="text-2xl font-bold tracking-tight">Create Organization</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Edit Organization</h2>
           </div>
           
           <Breadcrumb>
@@ -49,7 +56,13 @@ export default function CreateOrganizationPage() {
               </BreadcrumbItem>
               <BreadcrumbSeparator />
               <BreadcrumbItem>
-                <BreadcrumbPage>Create</BreadcrumbPage>
+                <BreadcrumbLink href={`/admin/organizations/${organizationId}`}>
+                  Organization Details
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>Edit</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
@@ -58,7 +71,8 @@ export default function CreateOrganizationPage() {
 
       {/* Form */}
       <OrganizationForm 
-        mode="create"
+        mode="edit"
+        organizationId={organizationId}
         onSuccess={handleSuccess}
       />
     </div>

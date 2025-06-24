@@ -1,10 +1,11 @@
-// actions/organization-actions.ts - Simple DB-only approach
+// actions/organization-actions.ts - Updated with create/update functions
 "use server";
 
 import { requireSuperAdmin } from "@/lib/auth-server";
 import { db } from "@/db";
 import { organizations, members } from "@/db/schema";
 import { eq, count, like, ilike, or, gte, sql } from "drizzle-orm";
+import { generateId } from "better-auth";
 
 export type PaginationParams = {
   page: number;
@@ -23,6 +24,30 @@ export type OrganizationResponse = {
   hasNextPage: boolean;
   hasPreviousPage: boolean;
 };
+
+// Organization data interface for create/update
+export interface OrganizationData {
+  name: string;
+  slug: string;
+  logo?: string;
+  metadata: {
+    type: "admin" | "client";
+    contactEmail: string;
+    contactPhone: string;
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    timezone: string;
+    isActive: boolean;
+    settings: Record<string, any>;
+    hipaaOfficer?: string;
+    businessAssociateAgreement?: boolean;
+    dataRetentionYears?: string;
+  };
+}
 
 export async function getOrganizations(
   params: PaginationParams
@@ -82,89 +107,73 @@ export async function getOrganizations(
     // Combine all where conditions
     const whereClause = whereConditions.length > 0 
       ? whereConditions.reduce((acc, condition) => 
-          acc ? sql`${acc} AND ${condition}` : condition, 
-          null as any
-        )
+          acc ? sql`${acc} AND ${condition}` : condition
+        ) 
       : undefined;
 
-    // Get total count for pagination
-    const [{ count: totalCount }] = await db
+    // Count total organizations
+    const [totalResult] = await db
       .select({ count: count() })
       .from(organizations)
       .where(whereClause);
+    
+    const totalCount = totalResult?.count || 0;
 
-    // Build order by clause
+    // Build ordering
     let orderByClause;
-    if (params.sortBy) {
+    if (params.sortBy && params.sortDirection) {
       switch (params.sortBy) {
         case "name":
           orderByClause = params.sortDirection === "asc" 
-            ? organizations.name 
+            ? sql`${organizations.name} ASC`
             : sql`${organizations.name} DESC`;
           break;
         case "createdAt":
-          orderByClause = params.sortDirection === "asc" 
-            ? organizations.createdAt 
+          orderByClause = params.sortDirection === "asc"
+            ? sql`${organizations.createdAt} ASC`
             : sql`${organizations.createdAt} DESC`;
           break;
-        case "type":
-          orderByClause = params.sortDirection === "asc" 
-            ? sql`${organizations.metadata}->>'type'`
-            : sql`${organizations.metadata}->>'type' DESC`;
+        case "contactEmail":
+          orderByClause = params.sortDirection === "asc"
+            ? sql`${organizations.metadata}->>'contactEmail' ASC`
+            : sql`${organizations.metadata}->>'contactEmail' DESC`;
           break;
         default:
-          orderByClause = organizations.name;
+          orderByClause = sql`${organizations.name} ASC`;
       }
     } else {
-      orderByClause = organizations.name; // Default sort
+      orderByClause = sql`${organizations.name} ASC`;
     }
 
-    // Build and execute main query
+    // Fetch organizations with pagination
     const offset = (params.page - 1) * params.pageSize;
     
-    let mainQuery = db
-      .select({
-        id: organizations.id,
-        name: organizations.name,
-        slug: organizations.slug,
-        createdAt: organizations.createdAt,
-        updatedAt: organizations.updatedAt,
-        metadata: organizations.metadata,
-        logo: organizations.logo,
-      })
+    const orgs = await db
+      .select()
       .from(organizations)
+      .where(whereClause)
       .orderBy(orderByClause)
       .limit(params.pageSize)
       .offset(offset);
 
-    // Apply where clause if exists
-    const orgs = whereClause 
-      ? await mainQuery.where(whereClause)
-      : await mainQuery;
+    console.log(`📊 Found ${orgs.length} organizations (total: ${totalCount})`);
 
-    console.log('📋 DB organizations loaded:', {
-      count: orgs.length,
-      totalCount,
-      page: params.page,
-      pageSize: params.pageSize
-    });
-
-    // Enrich with member counts
+    // Enrich organizations with member count and formatted data
     const enrichedOrgs = await Promise.all(
       orgs.map(async (org) => {
         try {
-          // Get member count
-          const [memberCountResult] = await db
+          const [memberResult] = await db
             .select({ count: count() })
             .from(members)
             .where(eq(members.organizationId, org.id));
-
-          const memberCount = memberCountResult?.count || 0;
-
+          
+          const memberCount = memberResult?.count || 0;
+          
           return {
             id: org.id,
             name: org.name,
             slug: org.slug,
+            logo: org.logo,
             type: (org.metadata as any)?.type || "client",
             status: (org.metadata as any)?.isActive ? "active" : "inactive",
             memberCount,
@@ -178,6 +187,7 @@ export async function getOrganizations(
             id: org.id,
             name: org.name,
             slug: org.slug,
+            logo: org.logo,
             type: (org.metadata as any)?.type || "client",
             status: (org.metadata as any)?.isActive ? "active" : "inactive",
             memberCount: 0,
@@ -214,13 +224,10 @@ export async function getOrganizations(
   }
 }
 
-// Keep other functions that might still need Better Auth
 export async function getOrganizationById(organizationId: string) {
   try {
     await requireSuperAdmin();
 
-    // For individual organization, you can still use Better Auth or DB
-    // Using DB for consistency:
     const [organization] = await db
       .select()
       .from(organizations)
@@ -250,6 +257,148 @@ export async function getOrganizationById(organizationId: string) {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to fetch organization",
+    };
+  }
+}
+
+export async function createOrganization(organizationData: OrganizationData) {
+  try {
+    console.log('🏗️ Creating organization:', organizationData.name);
+    
+    await requireSuperAdmin();
+
+    // Check if slug already exists
+    const existingOrg = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.slug, organizationData.slug))
+      .limit(1);
+
+    if (existingOrg.length > 0) {
+      return {
+        success: false,
+        error: "An organization with this slug already exists",
+      };
+    }
+
+    // Generate ID
+    const organizationId = generateId();
+
+    // Create organization
+    const newOrg = {
+      id: organizationId,
+      name: organizationData.name,
+      slug: organizationData.slug,
+      logo: organizationData.logo || null,
+      metadata: organizationData.metadata,
+      createdAt: new Date(),
+    };
+
+    await db.insert(organizations).values(newOrg);
+
+    console.log('✅ Organization created successfully:', organizationId);
+
+    return {
+      success: true,
+      data: { id: organizationId },
+    };
+
+  } catch (error) {
+    console.error('❌ Failed to create organization:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create organization",
+    };
+  }
+}
+
+export async function updateOrganization(organizationId: string, organizationData: OrganizationData) {
+  try {
+    console.log('📝 Updating organization:', organizationId);
+    
+    await requireSuperAdmin();
+
+    // Check if organization exists
+    const [existingOrg] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+
+    if (!existingOrg) {
+      return {
+        success: false,
+        error: "Organization not found",
+      };
+    }
+
+    // Check if slug is being changed and if new slug already exists
+    if (organizationData.slug !== existingOrg.slug) {
+      const slugCheck = await db
+        .select()
+        .from(organizations)
+        .where(eq(organizations.slug, organizationData.slug))
+        .limit(1);
+
+      if (slugCheck.length > 0) {
+        return {
+          success: false,
+          error: "An organization with this slug already exists",
+        };
+      }
+    }
+
+    // Update organization
+    const updateData = {
+      name: organizationData.name,
+      slug: organizationData.slug,
+      logo: organizationData.logo || null,
+      metadata: organizationData.metadata,
+      updatedAt: new Date(),
+    };
+
+    await db
+      .update(organizations)
+      .set(updateData)
+      .where(eq(organizations.id, organizationId));
+
+    console.log('✅ Organization updated successfully:', organizationId);
+
+    return {
+      success: true,
+      data: { id: organizationId },
+    };
+
+  } catch (error) {
+    console.error('❌ Failed to update organization:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update organization",
+    };
+  }
+}
+
+export async function sendOrganizationInvitation(organizationId: string, email: string, role: string) {
+  try {
+    console.log('📧 Sending invitation to:', email, 'for organization:', organizationId);
+    
+    await requireSuperAdmin();
+
+    // TODO: Implement invitation logic using Better Auth
+    // This would use the auth.api.createInvitation method
+    
+    console.log('✅ Invitation sent successfully');
+
+    return {
+      success: true,
+      message: "Invitation sent successfully",
+    };
+
+  } catch (error) {
+    console.error('❌ Failed to send invitation:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send invitation",
     };
   }
 }

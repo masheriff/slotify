@@ -12,14 +12,37 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { ArrowUpDown, MoreHorizontal, Eye, Edit, Trash2, Users } from "lucide-react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ArrowUpDown, MoreHorizontal, Eye, Edit, Users, Mail } from "lucide-react"
 import { toast } from "sonner"
 import { OrganizationColumns } from "@/types"
 
-// Organization type definition
-
-
 export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
+  // Logo Column
+  {
+    accessorKey: "logo",
+    header: "Logo",
+    enableSorting: false,
+    cell: ({ row }) => {
+      const organization = row.original
+      const firstLetter = organization.name.charAt(0).toUpperCase()
+      
+      return (
+        <Avatar className="h-10 w-10">
+          <AvatarImage 
+            src={organization.logo as string | undefined} 
+            alt={`${organization.name} logo`}
+            className="object-cover"
+          />
+          <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+            {firstLetter}
+          </AvatarFallback>
+        </Avatar>
+      )
+    },
+  },
+  
+  // Name Column (clean, no email)
   {
     accessorKey: "name",
     header: ({ column }) => {
@@ -37,13 +60,55 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
     cell: ({ row }) => {
       const organization = row.original
       return (
-        <div className="flex flex-col">
-          <span className="font-medium">{organization.name}</span>
-          <span className="text-sm text-muted-foreground">{organization.contactEmail}</span>
+        <div className="font-medium">
+          {organization.name}
         </div>
       )
     },
   },
+
+  // Email Column (separate)
+  {
+    accessorKey: "contactEmail",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="h-auto p-0 hover:bg-transparent"
+        >
+          Email
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
+    cell: ({ row }) => {
+      const email = row.getValue("contactEmail") as string
+      
+      if (!email) {
+        return <span className="text-muted-foreground">No email</span>
+      }
+      
+      return (
+        <div className="flex items-center gap-2">
+          <span className="text-sm">{email}</span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+            onClick={() => {
+              navigator.clipboard.writeText(email)
+              toast.success("Email copied to clipboard")
+            }}
+          >
+            <Mail className="h-3 w-3" />
+          </Button>
+        </div>
+      )
+    },
+  },
+
+  // Type Column
   {
     accessorKey: "type",
     header: "Type",
@@ -56,6 +121,8 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
       )
     },
   },
+
+  // Status Column
   {
     accessorKey: "status",
     header: "Status",
@@ -76,30 +143,8 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
       )
     },
   },
-  {
-    accessorKey: "memberCount",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-auto p-0 hover:bg-transparent"
-        >
-          Members
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
-    cell: ({ row }) => {
-      const memberCount = row.getValue("memberCount") as number
-      return (
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <span>{memberCount}</span>
-        </div>
-      )
-    },
-  },
+
+  // Created Date Column
   {
     accessorKey: "createdAt",
     header: ({ column }) => {
@@ -116,7 +161,6 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
     },
     cell: ({ row }) => {
       const createdAt = row.getValue("createdAt") as string
-      // Use consistent date formatting to avoid hydration errors
       return new Date(createdAt).toLocaleDateString('en-GB', {
         day: '2-digit',
         month: '2-digit', 
@@ -124,6 +168,8 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
       })
     },
   },
+
+  // Actions Column (simplified)
   {
     id: "actions",
     enableHiding: false,
@@ -141,14 +187,7 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={() => navigator.clipboard.writeText(organization.id)}
-            >
-              Copy organization ID
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
               onClick={() => {
-                // Navigate to organization details
                 window.location.href = `/admin/organizations/${organization.id}`
               }}
             >
@@ -157,7 +196,6 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                // Navigate to edit organization
                 window.location.href = `/admin/organizations/${organization.id}/edit`
               }}
             >
@@ -166,7 +204,6 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => {
-                // Navigate to members
                 window.location.href = `/admin/organizations/${organization.id}/members`
               }}
             >
@@ -175,16 +212,13 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="text-destructive"
               onClick={() => {
-                if (confirm(`Are you sure you want to delete ${organization.name}?`)) {
-                  // Handle delete
-                  toast.success(`${organization.name} has been deleted`)
-                }
+                // Open invitation modal/sheet
+                toast.info("Send invitation feature coming soon")
               }}
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete organization
+              <Mail className="mr-2 h-4 w-4" />
+              Send invitation
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

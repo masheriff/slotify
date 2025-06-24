@@ -1,6 +1,11 @@
 // app/api/admin/cleanup-audit-logs/route.ts
 import { requireSuperAdmin } from '@/lib/auth-server';
-import { runAuditCleanupNow, getCleanupStats } from '@/lib/jobs/audit-cleanup';
+import { 
+  runAuditCleanupNow, 
+  getCleanupStats, 
+  getOrganizationCleanupHistory,
+  estimateCleanupForOrganization 
+} from '@/lib/jobs/audit-cleanup';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -8,7 +13,24 @@ export async function POST(request: NextRequest) {
     await requireSuperAdmin();
     
     const body = await request.json().catch(() => ({}));
-    const { organizationId } = body;
+    const { organizationId, preview = false } = body;
+    
+    // If preview mode, return estimation without deleting
+    if (preview && organizationId) {
+      try {
+        const estimation = await estimateCleanupForOrganization(organizationId);
+        return NextResponse.json({
+          success: true,
+          preview: true,
+          data: estimation,
+        });
+      } catch (error) {
+        return NextResponse.json({
+          success: false,
+          error: error instanceof Error ? error.message : 'Failed to estimate cleanup',
+        }, { status: 500 });
+      }
+    }
     
     console.log('🔧 Manual audit cleanup triggered by admin');
     
@@ -36,10 +58,26 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await requireSuperAdmin();
     
+    const { searchParams } = new URL(request.url);
+    const organizationId = searchParams.get('organizationId');
+    const action = searchParams.get('action');
+    
+    // Get organization-specific cleanup history
+    if (action === 'history' && organizationId) {
+      const limit = parseInt(searchParams.get('limit') || '10');
+      const history = await getOrganizationCleanupHistory(organizationId, limit);
+      
+      return NextResponse.json({
+        success: true,
+        data: history,
+      });
+    }
+    
+    // Get overall cleanup statistics
     const stats = await getCleanupStats();
     
     return NextResponse.json({
