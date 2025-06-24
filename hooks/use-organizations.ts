@@ -1,4 +1,4 @@
-// hooks/use-organizations.ts - Optimized version
+// hooks/use-organizations.ts - FIXED VERSION
 import {
   listOrganizations,
   OrganizationResponse,
@@ -7,7 +7,7 @@ import {
 import { useLoadingControl } from "@/lib/with-loading";
 import { useListState } from "@/stores/list-state-store";
 import { FilterConfig } from "@/types";
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { toast } from "sonner";
 
 // Organization filter configuration
@@ -66,17 +66,25 @@ export function useOrganizations() {
   const hasInitialLoad = useRef(false);
   const lastParamsRef = useRef<string>("");
 
-  // Fetch organizations function - OPTIMIZED WITH DEDUPLICATION
-  const fetchOrganizations = useCallback(async () => {
-    const params: PaginationParams = {
-      page: listState.currentPage,
-      pageSize: listState.pageSize,
-      searchQuery: listState.searchQuery,
-      sortBy: listState.sortBy,
-      sortDirection: listState.sortDirection,
-      filters: listState.filters,
-    };
+  // FIXED: Use useMemo to create stable params object
+  const params = useMemo<PaginationParams>(() => ({
+    page: listState.currentPage,
+    pageSize: listState.pageSize,
+    searchQuery: listState.searchQuery,
+    sortBy: listState.sortBy,
+    sortDirection: listState.sortDirection,
+    filters: listState.filters,
+  }), [
+    listState.currentPage,
+    listState.pageSize,
+    listState.searchQuery,
+    listState.sortBy,
+    listState.sortDirection,
+    listState.filters,
+  ]);
 
+  // FIXED: Stable fetchOrganizations function that depends on stable params
+  const fetchOrganizations = useCallback(async () => {
     // Create a key to track parameter changes
     const paramsKey = JSON.stringify(params);
 
@@ -111,32 +119,23 @@ export function useOrganizations() {
       // Set empty state on error
       setOrganizationData({
         data: [],
-        page: listState.currentPage,
-        pageSize: listState.pageSize,
+        page: params.page,
+        pageSize: params.pageSize,
         totalPages: 0,
         hasNextPage: false,
         hasPreviousPage: false,
       });
     }
-  }, [
-    listState.currentPage,
-    listState.pageSize,
-    listState.searchQuery,
-    listState.sortBy,
-    listState.sortDirection,
-    listState.filters,
-    withLoadingState,
-  ]);
+  }, [params, withLoadingState]); // FIXED: Only depend on stable params
 
-  // Fetch data when dependencies change - DEBOUNCED
+  // FIXED: Use params directly instead of individual listState properties
   useEffect(() => {
-    // Debounce the fetch to prevent rapid-fire calls
     const timeoutId = setTimeout(() => {
       fetchOrganizations();
     }, 200); // 200ms debounce
 
     return () => clearTimeout(timeoutId);
-  }, [fetchOrganizations]);
+  }, [fetchOrganizations]); // This is now stable
 
   // Manual refresh function
   const refreshOrganizations = useCallback(() => {

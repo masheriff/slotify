@@ -3,10 +3,6 @@ export interface OrganizationColumns {
   id: string
   name: string
   logo?: string
-  contactEmail: string
-  type: 'admin' | 'client'
-  status: 'active' | 'inactive' | 'suspended'
-  memberCount: number
   createdAt: string
   slug?: string
   metadata?: Record<string, any>

@@ -1,8 +1,8 @@
-// components/admin/organization/organizations-list-content.tsx
+// components/admin/organization/organizations-list-content.tsx - CORRECTED
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ListPageHeader } from "@/components/common/list-page-header";
 import { OrganizationFiltersForm } from "@/components/admin/forms/organization-filters-form";
 import { DataTable } from "@/components/common/data-table";
@@ -10,13 +10,15 @@ import { organizationColumns } from "@/lib/table-configs/organization-columns";
 import { toast } from "sonner";
 import { useLoadingControl } from "@/lib/with-loading";
 import { listOrganizations, OrganizationResponse, PaginationParams } from "@/actions/organization-actions";
+import { useListState } from "@/stores/list-state-store";
+import { FilterConfig } from "@/types";
 
 // Organization filter configuration
-const organizationFilters = [
+const organizationFilters: FilterConfig[] = [
   {
     label: "Organization Type",
     key: "type",
-    type: "select" as const,
+    type: "select",
     options: [
       { value: "admin", label: "Admin Organization" },
       { value: "client", label: "Client Organization" },
@@ -25,7 +27,7 @@ const organizationFilters = [
   {
     label: "Status",
     key: "status",
-    type: "select" as const,
+    type: "select",
     options: [
       { value: "active", label: "Active" },
       { value: "inactive", label: "Inactive" },
@@ -35,70 +37,36 @@ const organizationFilters = [
   {
     label: "Created After",
     key: "createdAfter",
-    type: "date" as const,
+    type: "date",
   },
   {
     label: "Contact Email",
     key: "contactEmail",
-    type: "text" as const,
+    type: "text",
   },
 ];
 
 interface OrganizationsListContentProps {
   initialData: OrganizationResponse;
-  initialParams: {
-    page: number;
-    pageSize: number;
-    searchQuery: string;
-    sortBy: string;
-    sortDirection: 'asc' | 'desc';
-    filters: Record<string, string>;
-  };
 }
 
 export function OrganizationsListContent({ 
-  initialData, 
-  initialParams 
+  initialData
 }: OrganizationsListContentProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { withLoadingState } = useLoadingControl();
   
-  // State management
-  const [data, setData] = useState(initialData);
-  const [currentParams, setCurrentParams] = useState(initialParams);
-  
-  // Update URL search parameters
-  const updateURL = useCallback((newParams: Partial<typeof currentParams>) => {
-    const params = new URLSearchParams(searchParams);
-    
-    // Update parameters
-    Object.entries(newParams).forEach(([key, value]) => {
-      if (key === 'filters' && typeof value === 'object') {
-        // Handle filters specially
-        Object.entries(value as Record<string, string>).forEach(([filterKey, filterValue]) => {
-          if (filterValue) {
-            params.set(filterKey, filterValue);
-          } else {
-            params.delete(filterKey);
-          }
-        });
-      } else if (value !== undefined && value !== null && value !== '') {
-        params.set(key, value.toString());
-      } else {
-        params.delete(key);
-      }
-    });
-    
-    // Reset page to 1 when changing filters/search/sort
-    if ('searchQuery' in newParams || 'filters' in newParams || 'sortBy' in newParams || 'sortDirection' in newParams) {
-      params.set('page', '1');
-    }
-    
-    router.push(`/admin/organizations?${params.toString()}`);
-  }, [router, searchParams]);
+  // FIXED: Single source of truth - only use URL state management
+  const listState = useListState({
+    defaultPageSize: 10,
+    defaultSort: { column: "name", direction: "asc" },
+    filterConfig: organizationFilters,
+  });
 
-  // Fetch data function
+  // FIXED: Use server-side data as initial state, client refetches on filter changes
+  const [data, setData] = useState<OrganizationResponse>(initialData);
+
+  // FIXED: Only fetch when filters/search/pagination changes (not on initial load)
   const fetchData = useCallback(async (params: PaginationParams) => {
     try {
       await withLoadingState(
@@ -112,40 +80,8 @@ export function OrganizationsListContent({
     } catch (error) {
       console.error('Failed to fetch organizations:', error);
       toast.error('Failed to load organizations. Please try again.');
-    }
+    } 
   }, [withLoadingState]);
-
-  // Update data when URL changes
-  useEffect(() => {
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const pageSize = parseInt(searchParams.get('pageSize') || '10', 10);
-    const searchQuery = searchParams.get('search') || '';
-    const sortBy = searchParams.get('sortBy') || 'name';
-    const sortDirection = (searchParams.get('sortDirection') || 'asc') as 'asc' | 'desc';
-    
-    // Build filters from URL
-    const filters: Record<string, string> = {};
-    organizationFilters.forEach(filter => {
-      const value = searchParams.get(filter.key);
-      if (value) filters[filter.key] = value;
-    });
-
-    const newParams = {
-      page,
-      pageSize,
-      searchQuery,
-      sortBy,
-      sortDirection,
-      filters,
-    };
-
-    // Only fetch if parameters actually changed
-    const paramsChanged = JSON.stringify(newParams) !== JSON.stringify(currentParams);
-    if (paramsChanged) {
-      setCurrentParams(newParams);
-      fetchData(newParams);
-    }
-  }, [searchParams, fetchData, currentParams]);
 
   // Event handlers
   const handleCreateOrganization = () => {
@@ -153,55 +89,123 @@ export function OrganizationsListContent({
   };
 
   const handleRefresh = () => {
-    fetchData(currentParams);
+    const params: PaginationParams = {
+      page: listState.currentPage,
+      pageSize: listState.pageSize,
+      searchQuery: listState.searchQuery,
+      sortBy: listState.sortBy,
+      sortDirection: listState.sortDirection,
+      filters: listState.filters,
+    };
+    fetchData(params);
     toast.success('Organizations refreshed');
   };
 
-  const handleSearchChange = (search: string) => {
-    updateURL({ searchQuery: search });
-  };
+  // FIXED: Trigger fetch only when user actively changes filters/search
+  const handleFilterChange = useCallback((key: string, value: string) => {
+    listState.setFilter(key, value);
+    
+    // Fetch with new filters
+    const params: PaginationParams = {
+      page: 1, // Reset to page 1 when filtering
+      pageSize: listState.pageSize,
+      searchQuery: listState.searchQuery,
+      sortBy: listState.sortBy,
+      sortDirection: listState.sortDirection,
+      filters: { ...listState.filters, [key]: value },
+    };
+    fetchData(params);
+  }, [listState, fetchData]);
 
-  const handlePageChange = (page: number) => {
-    updateURL({ page });
-  };
+  const handleClearAllFilters = useCallback(() => {
+    listState.resetFilters();
+    
+    // Fetch with cleared filters
+    const params: PaginationParams = {
+      page: 1,
+      pageSize: listState.pageSize,
+      searchQuery: listState.searchQuery,
+      sortBy: listState.sortBy,
+      sortDirection: listState.sortDirection,
+      filters: {},
+    };
+    fetchData(params);
+  }, [listState, fetchData]);
 
-  const handlePageSizeChange = (pageSize: number) => {
-    updateURL({ pageSize });
-  };
+  const handleSearchChange = useCallback((search: string) => {
+    listState.setSearchQuery(search);
+    
+    // Fetch with new search
+    const params: PaginationParams = {
+      page: 1, // Reset to page 1 when searching
+      pageSize: listState.pageSize,
+      searchQuery: search,
+      sortBy: listState.sortBy,
+      sortDirection: listState.sortDirection,
+      filters: listState.filters,
+    };
+    fetchData(params);
+  }, [listState, fetchData]);
 
-  const handleSortingChange = (sortBy: string, sortDirection: 'asc' | 'desc') => {
-    updateURL({ sortBy, sortDirection });
-  };
+  const handlePageChange = useCallback((page: number) => {
+    listState.setCurrentPage(page);
+    
+    const params: PaginationParams = {
+      page,
+      pageSize: listState.pageSize,
+      searchQuery: listState.searchQuery,
+      sortBy: listState.sortBy,
+      sortDirection: listState.sortDirection,
+      filters: listState.filters,
+    };
+    fetchData(params);
+  }, [listState, fetchData]);
 
-  const handleFilterChange = (key: string, value: string) => {
-    const newFilters = { ...currentParams.filters };
-    if (value) {
-      newFilters[key] = value;
-    } else {
-      delete newFilters[key];
-    }
-    updateURL({ filters: newFilters });
-  };
+  const handlePageSizeChange = useCallback((pageSize: number) => {
+    listState.setPageSize(pageSize);
+    
+    const params: PaginationParams = {
+      page: 1, // Reset to page 1 when changing page size
+      pageSize,
+      searchQuery: listState.searchQuery,
+      sortBy: listState.sortBy,
+      sortDirection: listState.sortDirection,
+      filters: listState.filters,
+    };
+    fetchData(params);
+  }, [listState, fetchData]);
 
-  const handleClearAllFilters = () => {
-    updateURL({ filters: {} });
-  };
+  const handleSortingChange = useCallback((sortBy: string, sortDirection: 'asc' | 'desc') => {
+    listState.setSorting(sortBy, sortDirection);
+    
+    const params: PaginationParams = {
+      page: listState.currentPage,
+      pageSize: listState.pageSize,
+      searchQuery: listState.searchQuery,
+      sortBy,
+      sortDirection,
+      filters: listState.filters,
+    };
+    fetchData(params);
+  }, [listState, fetchData]);
 
-  const activeFiltersCount = Object.values(currentParams.filters).filter(Boolean).length;
+  const activeFiltersCount = Object.values(listState.filters).filter(Boolean).length;
+
+  console.log('Rendering OrganizationsListContent with data:', data);
 
   return (
     <div className="space-y-6">
       <ListPageHeader
         title="Organizations"
-        searchPlaceholder="Search organizations by name, email, or slug..."
-        searchQuery={currentParams.searchQuery}
+        searchPlaceholder="Search organizations by name or slug"
+        searchQuery={listState.searchQuery}
         onSearchChange={handleSearchChange}
         onCreateClick={handleCreateOrganization}
         createButtonText="Create Organization"
         activeFiltersCount={activeFiltersCount}
         filterComponent={
           <OrganizationFiltersForm
-            currentFilters={currentParams.filters}
+            currentFilters={listState.filters}
             onFilterChange={handleFilterChange}
             onClearAllFilters={handleClearAllFilters}
           />
@@ -222,8 +226,8 @@ export function OrganizationsListContent({
         hasPreviousPage={data.hasPreviousPage}
         onPageChange={handlePageChange}
         onPageSizeChange={handlePageSizeChange}
-        sortBy={currentParams.sortBy}
-        sortDirection={currentParams.sortDirection}
+        sortBy={listState.sortBy}
+        sortDirection={listState.sortDirection}
         onSortingChange={handleSortingChange}
         loadingKey="organizations-fetch"
         emptyMessage="No organizations found. Create your first organization to get started."

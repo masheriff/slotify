@@ -1,8 +1,8 @@
-// stores/list-state-store.ts - Optimized to reduce network calls
+// stores/list-state-store.ts - FIXED VERSION to prevent infinite loops
 import { create } from 'zustand'
 import { subscribeWithSelector } from 'zustand/middleware'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import { useEffect, useCallback, useRef } from 'react'
+import { useEffect, useCallback, useRef, useMemo } from 'react'
 import { ListState, ListStateStore, UseListStateProps } from '@/types'
 
 // Create the store
@@ -113,7 +113,6 @@ const useListStateStore = create<ListStateStore>()(
   }))
 )
 
-
 export function useListState({
   defaultPageSize = 10,
   defaultSort,
@@ -124,6 +123,15 @@ export function useListState({
   const router = useRouter()
   const pathname = usePathname()
   
+  // FIXED: Use zustand selectors to get individual values instead of the whole store
+  const searchQuery = useListStateStore(state => state.searchQuery)
+  const currentPage = useListStateStore(state => state.currentPage)
+  const pageSize = useListStateStore(state => state.pageSize)
+  const sortBy = useListStateStore(state => state.sortBy)
+  const sortDirection = useListStateStore(state => state.sortDirection)
+  const filters = useListStateStore(state => state.filters)
+  
+  // Get store actions (these are stable)
   const store = useListStateStore()
   
   // Track initialization to prevent multiple URL syncs
@@ -164,7 +172,7 @@ export function useListState({
     isInitialized.current = true
   }, []) // Empty dependency array - only run once
   
-  // Sync URL when store state changes - DEBOUNCED AND OPTIMIZED
+  // FIXED: Sync URL when store state changes - DEBOUNCED AND OPTIMIZED
   useEffect(() => {
     if (!isInitialized.current) return
     
@@ -179,45 +187,52 @@ export function useListState({
         router.replace(newUrl, { scroll: false }) // Use replace instead of push to prevent history pollution
         lastUrlRef.current = newUrl
       }
-    }, 100) // 100ms debounce
+    }, 150) // Slightly higher debounce to reduce calls
     
     return () => clearTimeout(timeoutId)
   }, [
-    store.searchQuery,
-    store.currentPage,
-    store.pageSize,
-    store.sortBy,
-    store.sortDirection,
-    store.filters,
+    searchQuery,
+    currentPage,
+    pageSize,
+    sortBy,
+    sortDirection,
+    filters,
     router,
-    pathname
+    pathname,
+    store
   ])
   
-  // Enhanced setters that respect filter config
+  // FIXED: Create stable callback functions with useCallback
   const setFilter = useCallback((key: string, value: string) => {
     store.setFilter(key, value)
-  }, [store])
+  }, [store.setFilter]) // store.setFilter is stable from zustand
   
   const resetFilters = useCallback(() => {
     const filterKeys = filterConfig.map(f => f.key)
     store.resetFilters(filterKeys)
-  }, [store, filterConfig])
+  }, [store.resetFilters, filterConfig]) // filterConfig should be stable if passed as constant
   
-  const hasActiveFilters = useCallback(() => {
+  // FIXED: Create stable computed values with useMemo
+  const hasActiveFilters = useMemo(() => {
     const filterKeys = filterConfig.map(f => f.key)
     return store.hasActiveFilters(filterKeys)
-  }, [store, filterConfig])
+  }, [store.hasActiveFilters, filterConfig, filters]) // Include filters to recalculate when they change
   
-  return {
-    // Current state
-    searchQuery: store.searchQuery,
-    currentPage: store.currentPage,
-    pageSize: store.pageSize,
-    sortBy: store.sortBy,
-    sortDirection: store.sortDirection,
-    filters: store.filters,
+  const urlSearchParams = useMemo(() => {
+    return store.getUrlParams()
+  }, [searchQuery, currentPage, pageSize, sortBy, sortDirection, filters, store.getUrlParams])
+  
+  // FIXED: Return stable object with useMemo
+  return useMemo(() => ({
+    // Current state - these are stable from zustand selectors
+    searchQuery,
+    currentPage,
+    pageSize,
+    sortBy,
+    sortDirection,
+    filters,
     
-    // State setters
+    // State setters - these are stable from zustand
     setSearchQuery: store.setSearchQuery,
     setCurrentPage: store.setCurrentPage,
     setPageSize: store.setPageSize,
@@ -226,10 +241,26 @@ export function useListState({
     setFilter,
     resetFilters,
     
-    // Computed
-    hasActiveFilters: hasActiveFilters(),
-    urlSearchParams: store.getUrlParams()
-  }
+    // Computed - now stable
+    hasActiveFilters,
+    urlSearchParams
+  }), [
+    searchQuery,
+    currentPage,
+    pageSize,
+    sortBy,
+    sortDirection,
+    filters,
+    store.setSearchQuery,
+    store.setCurrentPage,
+    store.setPageSize,
+    store.setSorting,
+    store.setFilters,
+    setFilter,
+    resetFilters,
+    hasActiveFilters,
+    urlSearchParams
+  ])
 }
 
 export default useListStateStore

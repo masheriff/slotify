@@ -1,10 +1,9 @@
-// components/common/list-page-header.tsx
+// components/common/list-page-header.tsx - FIXED
 "use client";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Plus, RefreshCw } from "lucide-react";
+import { Search, Plus, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
@@ -17,13 +16,12 @@ import {
 } from "@/components/ui/breadcrumb";
 import { ListPageHeaderProps } from "@/types";
 
-
 export function ListPageHeader({
   title,
   searchPlaceholder = "Search...",
   onCreateClick,
   createButtonText = "Create",
-  filterComponent,
+  filterComponent, // This will be the actual filter component to render inline
   breadcrumbItems = [],
   searchQuery,
   onSearchChange,
@@ -59,7 +57,7 @@ export function ListPageHeader({
 
   return (
     <div className="space-y-4">
-      {/* Controls and search */}
+      {/* Main header row */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
@@ -90,6 +88,7 @@ export function ListPageHeader({
           </Breadcrumb>
         </div>
 
+        {/* Controls - Search, Filter, Refresh, Create */}
         <div className="flex items-center gap-3">
           {/* Search */}
           <div className="relative">
@@ -102,18 +101,8 @@ export function ListPageHeader({
             />
           </div>
 
-          {/* Filter button */}
-          {filterComponent && (
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-              {activeFiltersCount > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {activeFiltersCount}
-                </Badge>
-              )}
-            </Button>
-          )}
+          {/* Filter Component - render the actual filter trigger */}
+          {filterComponent}
 
           {/* Refresh button */}
           {onRefresh && (
@@ -131,13 +120,6 @@ export function ListPageHeader({
           )}
         </div>
       </div>
-
-      {/* Filter panel (you can add state management for showing/hiding) */}
-      {filterComponent && (
-        <div className="hidden">
-          {filterComponent}
-        </div>
-      )}
     </div>
   );
 }

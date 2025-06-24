@@ -15,7 +15,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ArrowUpDown, MoreHorizontal, Eye, Edit, Users, Mail } from "lucide-react"
 import { toast } from "sonner"
-import { OrganizationColumns } from "@/types"
+import { OrganizationColumns, OrganizationMetadata } from "@/types"
 
 export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
   // Logo Column
@@ -128,7 +128,9 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
     accessorKey: "type",
     header: "Type",
     cell: ({ row }) => {
-      const type = row.getValue("type") as string
+      const metadata = row.original.metadata as OrganizationMetadata
+      const type = metadata?.type
+      console.log(type, "Type of organization")
       return (
         <Badge variant={type === "admin" ? "default" : "secondary"}>
           {type === "admin" ? "Admin" : "Client"}
