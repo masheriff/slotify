@@ -1,5 +1,4 @@
 // hooks/use-organization-details.ts
-"use client";
 
 import { useState, useEffect } from "react";
 import { useLoadingControl } from "@/lib/with-loading";

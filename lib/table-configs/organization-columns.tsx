@@ -28,7 +28,7 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
       const firstLetter = organization.name.charAt(0).toUpperCase()
       
       return (
-        <Avatar className="h-10 w-10">
+        <Avatar className="h-14 w-14">
           <AvatarImage 
             src={organization.logo as string | undefined} 
             alt={`${organization.name} logo`}
@@ -68,45 +68,60 @@ export const organizationColumns: ColumnDef<OrganizationColumns>[] = [
   },
 
   // Email Column (separate)
+  // {
+  //   accessorKey: "contactEmail",
+  //   header: ({ column }) => {
+  //     return (
+  //       <Button
+  //         variant="ghost"
+  //         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+  //         className="h-auto p-0 hover:bg-transparent"
+  //       >
+  //         Email
+  //         <ArrowUpDown className="ml-2 h-4 w-4" />
+  //       </Button>
+  //     )
+  //   },
+  //   cell: ({ row }) => {
+  //     const email = row.getValue("contactEmail") as string
+      
+  //     if (!email) {
+  //       return <span className="text-muted-foreground">No email</span>
+  //     }
+      
+  //     return (
+  //       <div className="flex items-center gap-2">
+  //         <span className="text-sm">{email}</span>
+  //         <Button
+  //           variant="ghost"
+  //           size="sm"
+  //           className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+  //           onClick={() => {
+  //             navigator.clipboard.writeText(email)
+  //             toast.success("Email copied to clipboard")
+  //           }}
+  //         >
+  //           <Mail className="h-3 w-3" />
+  //         </Button>
+  //       </div>
+  //     )
+  //   },
+  // },
+
+    // Type Column
   {
-    accessorKey: "contactEmail",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          className="h-auto p-0 hover:bg-transparent"
-        >
-          Email
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      )
-    },
+    accessorKey: "slug",
+    header: "Slug",
     cell: ({ row }) => {
-      const email = row.getValue("contactEmail") as string
-      
-      if (!email) {
-        return <span className="text-muted-foreground">No email</span>
-      }
-      
+      const slug = row.getValue("slug") as string
       return (
-        <div className="flex items-center gap-2">
-          <span className="text-sm">{email}</span>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
-            onClick={() => {
-              navigator.clipboard.writeText(email)
-              toast.success("Email copied to clipboard")
-            }}
-          >
-            <Mail className="h-3 w-3" />
-          </Button>
-        </div>
+        <Badge variant="default">
+          {slug}
+        </Badge>
       )
     },
   },
+
 
   // Type Column
   {
