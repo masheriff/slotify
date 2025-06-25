@@ -203,6 +203,7 @@ export interface OrganizationData {
     country: string;
     timezone: string;
     isActive: boolean;
+    status?: "active" | "inactive" | "suspended";
     settings: Record<string, any>;
     hipaaOfficer?: string;
     businessAssociateAgreement?: boolean;

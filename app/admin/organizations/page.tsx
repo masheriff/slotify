@@ -103,6 +103,7 @@ export default async function OrganizationsPage({
       isActive: org.metadata?.isActive ?? true,
       createdAt: org.createdAt,
       logo: org.logo,
+      status: org.metadata?.status || 'active', // Add status property with a sensible default
     }));
 
     // Build canonical URL for caching
@@ -126,7 +127,6 @@ export default async function OrganizationsPage({
             createButtonText="Add Organization"
             createHref="/admin/organizations/create"
             filterConfig={organizationFilterConfig}
-            showExport={LIST_CONFIG.exportable}
             // Remove the onExport prop - export functionality will be handled by the client component
           />
 
