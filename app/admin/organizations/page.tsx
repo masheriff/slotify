@@ -1,5 +1,4 @@
 // app/admin/organizations/page.tsx - FIXED VERSION
-import { Metadata } from "next";
 import { 
   parseListParams, 
   fetchListData, 
