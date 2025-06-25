@@ -46,7 +46,6 @@ export const auth = betterAuth({
     organization({
       ac: ac,
       roles: healthcareRoles,
-      creatorRole: "system_admin", // Role that can create organizations
       sendInvitationEmail: async (data) => {
         const { email, organization, invitation, inviter } = data;
         const baseUrl =
@@ -74,8 +73,6 @@ export const auth = betterAuth({
           throw error;
         }
       },
-      organizationCreatorRole: "super_admin", // Role that can create organizations
-      // Only super_admins can create organizations
       allowUserToCreateOrganization: async (user) => {
         // Example: Check if user is super_admin
         const foundUsers = await db
@@ -86,8 +83,8 @@ export const auth = betterAuth({
         if (!foundUser) {
           throw new Error("User not found");
         }
-        if (foundUser.role !== "super_admin") {
-          throw new Error("Only super_admins can create organizations");
+        if (foundUser.role !== "system_admin") {
+          throw new Error("Only System Admins can create organizations");
         }
         return true;
       },
