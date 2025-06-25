@@ -109,7 +109,7 @@ export function OrganizationForm({ mode, organizationId, onSuccess }: Organizati
   const [slugStatus, setSlugStatus] = useState<SlugStatus>(null)
   
   // Refs for managing debounced operations
-  const slugCheckTimeoutRef = useRef<NodeJS.Timeout>()
+  const slugCheckTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
   const lastCheckedSlugRef = useRef<string>('')
 
   const form = useForm<OrganizationFormData>({
