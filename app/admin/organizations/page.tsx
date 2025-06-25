@@ -15,6 +15,7 @@ import { organizationColumns } from "@/components/table-configs/organization-col
 import { organizationFilterConfig } from "@/components/admin/forms/organization-filters-config";
 import { listOrganizations, OrganizationData } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
+import { OrganizationListItem } from "@/types";
 
 interface OrganizationsPageProps {
   searchParams: Promise<{
@@ -91,7 +92,7 @@ export default async function OrganizationsPage({
 
     // Transform Better Auth Organization data to OrganizationListItem format
     // This mapping matches your OrganizationListItem interface exactly
-    const tableData: OrganizationData[] = result.data.data.map(org => ({
+    const tableData: OrganizationListItem[] = result.data.data.map(org => ({
       id: org.id,
       name: org.name,
       slug: org.slug || '',
