@@ -1,4 +1,4 @@
-// app/admin/organizations/page.tsx - Complete Pure Server-Side Implementation
+// app/admin/organizations/page.tsx - FIXED VERSION (Keep existing import)
 import { Metadata } from "next";
 import { 
   parseListParams, 
@@ -13,8 +13,7 @@ import { FilterablePageHeader } from "@/components/common/filterable-page-header
 import { DataTable } from "@/components/common/data-table";
 import { organizationColumns } from "@/components/table-configs/organization-columns";
 import { organizationFilterConfig } from "@/components/admin/forms/organization-filters-config";
-import { listOrganizations } from "@/actions/organization-actions";
-import { OrganizationListItem } from "@/lib/types/list-page";
+import { listOrganizations, OrganizationData } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
 
 interface OrganizationsPageProps {
@@ -42,7 +41,6 @@ const LIST_CONFIG = {
   exportable: true,
 };
 
-
 export default async function OrganizationsPage({
   searchParams,
 }: OrganizationsPageProps) {
@@ -68,8 +66,8 @@ export default async function OrganizationsPage({
       );
     }
 
-    // Fetch organizations data
-    const result = await fetchListData<OrganizationListItem>(
+    // Fetch organizations data - this returns Better Auth Organization[] with metadata
+    const result = await fetchListData<OrganizationData>(
       listOrganizations,
       params,
       { module: 'organizations', user }
@@ -91,11 +89,12 @@ export default async function OrganizationsPage({
     // Handle page redirects for invalid states
     handleListPageRedirect('/admin/organizations', params, result.data.totalPages);
 
-    // Transform data for table
-    const tableData: OrganizationListItem[] = result.data.data.map(org => ({
+    // Transform Better Auth Organization data to OrganizationListItem format
+    // This mapping matches your OrganizationListItem interface exactly
+    const tableData: OrganizationData[] = result.data.data.map(org => ({
       id: org.id,
       name: org.name,
-      slug: org.slug,
+      slug: org.slug || '',
       type: org.metadata?.type || 'client',
       contactEmail: org.metadata?.contactEmail || '',
       contactPhone: org.metadata?.contactPhone || '',
@@ -103,7 +102,6 @@ export default async function OrganizationsPage({
       state: org.metadata?.state || '',
       isActive: org.metadata?.isActive ?? true,
       createdAt: org.createdAt,
-      updatedAt: org.updatedAt,
       logo: org.logo,
     }));
 
@@ -144,7 +142,7 @@ export default async function OrganizationsPage({
               totalPages: result.data.totalPages,
               hasNextPage: result.data.hasNextPage,
               hasPreviousPage: result.data.hasPreviousPage,
-              totalCount: result.data.totalCount,
+              // totalCount: result.data.totalCount,
             }}
             sorting={{
               sortBy: params.sortBy,

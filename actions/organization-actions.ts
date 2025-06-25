@@ -186,9 +186,11 @@ const organizationDataSchema = z.object({
 
 // Organization data interface for create/update
 export interface OrganizationData {
+  id:string;
   name: string;
   slug: string;
   logo?: string;
+  createdAt: Date | string;
   metadata: {
     type: "admin" | "client";
     contactEmail: string;

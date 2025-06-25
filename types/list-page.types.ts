@@ -1,5 +1,7 @@
-// lib/types/list-page.ts - Shared TypeScript types for list pages
+// lib/types/list-page.ts - ADD ONLY OrganizationListItem to existing file
 import { ColumnDef } from "@tanstack/react-table";
+
+// ... (keep all existing interfaces)
 
 // Base interfaces
 export interface FilterOption {
@@ -117,29 +119,28 @@ export interface BreadcrumbItem {
   current?: boolean;
 }
 
-// Module-specific base interfaces
+// Base interface for all list items
 export interface BaseListItem {
   id: string;
   createdAt: Date | string;
   updatedAt?: Date | string;
 }
 
-// Healthcare module types
+// ADD ONLY THIS - The missing OrganizationListItem interface
+// This matches your page.tsx mapping logic exactly
 export interface OrganizationListItem extends BaseListItem {
   name: string;
-  slug: string;
+  slug?: string;
   logo?: string;
-  metadata:{
-
-    type: 'admin' | 'client';
-    contactEmail: string;
-    contactPhone: string;
-    city: string;
-    state: string;
-    isActive: boolean;
-  }
+  type: "admin" | "client";
+  contactEmail: string;
+  contactPhone: string;
+  city: string;
+  state: string;
+  isActive: boolean;
 }
 
+// Healthcare module types (keep existing)
 export interface PatientListItem extends BaseListItem {
   firstName: string;
   lastName: string;
@@ -223,67 +224,4 @@ export interface ListPagePermissions {
   canDelete: boolean;
   canExport: boolean;
   canManageUsers?: boolean;
-  restrictedToOrganization?: string;
-}
-
-// Error types
-export interface ListPageError {
-  type: 'fetch' | 'permission' | 'validation' | 'network' | 'server';
-  message: string;
-  details?: any;
-  retryable?: boolean;
-  timestamp: Date;
-}
-
-// Cache types
-export interface ListPageCache {
-  key: string;
-  data: any;
-  timestamp: Date;
-  ttl: number; // Time to live in milliseconds
-  params: ListParams;
-}
-
-// Analytics types
-export interface ListPageAnalytics {
-  module: string;
-  action: 'view' | 'search' | 'filter' | 'sort' | 'paginate' | 'export';
-  params?: Partial<ListParams>;
-  userId?: string;
-  organizationId?: string;
-  timestamp: Date;
-  duration?: number;
-}
-
-// Export configuration
-export interface ExportConfig {
-  formats: ('csv' | 'xlsx' | 'pdf')[];
-  maxRows?: number;
-  includeFilters?: boolean;
-  customColumns?: string[];
-  filename?: string;
-}
-
-// Bulk action types
-export interface BulkAction<T> {
-  id: string;
-  label: string;
-  icon?: React.ReactNode;
-  action: (selectedItems: T[]) => Promise<void>;
-  confirmation?: {
-    title: string;
-    message: string;
-    type: 'warning' | 'danger';
-  };
-  disabled?: (selectedItems: T[]) => boolean;
-  hidden?: (selectedItems: T[]) => boolean;
-}
-
-// Real-time updates
-export interface ListPageRealTimeConfig {
-  enabled: boolean;
-  channel: string;
-  events: string[];
-  onUpdate?: (data: any) => void;
-  onError?: (error: Error) => void;
 }

@@ -15,9 +15,9 @@ import {
 import { MoreHorizontal, Eye, Edit, Users } from "lucide-react"
 import { format } from "date-fns"
 import Image from "next/image"
-import { OrganizationTableRow } from "@/types/organization.types"
+import { OrganizationListItem } from "@/types"
 
-export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
+export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
   // 1st Column: Logo + Name
   {
     accessorKey: "name",
@@ -71,9 +71,7 @@ export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
     accessorKey: "type",
     header: "Type",
     cell: ({ row }) => {
-      // Get type from metadata
-      const metadata = row.original.metadata
-      const type = metadata?.type
+      const type = row.getValue("type") as "admin" | "client"
       
       return (
         <Badge variant={type === "admin" ? "default" : "secondary"}>
@@ -83,27 +81,75 @@ export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
     },
   },
 
-  // 4th Column: Created At
+  // 4th Column: Contact Info
   {
-    accessorKey: "createdAt",
-    header: "Created At",
+    accessorKey: "contactEmail",
+    header: "Contact",
     cell: ({ row }) => {
-      const date = row.getValue("createdAt") as Date | string
-      const formattedDate = typeof date === 'string' ? new Date(date) : date
+      const email = row.getValue("contactEmail") as string
+      const phone = row.original.contactPhone
       
       return (
-        <div className="text-sm">
-          {format(formattedDate, "MMM dd, yyyy")}
+        <div className="space-y-1">
+          <div className="text-sm font-medium">{email || "—"}</div>
+          <div className="text-xs text-muted-foreground">{phone || "—"}</div>
         </div>
       )
     },
   },
 
-  // Actions Column
+  // 5th Column: Location
+  {
+    accessorKey: "city",
+    header: "Location",
+    cell: ({ row }) => {
+      const city = row.getValue("city") as string
+      const state = row.original.state
+      
+      return (
+        <div className="text-sm">
+          {city && state ? `${city}, ${state}` : city || state || "—"}
+        </div>
+      )
+    },
+  },
+
+  // 6th Column: Status
+  {
+    accessorKey: "isActive",
+    header: "Status",
+    cell: ({ row }) => {
+      const isActive = row.getValue("isActive") as boolean
+      
+      return (
+        <Badge variant={isActive ? "default" : "secondary"}>
+          {isActive ? "Active" : "Inactive"}
+        </Badge>
+      )
+    },
+  },
+
+  // 7th Column: Created At
+  {
+    accessorKey: "createdAt",
+    header: "Created",
+    cell: ({ row }) => {
+      const date = row.getValue("createdAt") as Date | string
+      const formattedDate = typeof date === 'string' ? 
+        format(new Date(date), "MMM dd, yyyy") : 
+        format(date, "MMM dd, yyyy")
+      
+      return (
+        <div className="text-sm text-muted-foreground">
+          {formattedDate}
+        </div>
+      )
+    },
+  },
+
+  // 8th Column: Actions
   {
     id: "actions",
-    header: "Actions",
-    enableHiding: false,
     cell: ({ row }) => {
       const organization = row.original
 
@@ -117,34 +163,21 @@ export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            
-            <DropdownMenuItem
-              onClick={() => window.open(`/admin/organizations/${organization.id}`, '_self')}
-            >
+            <DropdownMenuItem>
               <Eye className="mr-2 h-4 w-4" />
-              View Details
+              View details
             </DropdownMenuItem>
-            
-            <DropdownMenuItem
-              onClick={() => window.open(`/admin/organizations/${organization.id}/edit`, '_self')}
-            >
+            <DropdownMenuItem>
               <Edit className="mr-2 h-4 w-4" />
-              Edit Organization
+              Edit organization
             </DropdownMenuItem>
-            
-            <DropdownMenuItem
-              onClick={() => window.open(`/admin/organizations/${organization.id}/members/invite`, '_self')}
-            >
+            <DropdownMenuItem>
               <Users className="mr-2 h-4 w-4" />
-              Invite Members
+              Manage members
             </DropdownMenuItem>
-            
-            <DropdownMenuItem
-              onClick={() => window.open(`/admin/organizations/${organization.id}/members`, '_self')}
-            >
-              <Users className="mr-2 h-4 w-4" />
-              Manage Members
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-destructive">
+              Delete organization
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

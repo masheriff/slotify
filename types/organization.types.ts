@@ -1,4 +1,4 @@
-// types/organization.types.ts - Organization types for components
+// types/organization.types.ts - CONSOLIDATED AND FIXED
 export interface OrganizationMetadata {
   type: "admin" | "client";
   contactEmail: string;
@@ -32,26 +32,45 @@ export interface OrganizationMetadata {
   dataRetentionYears?: string;
 }
 
-// Organization type for table display
-export interface OrganizationTableRow {
-  id: string;
-  name: string;
-  slug?: string;
-  logo?: string;
-  createdAt: Date | string;
-  metadata: OrganizationMetadata;
-}
-
+// Base organization interface
 export interface Organization {
   id: string;
   name: string;
   slug?: string;
   logo?: string;
   metadata: OrganizationMetadata;
-  createdAt: Date;
-  updatedAt?: Date;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
 }
 
+// For table display - matches your DataTable expectations
+export interface OrganizationTableRow {
+  id: string;
+  name: string;
+  slug?: string;
+  logo?: string;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
+  metadata: OrganizationMetadata;
+}
+
+// For list item display - flattened structure used in your page.tsx
+export interface OrganizationListItem {
+  id: string;
+  name: string;
+  slug?: string;
+  logo?: string;
+  type: "admin" | "client";
+  contactEmail: string;
+  contactPhone: string;
+  city: string;
+  state: string;
+  isActive: boolean;
+  createdAt: Date | string;
+  updatedAt?: Date | string;
+}
+
+// Form data interface
 export interface OrganizationFormData {
   name: string;
   slug: string;
@@ -71,6 +90,7 @@ export interface OrganizationFormData {
   businessAssociateAgreement: boolean;
 }
 
+// Organization with members for detailed views
 export interface OrganizationWithMembers extends Organization {
   members: Array<{
     id: string;
