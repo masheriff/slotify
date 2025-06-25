@@ -14,7 +14,11 @@ export interface ServerActionResponse<T = any> {
   data?: T
   message?: string
   warning?: string
-  validationErrors?: Array<{ message: string; path: string[] }>
+  validationErrors?: Array<{
+    message: string
+    path: (string | number)[]
+    code?: string
+  }>
 }
 
 // Helper function to extract error message from ServerActionError
@@ -49,6 +53,22 @@ export function getErrorMessage(error: ServerActionError): string {
   }
   
   return 'An error occurred'
+}
+
+// Helper function to get validation error messages
+export function getValidationErrorMessage(validationErrors: Array<{
+  message: string
+  path: (string | number)[]
+  code?: string
+}>): string {
+  if (!validationErrors || validationErrors.length === 0) {
+    return 'Validation failed'
+  }
+  
+  const firstError = validationErrors[0]
+  const fieldPath = firstError.path.filter(p => typeof p === 'string').join('.')
+  
+  return fieldPath ? `${fieldPath}: ${firstError.message}` : firstError.message
 }
 
 // Organization-specific types

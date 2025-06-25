@@ -1,26 +1,23 @@
-// actions/organization-actions.ts - FIXED logo validation
+// Updated organization-actions.ts - Direct Database Approach using existing types
+
 "use server";
 
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { z } from "zod";
 import { generateId } from "better-auth";
-import { APIError } from "better-auth/api";
 import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
 import { isSuperAdmin } from "@/lib/permissions/healthcare-access-control";
 import { db } from "@/db";
 import { organizations, members } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, like, or, desc, asc, count } from "drizzle-orm";
+import { ServerActionResponse } from "@/types/server-actions.types";
+import { OrganizationMetadata, Organization } from "@/types/organization.types";
 
-// Organization data validation schema with FIXED logo validation
+// Organization data validation schema using existing types
 const organizationDataSchema = z.object({
   name: z.string().min(1, "Organization name is required"),
   slug: z.string().min(1, "Organization slug is required"),
-  // FIXED: Proper handling of empty/undefined logo values
   logo: z.string().optional().refine((val) => {
-    // Allow undefined, null, or empty string (no logo)
     if (!val || val.trim() === '') return true;
-    // Allow relative paths starting with / or absolute URLs
     return val.startsWith('/') || val.startsWith('http');
   }, "Logo must be a valid URL or path"),
   metadata: z.object({
@@ -35,41 +32,38 @@ const organizationDataSchema = z.object({
     country: z.string().min(1, "Country is required"),
     timezone: z.string().min(1, "Timezone is required"),
     isActive: z.boolean().default(true),
-    status: z.enum(["active", "inactive", "suspended"]).optional(),
-    settings: z.record(z.any()).default({}),
+    settings: z.object({
+      features: z.object({
+        multiTenant: z.boolean().optional(),
+        advancedReporting: z.boolean().optional(),
+        apiAccess: z.boolean().optional(),
+        customBranding: z.boolean().optional(),
+      }).optional(),
+      billing: z.object({
+        plan: z.string().optional(),
+        status: z.string().optional(),
+      }).optional(),
+      notifications: z.object({
+        email: z.boolean().optional(),
+        sms: z.boolean().optional(),
+      }).optional(),
+    }).default({}),
     hipaaOfficer: z.string().optional(),
     businessAssociateAgreement: z.boolean().optional(),
     dataRetentionYears: z.string().optional(),
   }),
 });
 
-export type OrganizationData = {
-  id?: string;
+// Input type for organization data
+export interface OrganizationInput {
   name: string;
   slug: string;
   logo?: string;
   createdAt: Date | string;
-  metadata: {
-    type: "admin" | "client";
-    contactEmail: string;
-    contactPhone: string;
-    addressLine1: string;
-    addressLine2?: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-    timezone: string;
-    isActive: boolean;
-    status?: "active" | "inactive" | "suspended";
-    settings: Record<string, any>;
-    hipaaOfficer?: string;
-    businessAssociateAgreement?: boolean;
-    dataRetentionYears?: string;
-  };
+  metadata: OrganizationMetadata;
 }
 
-export async function createOrganization(data: OrganizationData) {
+export async function createOrganization(data: OrganizationInput): Promise<ServerActionResponse> {
   try {
     console.log("🏢 Creating organization:", data.name);
 
@@ -77,54 +71,76 @@ export async function createOrganization(data: OrganizationData) {
 
     // Validate the data
     const validatedData = organizationDataSchema.parse(data);
-
     console.log("✅ Validation passed, creating organization:", validatedData);
+
+    // Check if slug already exists
+    const existingOrg = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.slug, validatedData.slug))
+      .limit(1);
+
+    if (existingOrg.length > 0) {
+      console.log("❌ Slug already exists:", validatedData.slug);
+      return {
+        success: false,
+        error: `Organization with slug "${validatedData.slug}" already exists`,
+      };
+    }
 
     // Generate organization ID
     const organizationId = generateId();
 
-    // Create organization using Better Auth
-    const orgResult = await auth.api.createOrganization({
-      body: {
+    // Create organization directly in database
+    const [createdOrg] = await db
+      .insert(organizations)
+      .values({
+        id: organizationId,
         name: validatedData.name,
         slug: validatedData.slug,
         logo: validatedData.logo,
+        createdAt: new Date(),
+        updatedAt: new Date(),
         metadata: validatedData.metadata,
-      },
-      headers: await headers()
-    });
+      })
+      .returning();
 
-    console.log("✅ Organization created successfully", orgResult);
+    console.log("✅ Organization created successfully:", createdOrg);
     
     return {
       success: true,
       data: { 
-        id: organizationId,
-        organization: orgResult 
+        id: createdOrg.id,
+        organization: createdOrg
       },
       message: "Organization created successfully",
     };
+    
   } catch (error) {
     console.error("❌ Error creating organization:", error);
 
     // Handle Zod validation errors
     if (error instanceof z.ZodError) {
       console.error("❌ Validation error:", error.errors);
-      const firstError = error.errors[0];
       return {
         success: false,
-        error: `${firstError.path.join('.')}: ${firstError.message}`,
-        validationErrors: error.errors,
+        error: error.errors[0].message,
+        validationErrors: error.errors.map(err => ({
+          message: err.message,
+          path: err.path,
+          code: err.code
+        })),
       };
     }
 
-    // Handle Better Auth API errors
-    if (error instanceof APIError) {
-      console.error("❌ Better Auth API error:", error.message);
-      return {
-        success: false,
-        error: error.message,
-      };
+    // Handle database constraint errors (like duplicate slug)
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === '23505') { // PostgreSQL unique constraint violation
+        return {
+          success: false,
+          error: "An organization with this slug already exists",
+        };
+      }
     }
 
     // Handle other errors
@@ -138,7 +154,127 @@ export async function createOrganization(data: OrganizationData) {
   }
 }
 
-export async function getOrganizationById(organizationId: string) {
+export async function updateOrganization(
+  organizationId: string,
+  data: OrganizationInput
+): Promise<ServerActionResponse> {
+  try {
+    console.log("✏️ Updating organization:", organizationId);
+
+    // Check authentication first
+    const session = await getServerSession();
+    if (!session?.user) {
+      return {
+        success: false,
+        error: "Authentication required",
+      };
+    }
+
+    const user = session.user;
+
+    // Only super admins can update organizations
+    if (!isSuperAdmin(user.role ?? "")) {
+      return {
+        success: false,
+        error: "Insufficient permissions to update organization",
+      };
+    }
+
+    // Validate the data
+    const validatedData = organizationDataSchema.parse(data);
+    console.log("✅ Validation passed, updating organization:", validatedData);
+
+    // Check if slug already exists for other organizations
+    const existingOrg = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(and(
+        eq(organizations.slug, validatedData.slug),
+        eq(organizations.id, organizationId)
+      ))
+      .limit(1);
+
+    if (existingOrg.length === 0) {
+      // Check if another org has this slug
+      const duplicateOrg = await db
+        .select({ id: organizations.id })
+        .from(organizations)
+        .where(eq(organizations.slug, validatedData.slug))
+        .limit(1);
+
+      if (duplicateOrg.length > 0) {
+        return {
+          success: false,
+          error: `Organization with slug "${validatedData.slug}" already exists`,
+        };
+      }
+    }
+
+    // Update organization in database
+    const [updatedOrg] = await db
+      .update(organizations)
+      .set({
+        name: validatedData.name,
+        slug: validatedData.slug,
+        logo: validatedData.logo,
+        metadata: validatedData.metadata,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizations.id, organizationId))
+      .returning();
+
+    if (!updatedOrg) {
+      return {
+        success: false,
+        error: "Organization not found or update failed",
+      };
+    }
+
+    console.log("✅ Organization updated successfully:", updatedOrg);
+    return {
+      success: true,
+      data: { 
+        id: updatedOrg.id,
+        organization: updatedOrg
+      },
+      message: "Organization updated successfully",
+    };
+    
+  } catch (error) {
+    console.error("❌ Error updating organization:", error);
+
+    // Handle Zod validation errors
+    if (error instanceof z.ZodError) {
+      console.error("❌ Validation error:", error.errors);
+      return {
+        success: false,
+        error: error.errors[0].message,
+        validationErrors: error.errors.map(err => ({
+          message: err.message,
+          path: err.path,
+          code: err.code
+        })),
+      };
+    }
+
+    // Handle database constraint errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === '23505') {
+        return {
+          success: false,
+          error: "An organization with this slug already exists",
+        };
+      }
+    }
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update organization",
+    };
+  }
+}
+
+export async function getOrganizationById(organizationId: string): Promise<ServerActionResponse> {
   try {
     console.log("🔍 Getting organization by ID:", organizationId);
 
@@ -154,7 +290,7 @@ export async function getOrganizationById(organizationId: string) {
     const user = session.user;
     console.log("🔍 User role:", user.role);
 
-    // FIXED: For system admins, query database directly to bypass Better Auth's membership checks
+    // For system admins, query database directly
     if (isSuperAdmin(user.role ?? "")) {
       console.log("✅ System admin detected - querying database directly");
       
@@ -172,209 +308,104 @@ export async function getOrganizationById(organizationId: string) {
       }
 
       // Also get member count for the organization
-      const memberCount = await db
-        .select()
+      const [memberCountResult] = await db
+        .select({ count: count() })
         .from(members)
         .where(eq(members.organizationId, organizationId));
 
-      console.log("✅ Organization retrieved successfully via direct database access");
+      console.log("✅ Organization retrieved successfully");
       return {
         success: true,
         data: {
           ...organization,
-          memberCount: memberCount.length,
+          memberCount: memberCountResult?.count || 0,
         },
       };
     }
 
-    // For non-system admins, use Better Auth API (which will check membership)
-    console.log("🔍 Non-system admin - using Better Auth API");
-    const organization = await auth.api.getFullOrganization({
-      query: { organizationId },
-      headers: await headers(),
-    });
+    // For non-system admins, check if they have access to this organization
+    const [userMembership] = await db
+      .select()
+      .from(members)
+      .where(and(
+        eq(members.userId, user.id),
+        eq(members.organizationId, organizationId)
+      ))
+      .limit(1);
 
-    console.log("✅ Organization retrieved successfully via Better Auth API");
+    if (!userMembership) {
+      return {
+        success: false,
+        error: "Access denied - you don't have access to this organization",
+      };
+    }
+
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+
+    if (!organization) {
+      return {
+        success: false,
+        error: "Organization not found",
+      };
+    }
+
+    console.log("✅ Organization retrieved successfully");
     return {
       success: true,
       data: organization,
     };
   } catch (error) {
     console.error("❌ Error getting organization:", error);
-
-    if (error instanceof APIError) {
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to get organization",
+      error: error instanceof Error ? error.message : "Failed to get organization",
     };
   }
 }
 
-
-export async function updateOrganization(
-  organizationId: string,
-  data: OrganizationData
-) {
-  try {
-    console.log("✏️ Updating organization:", organizationId);
-    console.log("✏️ Update data:", data);
-
-    // Check authentication first
-    const session = await getServerSession();
-    if (!session?.user) {
-      return {
-        success: false,
-        error: "Authentication required",
-      };
-    }
-
-    const user = session.user;
-
-    // Validate the data
-    const validatedData = organizationDataSchema.parse(data);
-    console.log("✅ Validation passed, updating organization:", validatedData);
-
-    // FIXED: For system admins, update database directly to bypass Better Auth's membership checks
-    if (isSuperAdmin(user.role ?? "")) {
-      console.log("✅ System admin detected - updating database directly");
-      
-      await db
-        .update(organizations)
-        .set({
-          name: validatedData.name,
-          slug: validatedData.slug,
-          logo: validatedData.logo,
-          metadata: validatedData.metadata,
-          updatedAt: new Date(),
-        })
-        .where(eq(organizations.id, organizationId));
-
-      console.log("✅ Organization updated successfully via direct database access");
-      return {
-        success: true,
-        message: "Organization updated successfully",
-      };
-    }
-
-    // For non-system admins, use Better Auth API (which will check membership)
-    await auth.api.updateOrganization({
-      body: {
-        data: {
-          name: validatedData.name,
-          slug: validatedData.slug,
-          logo: validatedData.logo,
-          metadata: validatedData.metadata,
-        },
-        organizationId,
-      },
-      headers: await headers(),
-    });
-
-    console.log("✅ Organization updated successfully via Better Auth API");
-    return {
-      success: true,
-      message: "Organization updated successfully",
-    };
-  } catch (error) {
-    console.error("❌ Error updating organization:", error);
-
-    if (error instanceof z.ZodError) {
-      console.error("❌ Validation error:", error.errors);
-      return {
-        success: false,
-        error: error.errors[0].message,
-      };
-    }
-
-    if (error instanceof APIError) {
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to update organization",
-    };
-  }
-}
-
-export async function deleteOrganization(organizationId: string) {
+export async function deleteOrganization(organizationId: string): Promise<ServerActionResponse> {
   try {
     console.log("🗑️ Deleting organization:", organizationId);
 
-    // Check authentication first
-    const session = await getServerSession();
-    if (!session?.user) {
+    await requireSuperAdmin();
+
+    // Check if organization exists
+    const [existingOrg] = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+
+    if (!existingOrg) {
       return {
         success: false,
-        error: "Authentication required",
+        error: "Organization not found",
       };
     }
 
-    const user = session.user;
+    // Delete organization (this will cascade delete members due to foreign key constraints)
+    await db
+      .delete(organizations)
+      .where(eq(organizations.id, organizationId));
 
-    // FIXED: For system admins, delete from database directly to bypass Better Auth's membership checks
-    if (isSuperAdmin(user.role ?? "")) {
-      console.log("✅ System admin detected - deleting from database directly");
-      
-      // Note: You might want to soft delete instead of hard delete
-      await db
-        .delete(organizations)
-        .where(eq(organizations.id, organizationId));
-
-      console.log("✅ Organization deleted successfully via direct database access");
-      return {
-        success: true,
-        message: "Organization deleted successfully",
-      };
-    }
-
-    // For non-system admins, use Better Auth API (which will check membership)
-    await auth.api.deleteOrganization({
-      body: { organizationId },
-      headers: await headers(),
-    });
-
-    console.log("✅ Organization deleted successfully via Better Auth API");
+    console.log("✅ Organization deleted successfully");
     return {
       success: true,
       message: "Organization deleted successfully",
     };
   } catch (error) {
     console.error("❌ Error deleting organization:", error);
-
-    if (error instanceof APIError) {
-      return {
-        success: false,
-        error: error.message,
-      };
-    }
-
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to delete organization",
+      error: error instanceof Error ? error.message : "Failed to delete organization",
     };
   }
 }
 
-// List organizations action (you might need this too)
 export async function listOrganizations(params: {
   page: number;
   pageSize: number;
@@ -383,7 +414,7 @@ export async function listOrganizations(params: {
   sortDirection?: 'asc' | 'desc';
   type?: string;
   status?: string;
-}) {
+}): Promise<ServerActionResponse> {
   try {
     console.log("📋 Listing organizations with params:", params);
 
@@ -398,42 +429,93 @@ export async function listOrganizations(params: {
 
     const user = session.user;
 
-    // FIXED: For system admins, query database directly to get all organizations
+    // For system admins, query database directly to get all organizations
     if (isSuperAdmin(user.role ?? "")) {
       console.log("✅ System admin detected - querying all organizations directly");
       
-      let query = db.select().from(organizations);
+      // Build where conditions
+      const whereConditions = [];
       
-      // Apply filters if provided
-      // ... add filtering logic here ...
+      if (params.search) {
+        whereConditions.push(
+          or(
+            like(organizations.name, `%${params.search}%`),
+            like(organizations.slug, `%${params.search}%`)
+          )
+        );
+      }
       
-      const allOrgs = await query;
+      // Build the main query
+      const baseQuery = db.select().from(organizations);
+      const finalQuery = whereConditions.length > 0 
+        ? baseQuery.where(and(...whereConditions))
+        : baseQuery;
+      
+      // Apply sorting
+      let sortedQuery;
+      const sortDirection = params.sortDirection === 'desc' ? desc : asc;
+      
+      if (params.sortBy === 'name') {
+        sortedQuery = finalQuery.orderBy(sortDirection(organizations.name));
+      } else if (params.sortBy === 'createdAt') {
+        sortedQuery = finalQuery.orderBy(sortDirection(organizations.createdAt));
+      } else {
+        sortedQuery = finalQuery.orderBy(desc(organizations.createdAt));
+      }
       
       // Apply pagination
-      const startIndex = (params.page - 1) * params.pageSize;
-      const endIndex = startIndex + params.pageSize;
-      const paginatedOrgs = allOrgs.slice(startIndex, endIndex);
+      const offset = (params.page - 1) * params.pageSize;
+      const paginatedQuery = sortedQuery.limit(params.pageSize).offset(offset);
+      
+      // Build count query
+      const baseCountQuery = db.select({ count: count() }).from(organizations);
+      const countQuery = whereConditions.length > 0
+        ? baseCountQuery.where(and(...whereConditions))
+        : baseCountQuery;
+      
+      // Execute queries
+      const [allOrgs, totalCountResult] = await Promise.all([
+        paginatedQuery,
+        countQuery
+      ]);
+      
+      const totalCount = totalCountResult[0]?.count || 0;
+      const totalPages = Math.ceil(totalCount / params.pageSize);
       
       return {
         success: true,
         data: {
-          data: paginatedOrgs,
-          totalCount: allOrgs.length,
+          data: allOrgs,
+          totalCount,
           page: params.page,
           pageSize: params.pageSize,
-          totalPages: Math.ceil(allOrgs.length / params.pageSize),
-          hasNextPage: endIndex < allOrgs.length,
+          totalPages,
+          hasNextPage: params.page < totalPages,
           hasPreviousPage: params.page > 1,
         },
       };
     }
 
-    // For non-system admins, use Better Auth API (which will filter based on membership)
-    // ... implement non-admin logic here ...
+    // For non-system admins, get organizations they're members of
+    const userOrganizations = await db
+      .select({
+        organization: organizations,
+      })
+      .from(members)
+      .innerJoin(organizations, eq(members.organizationId, organizations.id))
+      .where(eq(members.userId, user.id));
     
     return {
-      success: false,
-      error: "Not implemented for non-admin users",
+      success: true,
+      data: {
+        data: userOrganizations.map(item => item.organization),
+        totalCount: userOrganizations.length,
+        page: 1,
+        pageSize: userOrganizations.length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
     };
   } catch (error) {
     console.error("❌ Error listing organizations:", error);

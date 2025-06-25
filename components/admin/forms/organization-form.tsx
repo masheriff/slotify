@@ -1,21 +1,21 @@
 // components/admin/forms/organization-form.tsx
-"use client"
+"use client";
 
-import { useState, useCallback, useMemo, useRef } from "react"
-import { useRouter } from "next/navigation"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm, SubmitHandler } from "react-hook-form"
-import { z } from "zod"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { useState, useCallback, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, SubmitHandler } from "react-hook-form";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -24,60 +24,83 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2, Check, AlertCircle } from "lucide-react"
-import { toast } from "sonner"
-import { cn } from "@/lib/utils"
-import { FileUpload } from "@/components/ui/file-upload"
-import { 
-  createOrganization, 
-  updateOrganization, 
-  getOrganizationById 
-} from "@/actions/organization-actions"
-import { 
-  uploadOrganizationLogo, 
-  deleteFile 
-} from "@/actions/file-upload-actions"
-import { ServerActionResponse } from "@/types/server-actions.types"
+} from "@/components/ui/form";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Check, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { FileUpload } from "@/components/ui/file-upload";
+import {
+  createOrganization,
+  updateOrganization,
+  getOrganizationById,
+  OrganizationInput,
+} from "@/actions/organization-actions";
+import {
+  uploadOrganizationLogo,
+  deleteFile,
+} from "@/actions/file-upload-actions";
+import {
+  getErrorMessage,
+  getValidationErrorMessage,
+  ServerActionResponse,
+} from "@/types/server-actions.types";
 
 // Create a local slug checker to avoid import conflicts
-const checkSlugAvailabilityAPI = async (slug: string, excludeOrgId?: string): Promise<{ available: boolean; suggestedSlug?: string }> => {
+const checkSlugAvailabilityAPI = async (
+  slug: string,
+  excludeOrgId?: string
+): Promise<{ available: boolean; suggestedSlug?: string }> => {
   try {
-    const params = new URLSearchParams({ slug })
+    const params = new URLSearchParams({ slug });
     if (excludeOrgId) {
-      params.append('excludeOrgId', excludeOrgId)
+      params.append("excludeOrgId", excludeOrgId);
     }
-    
-    const response = await fetch(`/api/organizations/check-slug?${params}`)
-    
+
+    const response = await fetch(`/api/organizations/check-slug?${params}`);
+
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
+      throw new Error(`HTTP ${response.status}`);
     }
-    
-    const result = await response.json()
-    return result
+
+    const result = await response.json();
+    return result;
   } catch (error) {
-    console.error('Slug availability check failed:', error)
-    return { available: false }
+    console.error("Slug availability check failed:", error);
+    return { available: false };
   }
-}
+};
 
 // Enhanced form schema with proper validation
 const organizationFormSchema = z.object({
   name: z.string().min(2, "Organization name must be at least 2 characters"),
-  slug: z.string().min(2, "Slug must be at least 2 characters").regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
-  logo: z.string().optional().refine((val) => {
-    if (!val || val.trim() === '') return true;
-    return val.startsWith('/') || val.startsWith('http');
-  }, "Logo must be a valid URL or path"),
+  slug: z
+    .string()
+    .min(2, "Slug must be at least 2 characters")
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug can only contain lowercase letters, numbers, and hyphens"
+    ),
+  logo: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === "") return true;
+      return val.startsWith("/") || val.startsWith("http");
+    }, "Logo must be a valid URL or path"),
   type: z.literal("client"),
-  
+
   // Contact Information
   contactEmail: z.string().email("Please enter a valid email address"),
   contactPhone: z.string().min(10, "Please enter a valid phone number"),
-  
+
   // Address Information
   addressLine1: z.string().min(1, "Address line 1 is required"),
   addressLine2: z.string().optional(),
@@ -86,32 +109,41 @@ const organizationFormSchema = z.object({
   postalCode: z.string().min(1, "Postal code is required"),
   country: z.string().min(1, "Country is required"),
   timezone: z.string().min(1, "Timezone is required"),
-  
+
   // HIPAA Compliance
   hipaaOfficer: z.string().min(1, "HIPAA Officer is required"),
-  businessAssociateAgreement: z.boolean().refine(val => val === true, "Business Associate Agreement must be signed"),
+  businessAssociateAgreement: z
+    .boolean()
+    .refine(
+      (val) => val === true,
+      "Business Associate Agreement must be signed"
+    ),
   dataRetentionYears: z.string().min(1, "Data retention period is required"),
-})
+});
 
-export type OrganizationFormData = z.infer<typeof organizationFormSchema>
+export type OrganizationFormData = z.infer<typeof organizationFormSchema>;
 
-type SlugStatus = 'checking' | 'available' | 'taken' | null
+type SlugStatus = "checking" | "available" | "taken" | null;
 
 interface OrganizationFormProps {
-  mode: 'create' | 'edit'
-  organizationId?: string
-  onSuccess?: () => void
+  mode: "create" | "edit";
+  organizationId?: string;
+  onSuccess?: () => void;
 }
 
-export function OrganizationForm({ mode, organizationId, onSuccess }: OrganizationFormProps) {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [initialLoading, setInitialLoading] = useState(mode === 'edit')
-  const [slugStatus, setSlugStatus] = useState<SlugStatus>(null)
-  
+export function OrganizationForm({
+  mode,
+  organizationId,
+  onSuccess,
+}: OrganizationFormProps) {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(mode === "edit");
+  const [slugStatus, setSlugStatus] = useState<SlugStatus>(null);
+
   // Refs for managing debounced operations
-  const slugCheckTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined)
-  const lastCheckedSlugRef = useRef<string>('')
+  const slugCheckTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const lastCheckedSlugRef = useRef<string>("");
 
   const form = useForm<OrganizationFormData>({
     resolver: zodResolver(organizationFormSchema),
@@ -133,160 +165,173 @@ export function OrganizationForm({ mode, organizationId, onSuccess }: Organizati
       businessAssociateAgreement: false,
       dataRetentionYears: "",
     },
-    mode: 'onChange',
-  })
+    mode: "onChange",
+  });
 
   // Memoized slug generation function
   const generateSlugFromName = useCallback((name: string): string => {
     return name
       .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '')
-  }, [])
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+  }, []);
 
   // Debounced slug availability checker
-  const checkSlugAvailabilityFunc = useCallback(async (slug: string) => {
-    if (!slug || slug.length < 2 || slug === lastCheckedSlugRef.current) {
-      return
-    }
-
-    lastCheckedSlugRef.current = slug
-    setSlugStatus('checking')
-
-    try {
-      const result = await checkSlugAvailabilityAPI(slug, mode === 'edit' ? organizationId : undefined)
-      
-      // Handle case where result might be undefined or malformed
-      if (!result) {
-        console.error('checkSlugAvailability returned undefined')
-        setSlugStatus(null)
-        return
+  const checkSlugAvailabilityFunc = useCallback(
+    async (slug: string) => {
+      if (!slug || slug.length < 2 || slug === lastCheckedSlugRef.current) {
+        return;
       }
 
-      if (result.available) {
-        setSlugStatus('available')
-      } else {
-        setSlugStatus('taken')
-        if (result.suggestedSlug && mode === 'create') {
-          // Set the suggested slug but don't immediately check it
-          // Reset the lastCheckedSlugRef so the suggested slug can be checked
-          lastCheckedSlugRef.current = ''
-          form.setValue('slug', result.suggestedSlug)
-          toast.info(`Slug "${slug}" is taken. Suggested: "${result.suggestedSlug}"`)
-          
-          // Check the suggested slug after a brief delay
-          setTimeout(() => {
-            checkSlugAvailabilityFunc(result.suggestedSlug!)
-          }, 100)
+      lastCheckedSlugRef.current = slug;
+      setSlugStatus("checking");
+
+      try {
+        const result = await checkSlugAvailabilityAPI(
+          slug,
+          mode === "edit" ? organizationId : undefined
+        );
+
+        // Handle case where result might be undefined or malformed
+        if (!result) {
+          console.error("checkSlugAvailability returned undefined");
+          setSlugStatus(null);
+          return;
         }
+
+        if (result.available) {
+          setSlugStatus("available");
+        } else {
+          setSlugStatus("taken");
+          if (result.suggestedSlug && mode === "create") {
+            // Set the suggested slug but don't immediately check it
+            // Reset the lastCheckedSlugRef so the suggested slug can be checked
+            lastCheckedSlugRef.current = "";
+            form.setValue("slug", result.suggestedSlug);
+            toast.info(
+              `Slug "${slug}" is taken. Suggested: "${result.suggestedSlug}"`
+            );
+
+            // Check the suggested slug after a brief delay
+            setTimeout(() => {
+              checkSlugAvailabilityFunc(result.suggestedSlug!);
+            }, 100);
+          }
+        }
+      } catch (error) {
+        console.error("Slug check failed:", error);
+        setSlugStatus(null);
       }
-    } catch (error) {
-      console.error('Slug check failed:', error)
-      setSlugStatus(null)
-    }
-  }, [mode, organizationId, form])
+    },
+    [mode, organizationId, form]
+  );
 
   // Handle name change with auto-slug generation
-  const handleNameChange = useCallback((name: string) => {
-    form.setValue('name', name)
-    
-    // Only auto-generate slug in create mode
-    if (mode === 'create' && name.trim()) {
-      const newSlug = generateSlugFromName(name)
-      const currentSlug = form.getValues('slug')
-      
-      if (newSlug !== currentSlug) {
-        form.setValue('slug', newSlug)
-        // Trigger slug check after setting new slug
-        if (slugCheckTimeoutRef.current) {
-          clearTimeout(slugCheckTimeoutRef.current)
+  const handleNameChange = useCallback(
+    (name: string) => {
+      form.setValue("name", name);
+
+      // Only auto-generate slug in create mode
+      if (mode === "create" && name.trim()) {
+        const newSlug = generateSlugFromName(name);
+        const currentSlug = form.getValues("slug");
+
+        if (newSlug !== currentSlug) {
+          form.setValue("slug", newSlug);
+          // Trigger slug check after setting new slug
+          if (slugCheckTimeoutRef.current) {
+            clearTimeout(slugCheckTimeoutRef.current);
+          }
+
+          // Reset slug status and last checked ref for new auto-generated slug
+          setSlugStatus(null);
+          lastCheckedSlugRef.current = "";
+
+          slugCheckTimeoutRef.current = setTimeout(() => {
+            checkSlugAvailabilityFunc(newSlug);
+          }, 300);
         }
-        
-        // Reset slug status and last checked ref for new auto-generated slug
-        setSlugStatus(null)
-        lastCheckedSlugRef.current = ''
-        
-        slugCheckTimeoutRef.current = setTimeout(() => {
-          checkSlugAvailabilityFunc(newSlug)
-        }, 300)
       }
-    }
-  }, [form, mode,     generateSlugFromName, checkSlugAvailabilityFunc])
+    },
+    [form, mode, generateSlugFromName, checkSlugAvailabilityFunc]
+  );
 
   // Handle slug change with debounced availability check
-  const handleSlugChange = useCallback((slug: string) => {
-    form.setValue('slug', slug)
-    
-    // Reset the slug status immediately when user types
-    setSlugStatus(null)
-    
-    // Cancel previous timeout
-    if (slugCheckTimeoutRef.current) {
-      clearTimeout(slugCheckTimeoutRef.current)
-    }
+  const handleSlugChange = useCallback(
+    (slug: string) => {
+      form.setValue("slug", slug);
 
-    if (slug && slug.length >= 2) {
-      slugCheckTimeoutRef.current = setTimeout(() => {
-        checkSlugAvailabilityFunc(slug)
-      }, 500)
-    } else {
-      setSlugStatus(null)
-    }
-  }, [form, checkSlugAvailabilityFunc])
+      // Reset the slug status immediately when user types
+      setSlugStatus(null);
+
+      // Cancel previous timeout
+      if (slugCheckTimeoutRef.current) {
+        clearTimeout(slugCheckTimeoutRef.current);
+      }
+
+      if (slug && slug.length >= 2) {
+        slugCheckTimeoutRef.current = setTimeout(() => {
+          checkSlugAvailabilityFunc(slug);
+        }, 500);
+      } else {
+        setSlugStatus(null);
+      }
+    },
+    [form, checkSlugAvailabilityFunc]
+  );
 
   // Load organization data (only runs once in edit mode)
   const loadOrganizationData = useCallback(async () => {
-    if (mode !== 'edit' || !organizationId) return
+    if (mode !== "edit" || !organizationId) return;
 
     try {
-      const result = await getOrganizationById(organizationId)
+      const result = await getOrganizationById(organizationId);
       if (result.success && result.data) {
-        const org = result.data
-        const metadata = org.metadata as any
-        
+        const org = result.data;
+        const metadata = org.metadata as any;
+
         form.reset({
           name: org.name,
-          slug: org.slug || '',
+          slug: org.slug || "",
           logo: org.logo ?? undefined,
-          type: 'client',
-          contactEmail: metadata?.contactEmail || '',
-          contactPhone: metadata?.contactPhone || '',
-          addressLine1: metadata?.addressLine1 || '',
-          addressLine2: metadata?.addressLine2 || '',
-          city: metadata?.city || '',
-          state: metadata?.state || '',
-          postalCode: metadata?.postalCode || '',
-          country: metadata?.country || '',
-          timezone: metadata?.timezone || '',
-          hipaaOfficer: metadata?.hipaaOfficer || '',
-          businessAssociateAgreement: metadata?.businessAssociateAgreement || false,
-          dataRetentionYears: metadata?.dataRetentionYears || '',
-        })
+          type: "client",
+          contactEmail: metadata?.contactEmail || "",
+          contactPhone: metadata?.contactPhone || "",
+          addressLine1: metadata?.addressLine1 || "",
+          addressLine2: metadata?.addressLine2 || "",
+          city: metadata?.city || "",
+          state: metadata?.state || "",
+          postalCode: metadata?.postalCode || "",
+          country: metadata?.country || "",
+          timezone: metadata?.timezone || "",
+          hipaaOfficer: metadata?.hipaaOfficer || "",
+          businessAssociateAgreement:
+            metadata?.businessAssociateAgreement || false,
+          dataRetentionYears: metadata?.dataRetentionYears || "",
+        });
       } else {
-        toast.error('Failed to load organization data')
-        router.back()
+        toast.error("Failed to load organization data");
+        router.back();
       }
     } catch (error) {
-      console.error('Failed to load organization:', error)
-      toast.error('Failed to load organization data')
-      router.back()
+      console.error("Failed to load organization:", error);
+      toast.error("Failed to load organization data");
+      router.back();
     } finally {
-      setInitialLoading(false)
+      setInitialLoading(false);
     }
-  }, [mode, organizationId, form, router])
+  }, [mode, organizationId, form, router]);
 
   // Initialize data on mount
   useMemo(() => {
-    if (mode === 'edit' && organizationId && initialLoading) {
-      loadOrganizationData()
-    } else if (mode === 'create') {
-      setInitialLoading(false)
+    if (mode === "edit" && organizationId && initialLoading) {
+      loadOrganizationData();
+    } else if (mode === "create") {
+      setInitialLoading(false);
     }
-  }, [mode, organizationId, initialLoading, loadOrganizationData])
-
-  
+  }, [mode, organizationId, initialLoading, loadOrganizationData]);
 
   // Form submission handler
 const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
@@ -295,7 +340,8 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
   try {
     const cleanedLogo = data.logo?.trim() === '' ? undefined : data.logo
 
-    const organizationData = {
+    // Structure the data to match OrganizationInput interface
+    const organizationData: OrganizationInput = {
       name: data.name,
       slug: data.slug,
       logo: cleanedLogo,
@@ -322,6 +368,10 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
           billing: {
             plan: "standard",
             status: "active",
+          },
+          notifications: {
+            email: true,
+            sms: false,
           },
         },
         hipaaOfficer: data.hipaaOfficer,
@@ -350,14 +400,17 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
       
       onSuccess?.()
     } else {
-      // Map validationErrors if present to match { message: string; path: string[] }
-      if (result && Array.isArray((result as any).validationErrors)) {
-        (result as any).validationErrors = (result as any).validationErrors.map((issue: any) => ({
-          message: issue.message,
-          path: issue.path.filter((p: any) => typeof p === 'string'),
-        }))
+      // Handle different types of errors
+      let errorMessage = 'An error occurred'
+      
+      // First, check for validation errors
+      if (result?.validationErrors && result.validationErrors.length > 0) {
+        errorMessage = getValidationErrorMessage(result.validationErrors)
+      } else if (result?.error) {
+        // Then handle other types of errors
+        errorMessage = getErrorMessage(result.error)
       }
-      const errorMessage = result?.error ? getErrorMessage(result.error) : 'An error occurred'
+      
       toast.error(errorMessage)
       console.error('Organization creation/update failed:', result)
     }
@@ -373,55 +426,63 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
 }
 
   // Logo upload handler
-  const handleLogoUpload = useCallback(async (file: File): Promise<{ success: boolean; url?: string; error?: string }> => {
-    try {
-      const formData = new FormData()
-      formData.append('file', file)
-      
-      const result = await uploadOrganizationLogo(formData)
-      if (result.success && result.url) {
-        form.setValue('logo', result.url)
-        toast.success('Logo uploaded successfully!')
-        return result
-      } else {
-        toast.error(result.error || 'Failed to upload logo')
-        return result
+  const handleLogoUpload = useCallback(
+    async (
+      file: File
+    ): Promise<{ success: boolean; url?: string; error?: string }> => {
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const result = await uploadOrganizationLogo(formData);
+        if (result.success && result.url) {
+          form.setValue("logo", result.url);
+          toast.success("Logo uploaded successfully!");
+          return result;
+        } else {
+          toast.error(result.error || "Failed to upload logo");
+          return result;
+        }
+      } catch (error) {
+        console.error("Logo upload error:", error);
+        const errorMessage = "Failed to upload logo";
+        toast.error(errorMessage);
+        return { success: false, error: errorMessage };
       }
-    } catch (error) {
-      console.error('Logo upload error:', error)
-      const errorMessage = 'Failed to upload logo'
-      toast.error(errorMessage)
-      return { success: false, error: errorMessage }
-    }
-  }, [form])
+    },
+    [form]
+  );
 
   // Logo remove handler
-  const handleLogoRemove = useCallback(async (url: string): Promise<{ success: boolean; error?: string }> => {
-    try {
-      const result = await deleteFile(url)
-      if (result.success) {
-        form.setValue('logo', undefined)
-        toast.success('Logo removed successfully!')
-      } else {
-        toast.error(result.error || 'Failed to remove logo')
+  const handleLogoRemove = useCallback(
+    async (url: string): Promise<{ success: boolean; error?: string }> => {
+      try {
+        const result = await deleteFile(url);
+        if (result.success) {
+          form.setValue("logo", undefined);
+          toast.success("Logo removed successfully!");
+        } else {
+          toast.error(result.error || "Failed to remove logo");
+        }
+        return result;
+      } catch (error) {
+        console.error("Logo removal error:", error);
+        const errorMessage = "Failed to remove logo";
+        toast.error(errorMessage);
+        return { success: false, error: errorMessage };
       }
-      return result
-    } catch (error) {
-      console.error('Logo removal error:', error)
-      const errorMessage = 'Failed to remove logo'
-      toast.error(errorMessage)
-      return { success: false, error: errorMessage }
-    }
-  }, [form])
+    },
+    [form]
+  );
 
   // Cleanup timeouts on unmount
   useMemo(() => {
     return () => {
       if (slugCheckTimeoutRef.current) {
-        clearTimeout(slugCheckTimeoutRef.current)
+        clearTimeout(slugCheckTimeoutRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   if (initialLoading) {
     return (
@@ -429,7 +490,7 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
         <Loader2 className="h-6 w-6 animate-spin" />
         <span className="ml-2">Loading organization data...</span>
       </div>
-    )
+    );
   }
 
   return (
@@ -452,8 +513,8 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
                   <FormItem>
                     <FormLabel>Organization Name</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Enter organization name" 
+                      <Input
+                        placeholder="Enter organization name"
                         {...field}
                         onChange={(e) => handleNameChange(e.target.value)}
                       />
@@ -471,27 +532,28 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
                     <FormLabel>URL Slug</FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <Input 
-                          placeholder="organization-slug" 
+                        <Input
+                          placeholder="organization-slug"
                           {...field}
                           onChange={(e) => handleSlugChange(e.target.value)}
                           className={cn(
-                            slugStatus === 'taken' ? 
-                            'border-destructive focus:border-destructive' : 
-                            slugStatus === 'available' ? 
-                            'border-green-500 focus:border-green-500' : 
-                            slugStatus === 'checking' ?
-                            'border-blue-500 focus:border-blue-500' : ''
+                            slugStatus === "taken"
+                              ? "border-destructive focus:border-destructive"
+                              : slugStatus === "available"
+                                ? "border-green-500 focus:border-green-500"
+                                : slugStatus === "checking"
+                                  ? "border-blue-500 focus:border-blue-500"
+                                  : ""
                           )}
                         />
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                          {slugStatus === 'checking' && (
+                          {slugStatus === "checking" && (
                             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                           )}
-                          {slugStatus === 'available' && (
+                          {slugStatus === "available" && (
                             <Check className="h-4 w-4 text-green-500" />
                           )}
-                          {slugStatus === 'taken' && (
+                          {slugStatus === "taken" && (
                             <AlertCircle className="h-4 w-4 text-destructive" />
                           )}
                         </div>
@@ -537,7 +599,10 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Organization Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select organization type" />
@@ -571,7 +636,10 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
                   <FormItem>
                     <FormLabel>Contact Email</FormLabel>
                     <FormControl>
-                      <Input placeholder="contact@organization.com" {...field} />
+                      <Input
+                        placeholder="contact@organization.com"
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -698,17 +766,28 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Timezone</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select timezone" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                          <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                          <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                          <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                          <SelectItem value="America/New_York">
+                            Eastern Time (ET)
+                          </SelectItem>
+                          <SelectItem value="America/Chicago">
+                            Central Time (CT)
+                          </SelectItem>
+                          <SelectItem value="America/Denver">
+                            Mountain Time (MT)
+                          </SelectItem>
+                          <SelectItem value="America/Los_Angeles">
+                            Pacific Time (PT)
+                          </SelectItem>
                           <SelectItem value="UTC">UTC</SelectItem>
                         </SelectContent>
                       </Select>
@@ -738,7 +817,10 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
                   <FormItem>
                     <FormLabel>HIPAA Officer</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter HIPAA Officer name" {...field} />
+                      <Input
+                        placeholder="Enter HIPAA Officer name"
+                        {...field}
+                      />
                     </FormControl>
                     <FormDescription>
                       Name of the designated HIPAA compliance officer
@@ -754,7 +836,10 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Data Retention (Years)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select retention period" />
@@ -790,7 +875,8 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
                       Business Associate Agreement (BAA) Signed
                     </FormLabel>
                     <FormDescription>
-                      Check this box to confirm that a Business Associate Agreement has been signed with this organization.
+                      Check this box to confirm that a Business Associate
+                      Agreement has been signed with this organization.
                     </FormDescription>
                   </div>
                 </FormItem>
@@ -811,10 +897,10 @@ const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
           </Button>
           <Button type="submit" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {mode === 'create' ? 'Create Organization' : 'Save Changes'}
+            {mode === "create" ? "Create Organization" : "Save Changes"}
           </Button>
         </div>
       </form>
     </Form>
-  )
+  );
 }
