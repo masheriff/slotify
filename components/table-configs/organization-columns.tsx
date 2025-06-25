@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Eye, Edit, Users } from "lucide-react"
+import { MoreHorizontal, Eye, Edit, Users, Trash } from "lucide-react"
 import { format } from "date-fns"
 import Image from "next/image"
 import { OrganizationListItem } from "@/types"
@@ -177,6 +177,7 @@ export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive">
+              <Trash className="mr-2 h-4 w-4 text-destructive" />
               Delete organization
             </DropdownMenuItem>
           </DropdownMenuContent>

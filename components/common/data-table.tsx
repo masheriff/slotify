@@ -1,4 +1,4 @@
-// components/common/data-table.tsx
+// components/common/data-table.tsx - SIMPLE FIX
 "use client"
 
 import {
@@ -10,6 +10,7 @@ import {
   SortingState,
 } from "@tanstack/react-table"
 import { useState, useEffect } from "react"
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Table,
   TableBody,
@@ -33,38 +34,84 @@ import {
   ChevronsRight,
   Loader2
 } from "lucide-react"
-import { useLoadingStore } from "@/stores/loading-store"
-import { DataTableProps } from "@/types"
 
-
+// Updated interface to match your existing pattern
+interface DataTableProps<TData, TValue> {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  pagination: {
+    currentPage: number;
+    pageSize: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    totalCount?: number;
+  };
+  sorting?: {
+    sortBy?: string;
+    sortDirection?: 'asc' | 'desc';
+  };
+  emptyMessage?: string;
+  selectable?: boolean;
+  bulkActions?: React.ReactNode;
+}
 
 export function DataTable<TData, TValue>({
   columns,
   data,
-  currentPage,
-  pageSize,
-  totalPages,
-  hasNextPage,
-  hasPreviousPage,
-  onPageChange,
-  onPageSizeChange,
-  sortBy,
-  sortDirection,
-  onSortingChange,
-  loadingKey = 'data-table',
+  pagination,
+  sorting,
   emptyMessage = "No results found.",
+  selectable,
+  bulkActions,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>(() => {
-    if (sortBy && sortDirection) {
-      return [{ id: sortBy, desc: sortDirection === 'desc' }]
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Destructure pagination
+  const { 
+    currentPage, 
+    pageSize, 
+    totalPages, 
+    hasNextPage, 
+    hasPreviousPage,
+    totalCount 
+  } = pagination;
+
+  const [sorting_state, setSorting] = useState<SortingState>(() => {
+    if (sorting?.sortBy && sorting?.sortDirection) {
+      return [{ id: sorting.sortBy, desc: sorting.sortDirection === 'desc' }]
     }
     return []
   })
 
-  // Subscribe to global loading state
-  const isLoading = useLoadingStore((state) => 
-    loadingKey ? state.isLoading(loadingKey) : false
-  )
+  // URL update helper
+  const updateURL = (newParams: Record<string, string | number | undefined>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.set(key, value.toString());
+      } else {
+        params.delete(key);
+      }
+    });
+
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  // Event handlers
+  const handlePageChange = (page: number) => {
+    updateURL({ page });
+  };
+
+  const handlePageSizeChange = (newPageSize: number) => {
+    updateURL({ 
+      pageSize: newPageSize,
+      page: 1 // Reset to first page
+    });
+  };
 
   const table = useReactTable({
     data,
@@ -72,20 +119,27 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: (updater) => {
-      const newSorting = typeof updater === 'function' ? updater(sorting) : updater
+      const newSorting = typeof updater === 'function' ? updater(sorting_state) : updater
       setSorting(newSorting)
       
       // Update URL with new sorting
-      if (onSortingChange && newSorting.length > 0) {
+      if (newSorting.length > 0) {
         const sort = newSorting[0]
-        onSortingChange(sort.id, sort.desc ? 'desc' : 'asc')
-      } else if (onSortingChange && newSorting.length === 0) {
-        // Clear sorting
-        onSortingChange('', 'asc')
+        updateURL({
+          sortBy: sort.id,
+          sortDirection: sort.desc ? 'desc' : 'asc',
+          page: 1 // Reset to first page
+        });
+      } else {
+        updateURL({
+          sortBy: undefined,
+          sortDirection: undefined,
+          page: 1
+        });
       }
     },
     state: {
-      sorting,
+      sorting: sorting_state,
     },
     manualPagination: true,
     manualSorting: true,
@@ -94,16 +148,20 @@ export function DataTable<TData, TValue>({
 
   // Update sorting state when props change
   useEffect(() => {
-    if (sortBy && sortDirection) {
-      setSorting([{ id: sortBy, desc: sortDirection === 'desc' }])
+    if (sorting?.sortBy && sorting?.sortDirection) {
+      setSorting([{ id: sorting.sortBy, desc: sorting.sortDirection === 'desc' }])
     } else {
       setSorting([])
     }
-  }, [sortBy, sortDirection])
+  }, [sorting?.sortBy, sorting?.sortDirection])
 
   // Calculate display values
   const startItem = data.length > 0 ? (currentPage - 1) * pageSize + 1 : 0
   const endItem = Math.min(currentPage * pageSize, (currentPage - 1) * pageSize + data.length)
+  
+  // Calculate total items display
+  const totalItems = totalCount || (totalPages * pageSize)
+  const displayEndItem = totalCount ? Math.min(endItem, totalCount) : endItem
 
   return (
     <div className="space-y-4">
@@ -127,7 +185,6 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {/* REMOVED SKELETON LOADING - Just show data or empty state */}
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
@@ -152,17 +209,8 @@ export function DataTable<TData, TValue>({
                   className="h-24 text-center"
                 >
                   <div className="flex flex-col items-center justify-center space-y-2 text-muted-foreground">
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="h-6 w-6 animate-spin" />
-                        <p>Loading...</p>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-lg">📭</div>
-                        <p>{emptyMessage}</p>
-                      </>
-                    )}
+                    <div className="text-lg">📭</div>
+                    <p>{emptyMessage}</p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -177,10 +225,7 @@ export function DataTable<TData, TValue>({
           <p className="text-sm font-medium">Rows per page</p>
           <Select
             value={`${pageSize}`}
-            onValueChange={(value) => {
-              onPageSizeChange(Number(value))
-            }}
-            disabled={isLoading}
+            onValueChange={(value) => handlePageSizeChange(Number(value))}
           >
             <SelectTrigger className="h-8 w-[70px]">
               <SelectValue placeholder={pageSize} />
@@ -197,12 +242,12 @@ export function DataTable<TData, TValue>({
 
         <div className="flex items-center space-x-6 lg:space-x-8">
           <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-            {data.length > 0 ? (
-              <>
-                {startItem}-{endItem}
-              </>
+            {data.length > 0 && totalCount ? (
+              `${startItem}-${displayEndItem} of ${totalCount}`
+            ) : data.length > 0 ? (
+              `${startItem}-${displayEndItem}`
             ) : (
-              "0"
+              "0 items"
             )}
           </div>
           
@@ -210,16 +255,16 @@ export function DataTable<TData, TValue>({
             <Button
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => onPageChange(1)}
-              disabled={!hasPreviousPage || isLoading}
+              onClick={() => handlePageChange(1)}
+              disabled={!hasPreviousPage}
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={!hasPreviousPage || isLoading}
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={!hasPreviousPage}
             >
               <span className="sr-only">Go to previous page</span>
               <ChevronLeft className="h-4 w-4" />
@@ -227,18 +272,14 @@ export function DataTable<TData, TValue>({
             
             {/* Page info */}
             <div className="flex items-center justify-center text-sm font-medium min-w-[80px]">
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                `Page ${currentPage} of ${totalPages || 1}`
-              )}
+              Page {currentPage} of {totalPages || 1}
             </div>
             
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={!hasNextPage || isLoading}
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={!hasNextPage}
             >
               <span className="sr-only">Go to next page</span>
               <ChevronRight className="h-4 w-4" />
@@ -246,8 +287,8 @@ export function DataTable<TData, TValue>({
             <Button
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => onPageChange(totalPages)}
-              disabled={!hasNextPage || isLoading}
+              onClick={() => handlePageChange(totalPages)}
+              disabled={!hasNextPage}
             >
               <span className="sr-only">Go to last page</span>
               <ChevronsRight className="h-4 w-4" />

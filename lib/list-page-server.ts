@@ -13,6 +13,7 @@ export interface ListParams {
 export interface ListDataResult<T> {
   success: boolean;
   data?: {
+    totalCount: number | undefined;
     data: T[];
     page: number;
     pageSize: number;
@@ -235,6 +236,7 @@ export function createEmptyListResult<T>(params: ListParams): ListDataResult<T> 
       totalPages: 0,
       hasNextPage: false,
       hasPreviousPage: false,
+      totalCount: undefined
     },
   };
 }

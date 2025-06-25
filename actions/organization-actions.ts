@@ -25,12 +25,13 @@ export type PaginationParams = {
 };
 
 export type OrganizationResponse = {
-  data: any[];
+  data: OrganizationData[];
   page: number;
   pageSize: number;
   totalPages: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
+  totalCount: number; // Make this required
 };
 
 export async function listOrganizations(
@@ -41,8 +42,7 @@ export async function listOrganizations(
 
     await requireSuperAdmin();
 
-    const { page, pageSize, searchQuery, sortBy, sortDirection, filters } =
-      params;
+    const { page, pageSize, searchQuery, sortBy, sortDirection, filters } = params;
     const offset = (page - 1) * pageSize;
 
     // Build where conditions
@@ -57,17 +57,14 @@ export async function listOrganizations(
       );
     }
 
-    // FIXED: Type filter - check metadata correctly
-    if (
-      filters?.type &&
-      (filters.type === "admin" || filters.type === "client")
-    ) {
+    // Type filter - check metadata correctly
+    if (filters?.type && (filters.type === "admin" || filters.type === "client")) {
       conditions.push(
         sql`${organizations.metadata}->>'type' = ${filters.type}`
       );
     }
 
-    // FIXED: Date filter - handle createdAfter properly
+    // Date filter - handle createdAfter properly
     if (filters?.createdAfter && filters.createdAfter.trim()) {
       try {
         const filterDate = new Date(filters.createdAfter.trim());
@@ -82,8 +79,7 @@ export async function listOrganizations(
     // Build final where condition
     let whereCondition;
     if (conditions.length > 0) {
-      whereCondition =
-        conditions.length === 1 ? conditions[0] : and(...conditions);
+      whereCondition = conditions.length === 1 ? conditions[0] : and(...conditions);
     }
 
     // Get total count
@@ -99,22 +95,20 @@ export async function listOrganizations(
     // Determine sort order
     let orderByClause;
     if (sortBy === "name") {
-      orderByClause =
-        sortDirection === "desc"
-          ? sql`${organizations.name} DESC`
-          : organizations.name;
+      orderByClause = sortDirection === "desc" 
+        ? sql`${organizations.name} DESC` 
+        : organizations.name;
     } else if (sortBy === "createdAt") {
-      orderByClause =
-        sortDirection === "desc"
-          ? sql`${organizations.createdAt} DESC`
-          : organizations.createdAt;
+      orderByClause = sortDirection === "desc"
+        ? sql`${organizations.createdAt} DESC`
+        : organizations.createdAt;
     } else {
       // Default sort by createdAt DESC
       orderByClause = sql`${organizations.createdAt} DESC`;
     }
 
     // Execute main query
-    const data = whereCondition
+    const rawData = whereCondition
       ? await db
           .select()
           .from(organizations)
@@ -129,6 +123,16 @@ export async function listOrganizations(
           .limit(pageSize)
           .offset(offset);
 
+    // Map database results to OrganizationData[]
+    const data: OrganizationData[] = rawData.map((org) => ({
+      id: org.id,
+      name: org.name,
+      slug: org.slug ?? "", // fallback to empty string if null
+      logo: org.logo ?? undefined,
+      createdAt: org.createdAt,
+      metadata: org.metadata as OrganizationData["metadata"],
+    }));
+
     const totalPages = Math.ceil(totalCount / pageSize);
 
     console.log("✅ Organizations retrieved successfully, count:", data.length);
@@ -140,6 +144,7 @@ export async function listOrganizations(
       totalPages,
       hasNextPage: page < totalPages,
       hasPreviousPage: page > 1,
+      totalCount, // FIXED: Include totalCount for proper pagination display
     };
   } catch (error) {
     console.error("❌ Error listing organizations:", error);
@@ -150,6 +155,7 @@ export async function listOrganizations(
       totalPages: 0,
       hasNextPage: false,
       hasPreviousPage: false,
+      totalCount: 0, // Include in error case too
     };
   }
 }
@@ -186,7 +192,7 @@ const organizationDataSchema = z.object({
 
 // Organization data interface for create/update
 export interface OrganizationData {
-  id:string;
+  id: string;
   name: string;
   slug: string;
   logo?: string;

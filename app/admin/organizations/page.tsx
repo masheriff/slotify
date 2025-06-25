@@ -1,4 +1,5 @@
-// app/admin/organizations/page.tsx - FIXED VERSION
+// app/admin/organizations/page.tsx - SIMPLE FIX, NO WRAPPER
+import { Metadata } from "next";
 import { 
   parseListParams, 
   fetchListData, 
@@ -12,9 +13,9 @@ import { FilterablePageHeader } from "@/components/common/filterable-page-header
 import { DataTable } from "@/components/common/data-table";
 import { organizationColumns } from "@/components/table-configs/organization-columns";
 import { organizationFilterConfig } from "@/components/admin/forms/organization-filters-config";
-import { listOrganizations, OrganizationData } from "@/actions/organization-actions";
+import { listOrganizations, OrganizationData, OrganizationResponse } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
-import { OrganizationListItem } from "@/types";
+import { ListDataResult, OrganizationListItem } from "@/types";
 
 interface OrganizationsPageProps {
   searchParams: Promise<{
@@ -30,7 +31,6 @@ interface OrganizationsPageProps {
   }>;
 }
 
-// Configuration for this list page
 const LIST_CONFIG = {
   defaultPageSize: 10,
   defaultSort: 'name',
@@ -47,10 +47,7 @@ export default async function OrganizationsPage({
   const startTime = Date.now();
   
   try {
-    // Parse and validate parameters
     const params = await parseListParams(searchParams, LIST_CONFIG);
-    
-    // Check user permissions
     const user = await getCurrentUser();
     const accessCheck = await validateListPageAccess('organizations', 'read', user);
     
@@ -66,14 +63,12 @@ export default async function OrganizationsPage({
       );
     }
 
-    // Fetch organizations data - this returns Better Auth Organization[] with metadata
     const result = await fetchListData<OrganizationData>(
       listOrganizations,
       params,
       { module: 'organizations', user }
     );
 
-    // Handle fetch errors
     if (!result.success || !result.data) {
       return (
         <ListPageWrapper 
@@ -86,11 +81,11 @@ export default async function OrganizationsPage({
       );
     }
 
-    // Handle page redirects for invalid states
     handleListPageRedirect('/admin/organizations', params, result.data.totalPages);
 
-    // Transform Better Auth Organization data to OrganizationListItem format
-    const tableData: OrganizationListItem[] = result.data.data.map(org => ({
+    
+
+    const tableData: OrganizationListItem[] = result.data.data.map((org) => ({
       id: org.id,
       name: org.name,
       slug: org.slug || '',
@@ -102,13 +97,9 @@ export default async function OrganizationsPage({
       isActive: org.metadata?.isActive ?? true,
       createdAt: org.createdAt,
       logo: org.logo,
-      status: org.metadata?.status || 'active', // Add status property with a sensible default
+      status: org.metadata?.status || 'active',
     }));
 
-    // Build canonical URL for caching
-    const canonicalURL = buildCanonicalListURL('/admin/organizations', params, LIST_CONFIG);
-    
-    // Log performance metrics
     const renderTime = Date.now() - startTime;
     logListPageMetrics('organizations', params, result, renderTime);
 
@@ -126,9 +117,9 @@ export default async function OrganizationsPage({
             createButtonText="Add Organization"
             createHref="/admin/organizations/create"
             filterConfig={organizationFilterConfig}
-            // Remove the onExport prop - export functionality will be handled by the client component
           />
 
+          {/* SIMPLE: Keep your existing pattern, just fix the totalCount */}
           <DataTable
             columns={organizationColumns}
             data={tableData}
@@ -138,7 +129,7 @@ export default async function OrganizationsPage({
               totalPages: result.data.totalPages,
               hasNextPage: result.data.hasNextPage,
               hasPreviousPage: result.data.hasPreviousPage,
-              // totalCount: result.data.totalCount,
+              totalCount: result.data.totalCount, // Make sure this is included from actions
             }}
             sorting={{
               sortBy: params.sortBy,
@@ -149,7 +140,7 @@ export default async function OrganizationsPage({
             bulkActions={
               user?.role === 'super_admin' ? (
                 <div className="flex gap-2">
-                  {/* Bulk action buttons would go here */}
+                  {/* Bulk action buttons */}
                 </div>
               ) : undefined
             }
@@ -160,9 +151,6 @@ export default async function OrganizationsPage({
 
   } catch (error) {
     console.error('❌ [organizations] Page render error:', error);
-    
-    const renderTime = Date.now() - startTime;
-    logListPageMetrics('organizations', { page: 1, pageSize: 10, searchQuery: '', sortBy: 'name', sortDirection: 'asc', filters: {} }, { success: false, error: error instanceof Error ? error.message : 'Unknown error' }, renderTime);
     
     return (
       <ListPageWrapper 
