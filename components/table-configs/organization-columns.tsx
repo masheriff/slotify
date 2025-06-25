@@ -81,7 +81,7 @@ function OrganizationActionsCell({
           onClick={handleDelete}
           className="text-destructive focus:text-destructive"
         >
-          <Trash className="mr-2 h-4 w-4" />
+          <Trash className="mr-2 h-4 w-4 text-destructive" />
           Delete organization
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -104,7 +104,7 @@ export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
             <img
               src={logo}
               alt={`${name} logo`}
-              className="h-8 w-8 rounded-md object-cover"
+              className="h-8 object-cover"
             />
           ) : (
             <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">

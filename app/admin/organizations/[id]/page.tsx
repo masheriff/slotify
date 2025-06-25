@@ -2,6 +2,7 @@
 import { getOrganizationById } from "@/actions/organization-actions";
 import { OrganizationNotFound } from "@/components/common/not-found";
 import { OrganizationDetailsContent } from "@/components/admin/organization/organization-details-content";
+import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
 import { redirect } from "next/navigation";
 
 interface OrganizationDetailsPageProps {
@@ -19,22 +20,29 @@ export default async function OrganizationDetailsPage({
   // Handle errors and missing organizations
   if (!result.success || !result.data) {
     return (
-      <OrganizationNotFound
-        title="Organization Not Found"
-        description={result.error || "The organization you're looking for doesn't exist."}
-        onBack={() => redirect("/admin/organizations")}
-        onGoHome={() => redirect("/admin")}
-        onRefresh={() => redirect(`/admin/organizations/${id}`)}
+      <ListPageWrapper
+        error={result.error || "The organization you're looking for doesn't exist."}
+        breadcrumbs={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Organizations', href: '/admin/organizations' },
+          { label: 'Organization Details', current: true },
+        ]}
       />
     );
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4">
+    <ListPageWrapper
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Organizations', href: '/admin/organizations' },
+        { label: result.data.name, current: true },
+      ]}
+    >
       <OrganizationDetailsContent 
         organization={result.data} 
         organizationId={id}
       />
-    </div>
+    </ListPageWrapper>
   );
 }
