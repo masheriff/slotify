@@ -30,7 +30,6 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Loader2, Check, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { FileUpload } from "@/components/ui/file-upload"
-import { OrganizationPageHeader } from "@/components/admin/page-headers/organization-page-header"
 import { 
   createOrganization, 
   updateOrganization, 
@@ -45,17 +44,21 @@ import {
 // Enhanced form schema with proper validation
 const organizationFormSchema = z.object({
   name: z.string().min(2, "Organization name must be at least 2 characters"),
-  // Slug is auto-generated and not user-editable
   slug: z.string().min(2, "Slug must be at least 2 characters").regex(/^[a-z0-9-]+$/, "Slug can only contain lowercase letters, numbers, and hyphens"),
-  logo: z.string().optional(),
-  // Type is always "client" for new organizations
+  // FIXED: Allow empty string, undefined, or valid paths/URLs
+  logo: z.string().optional().refine((val) => {
+    // Allow undefined, null, or empty string (no logo)
+    if (!val || val.trim() === '') return true;
+    // Allow relative paths starting with / or absolute URLs
+    return val.startsWith('/') || val.startsWith('http');
+  }, "Logo must be a valid URL or path"),
   type: z.literal("client"),
   
   // Contact Information
   contactEmail: z.string().email("Please enter a valid email address"),
   contactPhone: z.string().min(10, "Please enter a valid phone number"),
   
-  // Address Information (3 rows as requested)
+  // Address Information
   addressLine1: z.string().min(5, "Please enter a valid address"),
   addressLine2: z.string().optional(),
   city: z.string().min(2, "Please enter a valid city"),
@@ -136,133 +139,99 @@ export function OrganizationForm({ mode, organizationId, onSuccess }: Organizati
         setSlugStatus('taken')
         if (result.suggestedSlug) {
           form.setValue('slug', result.suggestedSlug)
-          toast.info(`Slug "${slug}" is taken. Using "${result.suggestedSlug}" instead.`)
+          toast.info(`Slug "${slug}" is taken. Suggested: "${result.suggestedSlug}"`)
         }
       }
     } catch (error) {
+      console.error('Slug check failed:', error)
       setSlugStatus(null)
-      console.error('Error checking slug:', error)
     }
-  }, [form, mode, organizationId])
+  }, [mode, organizationId, form])
 
-  // Auto-generate slug when name changes (only in create mode)
+  // Auto-generate slug when name changes
   useEffect(() => {
-    if (mode === 'create' && watchName && watchName.trim()) {
+    if (watchName && mode === 'create') {
       const newSlug = generateSlugFromName(watchName)
       if (newSlug !== currentSlug) {
-        form.setValue("slug", newSlug)
+        form.setValue('slug', newSlug)
       }
     }
-  }, [watchName, mode, form, generateSlugFromName, currentSlug])
+  }, [watchName, mode, currentSlug, form, generateSlugFromName])
 
-  // Check slug availability when it changes
+  // Check slug availability with debouncing
   useEffect(() => {
     if (currentSlug && currentSlug.length >= 2) {
       const timeoutId = setTimeout(() => {
         checkSlug(currentSlug)
-      }, 500) // Debounce
-
+      }, 500)
       return () => clearTimeout(timeoutId)
     } else {
       setSlugStatus(null)
     }
   }, [currentSlug, checkSlug])
 
-  // Load existing data for edit mode
+  // Load existing organization data for edit mode
   useEffect(() => {
     if (mode === 'edit' && organizationId) {
-      loadOrganizationData()
-    }
-  }, [mode, organizationId])
-
-  const loadOrganizationData = async () => {
-    try {
-      setInitialLoading(true)
-      const result = await getOrganizationById(organizationId!)
-      
-      if (result.success && result.data) {
-        const org = result.data
-        const metadata = org.metadata as any
-        
-        const formData: OrganizationFormData = {
-          name: org.name,
-          slug: org.slug || "",
-          logo: org.logo || undefined,
-          type: "client", // Always client for non-admin orgs
-          contactEmail: metadata?.contactEmail || "",
-          contactPhone: metadata?.contactPhone || "",
-          addressLine1: metadata?.addressLine1 || "",
-          addressLine2: metadata?.addressLine2 || "",
-          city: metadata?.city || "",
-          state: metadata?.state || "",
-          postalCode: metadata?.postalCode || "",
-          country: metadata?.country || "USA",
-          timezone: metadata?.timezone || "America/Los_Angeles",
-          hipaaOfficer: metadata?.hipaaOfficer || "",
-          dataRetentionYears: metadata?.dataRetentionYears || "7",
-          businessAssociateAgreement: metadata?.businessAssociateAgreement || false,
+      const loadOrganization = async () => {
+        try {
+          const result = await getOrganizationById(organizationId)
+          if (result.success && result.data) {
+            const org = result.data
+            const metadata = org.metadata as any
+            
+            form.reset({
+              name: org.name,
+              slug: org.slug || '',
+              logo: org.logo ?? undefined,
+              type: metadata.type,
+              contactEmail: metadata.contactEmail,
+              contactPhone: metadata.contactPhone,
+              addressLine1: metadata.addressLine1,
+              addressLine2: metadata.addressLine2 || '',
+              city: metadata.city,
+              state: metadata.state,
+              postalCode: metadata.postalCode,
+              country: metadata.country,
+              timezone: metadata.timezone,
+              hipaaOfficer: metadata.hipaaOfficer || '',
+              dataRetentionYears: metadata.dataRetentionYears || '7',
+              businessAssociateAgreement: metadata.businessAssociateAgreement || false,
+            })
+          } else {
+            toast.error('Failed to load organization data')
+            router.push('/admin/organizations')
+          }
+        } catch (error) {
+          console.error('Failed to load organization:', error)
+          toast.error('Failed to load organization data')
+          router.push('/admin/organizations')
+        } finally {
+          setInitialLoading(false)
         }
-        
-        form.reset(formData)
-      } else {
-        toast.error("Failed to load organization data")
-        router.push("/admin/organizations")
       }
-    } catch (error) {
-      console.error("Error loading organization:", error)
-      toast.error("Failed to load organization data")
-      router.push("/admin/organizations")
-    } finally {
+
+      loadOrganization()
+    } else {
       setInitialLoading(false)
     }
-  }
-
-  // Handle logo upload
-  const handleLogoUpload = async (file: File) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    
-    const result = await uploadOrganizationLogo(formData)
-    
-    if (result.success && result.url) {
-      // Delete old logo if exists
-      const currentLogo = form.getValues('logo')
-      if (currentLogo) {
-        await deleteFile(currentLogo)
-      }
-      
-      form.setValue('logo', result.url)
-    }
-    
-    return result
-  }
-
-  // Handle logo delete
-  const handleLogoDelete = async (url: string) => {
-    const result = await deleteFile(url)
-    
-    if (result.success) {
-      form.setValue('logo', undefined)
-    }
-    
-    return result
-  }
+  }, [mode, organizationId, form, router])
 
   const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
+    setIsLoading(true)
+    
     try {
-      setIsLoading(true)
-
-      // Final slug validation
-      if (slugStatus === 'taken') {
-        toast.error("Please resolve the slug conflict before submitting")
-        return
-      }
-
-      // Prepare organization data
+      console.log('Form submission data:', data) // Debug log
+      
+      // Clean up logo field - convert empty strings to undefined
+      const cleanedLogo = data.logo && data.logo.trim() !== '' ? data.logo : undefined;
+      
+      // Prepare organization data with proper structure
       const organizationData = {
         name: data.name,
         slug: data.slug,
-        logo: data.logo,
+        logo: cleanedLogo, // Use cleaned logo value
+        createdAt: new Date().toISOString(),
         metadata: {
           type: data.type,
           contactEmail: data.contactEmail,
@@ -293,424 +262,441 @@ export function OrganizationForm({ mode, organizationId, onSuccess }: Organizati
         },
       }
 
+      console.log('Organization data to be sent:', organizationData) // Debug log
+
       let result
+      
       if (mode === 'create') {
         result = await createOrganization(organizationData)
-      } else {
-        result = await updateOrganization(organizationId!, organizationData)
+      } else if (organizationId) {
+        result = await updateOrganization(organizationId, organizationData)
       }
 
-      if (result.success) {
-        toast.success(`Organization ${mode === 'create' ? 'created' : 'updated'} successfully`)
-        if (onSuccess) {
-          onSuccess()
-        } else {
-          router.push('/admin/organizations')
-        }
+      console.log('API result:', result) // Debug log
+
+      if (result?.success) {
+        toast.success(mode === 'create' ? 'Organization created successfully!' : 'Organization updated successfully!')
+        onSuccess?.()
       } else {
-        toast.error(result.error || `Failed to ${mode} organization`)
+        toast.error(result?.error || 'An error occurred')
       }
     } catch (error) {
-      console.error(`Error ${mode}ing organization:`, error)
-      toast.error(`Failed to ${mode} organization`)
+      console.error('Form submission error:', error)
+      toast.error('An unexpected error occurred')
     } finally {
       setIsLoading(false)
     }
   }
 
-  // Handle form submit from header
-  const handleSave = () => {
-    form.handleSubmit(onSubmit)()
+  const handleLogoUpload = async (file: File): Promise<{ success: boolean; url?: string; error?: string }> => {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const result = await uploadOrganizationLogo(formData)
+      if (result.success && result.url) {
+        // Use the relative path directly - no need to convert to absolute URL
+        form.setValue('logo', result.url)
+        toast.success('Logo uploaded successfully!')
+        
+        console.log('Logo uploaded and form updated:', result.url) // Debug log
+        return result
+      } else {
+        toast.error(result.error || 'Failed to upload logo')
+        return result
+      }
+    } catch (error) {
+      console.error('Logo upload error:', error)
+      const errorMessage = 'Failed to upload logo'
+      toast.error(errorMessage)
+      return { success: false, error: errorMessage }
+    }
+  }
+
+  const handleLogoRemove = async (url: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const result = await deleteFile(url)
+      if (result.success) {
+        // Clear the form field by setting it to undefined
+        form.setValue('logo', undefined)
+        toast.success('Logo removed successfully!')
+      } else {
+        toast.error(result.error || 'Failed to remove logo')
+      }
+      return result
+    } catch (error) {
+      console.error('Logo removal error:', error)
+      const errorMessage = 'Failed to remove logo'
+      toast.error(errorMessage)
+      return { success: false, error: errorMessage }
+    }
   }
 
   if (initialLoading) {
     return (
-      <div className="flex flex-col h-screen">
-        <OrganizationPageHeader
-          mode={mode}
-          showBackButton={false}
-        />
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <p className="text-sm text-muted-foreground">Loading organization data...</p>
-          </div>
-        </div>
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <span className="ml-2">Loading organization data...</span>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-screen">
-      <OrganizationPageHeader
-        mode={mode}
-        organizationName={form.watch('name') || undefined}
-        onSave={handleSave}
-        isLoading={isLoading}
-      />
-      
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              
-              {/* Basic Information and Contact Information - Side by Side */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Basic Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Basic Information</CardTitle>
-                    <CardDescription>
-                      Basic details about the organization
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Organization Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter organization name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          {/* Basic Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Basic Information</CardTitle>
+              <CardDescription>
+                Core details about the organization
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Organization Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter organization name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    <FormField
-                      control={form.control}
-                      name="slug"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Slug</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <Input 
-                                placeholder="organization-slug" 
-                                {...field} 
-                                disabled
-                                className="pr-10"
-                              />
-                              <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                                {slugStatus === 'checking' && (
-                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                                )}
-                                {slugStatus === 'available' && (
-                                  <Check className="h-4 w-4 text-green-500" />
-                                )}
-                                {slugStatus === 'taken' && (
-                                  <AlertCircle className="h-4 w-4 text-red-500" />
-                                )}
-                              </div>
-                            </div>
-                          </FormControl>
-                          <FormDescription>
-                            Auto-generated from organization name
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Contact Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Contact Information</CardTitle>
-                    <CardDescription>
-                      Primary contact details for the organization
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="contactEmail"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Email</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder="contact@organization.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="contactPhone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Contact Phone</FormLabel>
-                          <FormControl>
-                            <Input placeholder="+1-555-0123" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
+                <FormField
+                  control={form.control}
+                  name="slug"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>URL Slug</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input 
+                            placeholder="organization-slug" 
+                            {...field} 
+                            className={slugStatus === 'taken' ? 'border-destructive' : ''}
+                          />
+                          {slugStatus === 'checking' && (
+                            <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                          {slugStatus === 'available' && (
+                            <Check className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-green-600" />
+                          )}
+                          {slugStatus === 'taken' && (
+                            <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-destructive" />
+                          )}
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Used for the organization's URL. Will be auto-generated from the name.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              {/* Logo Upload - Separate Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Organization Logo</CardTitle>
-                  <CardDescription>
-                    Upload a logo for the organization (PNG, JPG, GIF up to 5MB)
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <FileUpload
-                    onUpload={handleLogoUpload}
-                    onDelete={handleLogoDelete}
-                    currentFileUrl={form.watch('logo')}
-                    accept="image/*"
-                    placeholder="Click to upload logo or drag and drop"
-                    className="max-w-md"
-                  />
-                </CardContent>
-              </Card>
-
-              {/* Address Information and Additional Settings - Side by Side */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Address Information - 3 rows as requested */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Address Information</CardTitle>
-                    <CardDescription>
-                      Physical address of the organization
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {/* Row 1: Address Lines */}
-                    <div className="grid grid-cols-1 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="addressLine1"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Address Line 1</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Street address" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+              <FormField
+                control={form.control}
+                name="logo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organization Logo</FormLabel>
+                    <FormControl>
+                      <FileUpload
+                        currentFileUrl={field.value}
+                        onUpload={handleLogoUpload}
+                        onDelete={handleLogoRemove}
+                        accept="image/*"
+                        maxSize={2 * 1024 * 1024} // 2MB
+                        placeholder="Upload organization logo"
                       />
+                    </FormControl>
+                    <FormDescription>
+                      Recommended size: 200x200px. Max file size: 2MB.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
-                      <FormField
-                        control={form.control}
-                        name="addressLine2"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Address Line 2 (Optional)</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Apartment, suite, etc." {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+          {/* Contact Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Contact Information</CardTitle>
+              <CardDescription>
+                Primary contact details for the organization
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="contactEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="contact@organization.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    {/* Row 2: City and State */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="city"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>City</FormLabel>
-                            <FormControl>
-                              <Input placeholder="City" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                <FormField
+                  control={form.control}
+                  name="contactPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Phone</FormLabel>
+                      <FormControl>
+                        <Input type="tel" placeholder="+1 (555) 123-4567" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-                      <FormField
-                        control={form.control}
-                        name="state"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>State</FormLabel>
-                            <FormControl>
-                              <Input placeholder="State" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+          {/* Address Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Address Information</CardTitle>
+              <CardDescription>
+                Physical location of the organization
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="addressLine1"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address Line 1</FormLabel>
+                    <FormControl>
+                      <Input placeholder="123 Main Street" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                    {/* Row 3: Postal Code and Country */}
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="postalCode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Postal Code</FormLabel>
-                            <FormControl>
-                              <Input placeholder="12345" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+              <FormField
+                control={form.control}
+                name="addressLine2"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Address Line 2 (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Suite 100" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                      <FormField
-                        control={form.control}
-                        name="country"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Country</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select country" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="USA">United States</SelectItem>
-                                <SelectItem value="Canada">Canada</SelectItem>
-                                <SelectItem value="Mexico">Mexico</SelectItem>
-                                <SelectItem value="UK">United Kingdom</SelectItem>
-                                <SelectItem value="Australia">Australia</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input placeholder="San Francisco" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                {/* Additional Settings */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Additional Settings</CardTitle>
-                    <CardDescription>
-                      HIPAA compliance and operational settings
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="timezone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Timezone</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select timezone" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
-                              <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
-                              <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
-                              <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
-                              <SelectItem value="America/Anchorage">Alaska Time (AKT)</SelectItem>
-                              <SelectItem value="Pacific/Honolulu">Hawaii Time (HT)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State</FormLabel>
+                      <FormControl>
+                        <Input placeholder="CA" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-                    <FormField
-                      control={form.control}
-                      name="hipaaOfficer"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>HIPAA Officer (Optional)</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Name of HIPAA compliance officer" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="dataRetentionYears"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Data Retention (Years)</FormLabel>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select retention period" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="3">3 Years</SelectItem>
-                              <SelectItem value="5">5 Years</SelectItem>
-                              <SelectItem value="7">7 Years</SelectItem>
-                              <SelectItem value="10">10 Years</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="businessAssociateAgreement"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>
-                              Business Associate Agreement
-                            </FormLabel>
-                            <FormDescription>
-                              I confirm that a Business Associate Agreement has been signed
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
+                <FormField
+                  control={form.control}
+                  name="postalCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Postal Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="94102" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              {/* Action Buttons - Only show in standalone form */}
-              <div className="flex justify-end space-x-4 lg:hidden">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                  disabled={isLoading}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading || slugStatus === 'taken'}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {mode === 'create' ? 'Create Organization' : 'Update Organization'}
-                </Button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="USA">United States</SelectItem>
+                          <SelectItem value="CAN">Canada</SelectItem>
+                          <SelectItem value="GBR">United Kingdom</SelectItem>
+                          <SelectItem value="AUS">Australia</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="timezone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Timezone</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select timezone" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="America/New_York">Eastern Time</SelectItem>
+                          <SelectItem value="America/Chicago">Central Time</SelectItem>
+                          <SelectItem value="America/Denver">Mountain Time</SelectItem>
+                          <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
+                          <SelectItem value="America/Toronto">Toronto</SelectItem>
+                          <SelectItem value="Europe/London">London</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            </form>
-          </Form>
-        </div>
-      </div>
-    </div>
+            </CardContent>
+          </Card>
+
+          {/* HIPAA & Compliance */}
+          <Card>
+            <CardHeader>
+              <CardTitle>HIPAA & Compliance</CardTitle>
+              <CardDescription>
+                Healthcare compliance and data retention settings
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="hipaaOfficer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>HIPAA Officer (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="John Doe" {...field} />
+                      </FormControl>
+                      <FormDescription>
+                        Name of the designated HIPAA compliance officer
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="dataRetentionYears"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Data Retention (Years)</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select retention period" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="3">3 years</SelectItem>
+                          <SelectItem value="5">5 years</SelectItem>
+                          <SelectItem value="7">7 years</SelectItem>
+                          <SelectItem value="10">10 years</SelectItem>
+                          <SelectItem value="permanent">Permanent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="businessAssociateAgreement"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        Business Associate Agreement (BAA) Signed
+                      </FormLabel>
+                      <FormDescription>
+                        Check this box to confirm that a Business Associate Agreement has been signed with this organization.
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Form Actions - Button positioned at the bottom for better UX */}
+          <div className="flex items-center justify-end space-x-4 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.back()}
+              disabled={isLoading}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {mode === 'create' ? 'Create Organization' : 'Save Changes'}
+            </Button>
+          </div>
+        </form>
+      </Form>
   )
 }

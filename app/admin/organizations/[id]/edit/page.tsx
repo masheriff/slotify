@@ -1,80 +1,55 @@
 // app/admin/organizations/[id]/edit/page.tsx
-"use client"
+"use client";
 
-import { useRouter } from "next/navigation"
-import { OrganizationForm } from "@/components/admin/forms/organization-form"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { use } from "react";
+import { useRouter } from "next/navigation";
+import { OrganizationForm } from "@/components/admin/forms/organization-form";
+import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
 
 interface EditOrganizationPageProps {
-  params: {
-    id: string
-  }
+  params: Promise<{
+    id: string;
+  }>;
 }
 
 export default function EditOrganizationPage({ params }: EditOrganizationPageProps) {
-  const router = useRouter()
-  const organizationId = params.id
+  const router = useRouter();
+  
+  // Use React.use() to unwrap the Promise as required by Next.js latest
+  const { id: organizationId } = use(params);
 
   const handleSuccess = () => {
-    router.push(`/admin/organizations/${organizationId}`)
-  }
-
-  const handleBack = () => {
-    router.push(`/admin/organizations/${organizationId}`)
-  }
+    router.push(`/admin/organizations/${organizationId}`);
+  };
 
   return (
-    <div className="flex-1 space-y-4 p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-              className="h-8 w-8 p-0"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <h2 className="text-2xl font-bold tracking-tight">Edit Organization</h2>
+    <ListPageWrapper
+      breadcrumbs={[
+        { label: 'Admin', href: '/admin' },
+        { label: 'Organizations', href: '/admin/organizations' },
+        { label: 'Organization Details', href: `/admin/organizations/${organizationId}` },
+        { label: 'Edit', current: true },
+      ]}
+    >
+      {/* Using consistent space-y-6 like the list page */}
+      <div className="space-y-6">
+        {/* Header matching FilterablePageHeader style */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight">Edit Organization</h1>
+            <p className="text-muted-foreground">
+              Update organization information and settings
+            </p>
           </div>
-          
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/admin/organizations">Organizations</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbLink href={`/admin/organizations/${organizationId}`}>
-                  Organization Details
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>Edit</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
         </div>
-      </div>
 
-      {/* Form */}
-      <OrganizationForm 
-        mode="edit"
-        organizationId={organizationId}
-        onSuccess={handleSuccess}
-      />
-    </div>
-  )
+        {/* Form Container - matching the layout of other pages */}
+          <OrganizationForm 
+            mode="edit"
+            organizationId={organizationId}
+            onSuccess={handleSuccess}
+          />
+      </div>
+    </ListPageWrapper>
+  );
 }

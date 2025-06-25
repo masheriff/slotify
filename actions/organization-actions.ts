@@ -1,4 +1,4 @@
-// actions/organization-actions.ts - FIXED with direct database access for system admins
+// actions/organization-actions.ts - FIXED logo validation
 "use server";
 
 import { auth } from "@/lib/auth";
@@ -12,11 +12,17 @@ import { db } from "@/db";
 import { organizations, members } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
-// Organization data validation schema
+// Organization data validation schema with FIXED logo validation
 const organizationDataSchema = z.object({
   name: z.string().min(1, "Organization name is required"),
   slug: z.string().min(1, "Organization slug is required"),
-  logo: z.string().url().optional(),
+  // FIXED: Proper handling of empty/undefined logo values
+  logo: z.string().optional().refine((val) => {
+    // Allow undefined, null, or empty string (no logo)
+    if (!val || val.trim() === '') return true;
+    // Allow relative paths starting with / or absolute URLs
+    return val.startsWith('/') || val.startsWith('http');
+  }, "Logo must be a valid URL or path"),
   metadata: z.object({
     type: z.enum(["admin", "client"]),
     contactEmail: z.string().email("Valid email is required"),
@@ -72,6 +78,8 @@ export async function createOrganization(data: OrganizationData) {
     // Validate the data
     const validatedData = organizationDataSchema.parse(data);
 
+    console.log("✅ Validation passed, creating organization:", validatedData);
+
     // Generate organization ID
     const organizationId = generateId();
 
@@ -95,6 +103,7 @@ export async function createOrganization(data: OrganizationData) {
     console.error("❌ Error creating organization:", error);
 
     if (error instanceof z.ZodError) {
+      console.error("❌ Validation error:", error.errors);
       return {
         success: false,
         error: error.errors[0].message,
@@ -199,12 +208,14 @@ export async function getOrganizationById(organizationId: string) {
   }
 }
 
+
 export async function updateOrganization(
   organizationId: string,
   data: OrganizationData
 ) {
   try {
     console.log("✏️ Updating organization:", organizationId);
+    console.log("✏️ Update data:", data);
 
     // Check authentication first
     const session = await getServerSession();
@@ -219,6 +230,7 @@ export async function updateOrganization(
 
     // Validate the data
     const validatedData = organizationDataSchema.parse(data);
+    console.log("✅ Validation passed, updating organization:", validatedData);
 
     // FIXED: For system admins, update database directly to bypass Better Auth's membership checks
     if (isSuperAdmin(user.role ?? "")) {
@@ -265,6 +277,7 @@ export async function updateOrganization(
     console.error("❌ Error updating organization:", error);
 
     if (error instanceof z.ZodError) {
+      console.error("❌ Validation error:", error.errors);
       return {
         success: false,
         error: error.errors[0].message,
