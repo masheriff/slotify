@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { organizations, members } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { HEALTHCARE_ROLES } from '@/lib/permissions/healthcare-permissions-constants';
+import { headers } from 'next/headers';
 
 interface OrganizationMetadata {
   type?: "admin" | "client";
@@ -106,7 +107,7 @@ export async function getUserRoleInOrganization(userId: string, organizationId: 
         permission: { organization: ['update'] }, // Basic permission check
         organizationId,
       },
-      headers: {}, // You may need to pass proper headers with user session
+      headers: await headers(), // You may need to pass proper headers with user session
     });
 
     if (!hasPermission) {

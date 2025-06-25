@@ -9,7 +9,8 @@ export async function startImpersonation(targetUserId: string) {
     
     // Use Better Auth's native impersonation
     const result = await auth.api.impersonateUser({
-      body: { userId: targetUserId }
+      body: { userId: targetUserId },
+      headers: await headers()
     });
     
     return { success: true, data: result };
@@ -24,7 +25,9 @@ export async function startImpersonation(targetUserId: string) {
 export async function stopImpersonation() {
   try {
     // Use Better Auth's native impersonation stop
-    await auth.api.stopImpersonating({});
+    await auth.api.stopImpersonating({
+      headers: await headers()
+    });
     
     return { success: true };
   } catch (error) {

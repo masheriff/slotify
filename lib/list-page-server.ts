@@ -253,7 +253,8 @@ export async function validateListPageAccess(
   try {
     // Example: Check if user has permission to access this module
     // const hasPermission = await auth.api.hasPermission({
-    //   body: { resource: module, action }
+    //   body: { resource: module, action },
+    //   headers: await headers()
     // });
     
     // Placeholder implementation

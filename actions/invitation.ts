@@ -6,6 +6,7 @@ import { isSuperAdmin } from "@/lib/permissions/healthcare-access-control";
 import { db } from "@/db";
 import { invitations } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
 
 // Define PaginationParams type if not imported from elsewhere
 type PaginationParams = {
@@ -51,7 +52,8 @@ export async function getOrganizationInvitations(
     const invitationsList = await auth.api.listInvitations({
       query: {
         organizationId,
-      }
+      },
+      headers: await headers()
     });
 
     return {
@@ -93,7 +95,8 @@ export async function cancelInvitation(invitationId: string) {
 
     // For non-system admins, use Better Auth API
     await auth.api.cancelInvitation({
-      body: { invitationId }
+      body: { invitationId },
+      headers: await headers()
     });
     
     return { success: true };

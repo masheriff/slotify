@@ -91,6 +91,7 @@ export async function createOrganization(data: OrganizationData) {
         logo: validatedData.logo,
         metadata: validatedData.metadata,
       },
+      headers: await headers()
     });
 
     console.log("✅ Organization created successfully");
