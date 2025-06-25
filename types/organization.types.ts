@@ -1,9 +1,55 @@
-// types/organization.types.ts - Organization-specific types (avoiding conflicts)
-import { Organization, OrganizationMetadata } from './auth.types'
+// types/organization.types.ts - Organization types for components
+export interface OrganizationMetadata {
+  type: "admin" | "client";
+  contactEmail: string;
+  contactPhone: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  timezone: string;
+  isActive: boolean;
+  settings: {
+    features?: {
+      multiTenant?: boolean;
+      advancedReporting?: boolean;
+      apiAccess?: boolean;
+      customBranding?: boolean;
+    };
+    billing?: {
+      plan?: string;
+      status?: string;
+    };
+    notifications?: {
+      email?: boolean;
+      sms?: boolean;
+    };
+  };
+  hipaaOfficer?: string;
+  businessAssociateAgreement?: boolean;
+  dataRetentionYears?: string;
+}
 
-// Organization type for table display - extending the base Organization type
-export interface OrganizationTableRow extends Organization {
-  // All properties are inherited from Organization
+// Organization type for table display
+export interface OrganizationTableRow {
+  id: string;
+  name: string;
+  slug?: string;
+  logo?: string;
+  createdAt: Date | string;
+  metadata: OrganizationMetadata;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug?: string;
+  logo?: string;
+  metadata: OrganizationMetadata;
+  createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface OrganizationFormData {
@@ -25,5 +71,12 @@ export interface OrganizationFormData {
   businessAssociateAgreement: boolean;
 }
 
-// Re-export the types from auth.types to avoid conflicts
-export type { Organization, OrganizationMetadata } from './auth.types'
+export interface OrganizationWithMembers extends Organization {
+  members: Array<{
+    id: string;
+    userId: string;
+    role: string;
+    createdAt: Date;
+  }>;
+  memberCount: number;
+}

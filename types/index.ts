@@ -12,4 +12,4 @@ export * from './table-config.types';
 export * from './common.types';
 export * from './filter-form.types';
 export * from './seed.types';
-export * from './organization.types'; // Add organization types
+export * from './organization.types';
