@@ -1,4 +1,4 @@
-// components/common/filterable-page-header.tsx - Enhanced version
+// components/common/filterable-page-header.tsx - Fixed version without onExport prop
 "use client"
 
 import { useCallback, useTransition, useState } from "react"
@@ -23,10 +23,35 @@ import {
   ChevronDown,
   ChevronUp
 } from "lucide-react"
-import { FilterablePageHeaderProps } from "@/lib/types/list-page"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useDebouncedCallback } from "use-debounce"
+
+// Updated interface without onExport function prop
+interface FilterablePageHeaderProps {
+  title: string;
+  description?: string;
+  createButtonText?: string;
+  createHref?: string;
+  onCreateNew?: () => void;
+  filterConfig: Array<{
+    label: string;
+    key: string;
+    type: 'text' | 'select' | 'date' | 'number' | 'boolean';
+    options?: Array<{ value: string; label: string; disabled?: boolean }>;
+    placeholder?: string;
+    validation?: {
+      required?: boolean;
+      min?: number;
+      max?: number;
+      pattern?: RegExp;
+    };
+  }>;
+  error?: string;
+  showExport?: boolean;
+  // Remove onExport?: () => void; - this was causing the issue
+  customActions?: React.ReactNode;
+}
 
 export function FilterablePageHeader({
   title,
@@ -37,7 +62,6 @@ export function FilterablePageHeader({
   filterConfig,
   error,
   showExport = false,
-  onExport,
   customActions,
 }: FilterablePageHeaderProps) {
   const router = useRouter()
@@ -119,16 +143,71 @@ export function FilterablePageHeader({
     }
   }, [onCreateNew, createHref, router])
 
+  // Handle export functionality internally
   const handleExport = useCallback(async () => {
-    if (onExport) {
-      try {
-        await onExport()
-      } catch (error) {
-        console.error('Export failed:', error)
-        // You could add toast notification here
+    try {
+      console.log('Starting export...')
+      
+      // Get current page data and filters
+      const currentPage = window.location.pathname
+      const currentParams = new URLSearchParams(searchParams.toString())
+      
+      // Determine export type based on page
+      let exportEndpoint = ''
+      let filename = ''
+      
+      if (currentPage.includes('/organizations')) {
+        exportEndpoint = '/api/export/organizations'
+        filename = 'organizations'
+      } else if (currentPage.includes('/users')) {
+        exportEndpoint = '/api/export/users'
+        filename = 'users'
+      } else if (currentPage.includes('/patients')) {
+        exportEndpoint = '/api/export/patients'
+        filename = 'patients'
+      } else {
+        // Generic export
+        exportEndpoint = '/api/export/data'
+        filename = 'export'
       }
+      
+      // Add current filters to export request
+      const exportUrl = `${exportEndpoint}?${currentParams.toString()}`
+      
+      // Fetch the export data
+      const response = await fetch(exportUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Export failed: ${response.statusText}`)
+      }
+      
+      // Get the blob data
+      const blob = await response.blob()
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      
+      // Cleanup
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      
+      console.log('Export completed successfully')
+    } catch (error) {
+      console.error('Export failed:', error)
+      // You could add toast notification here
+      alert('Export failed. Please try again.')
     }
-  }, [onExport])
+  }, [searchParams])
 
   // Render filter input based on type with improved validation
   const renderFilterInput = (filter: FilterablePageHeaderProps['filterConfig'][0]) => {
@@ -140,13 +219,12 @@ export function FilterablePageHeader({
         return (
           <Select
             value={value}
-            onValueChange={(newValue) => handleFilterChange(filter.key, newValue)}
+            onValueChange={(value) => handleFilterChange(filter.key, value)}
           >
             <SelectTrigger className={cn("w-full", hasError && "border-destructive")}>
               <SelectValue placeholder={filter.placeholder || `Select ${filter.label}`} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All {filter.label}s</SelectItem>
               {filter.options?.map((option) => (
                 <SelectItem 
                   key={option.value} 
@@ -159,7 +237,7 @@ export function FilterablePageHeader({
             </SelectContent>
           </Select>
         )
-
+      
       case 'date':
         return (
           <Popover>
@@ -173,22 +251,20 @@ export function FilterablePageHeader({
                 )}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {value ? format(new Date(value), "PPP") : (filter.placeholder || `Select ${filter.label}`)}
+                {value ? format(new Date(value), "PPP") : filter.placeholder || `Select ${filter.label}`}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
               <Calendar
                 mode="single"
                 selected={value ? new Date(value) : undefined}
-                onSelect={(date) => 
-                  handleFilterChange(filter.key, date ? date.toISOString().split('T')[0] : '')
-                }
+                onSelect={(date) => handleFilterChange(filter.key, date ? date.toISOString().split('T')[0] : '')}
                 initialFocus
               />
             </PopoverContent>
           </Popover>
         )
-
+      
       case 'number':
         return (
           <Input
@@ -196,31 +272,29 @@ export function FilterablePageHeader({
             placeholder={filter.placeholder || `Enter ${filter.label}`}
             value={value}
             onChange={(e) => handleFilterChange(filter.key, e.target.value)}
+            className={cn(hasError && "border-destructive")}
             min={filter.validation?.min}
             max={filter.validation?.max}
-            className={cn(hasError && "border-destructive")}
           />
         )
-
+      
       case 'boolean':
         return (
           <Select
             value={value}
-            onValueChange={(newValue) => handleFilterChange(filter.key, newValue)}
+            onValueChange={(value) => handleFilterChange(filter.key, value)}
           >
             <SelectTrigger className={cn("w-full", hasError && "border-destructive")}>
               <SelectValue placeholder={filter.placeholder || `Select ${filter.label}`} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All</SelectItem>
               <SelectItem value="true">Yes</SelectItem>
               <SelectItem value="false">No</SelectItem>
             </SelectContent>
           </Select>
         )
-
-      case 'text':
-      default:
+      
+      default: // 'text'
         return (
           <Input
             placeholder={filter.placeholder || `Enter ${filter.label}`}
@@ -302,7 +376,7 @@ export function FilterablePageHeader({
               {hasActiveFilters && (
                 <DropdownMenuItem onClick={handleClearFilters}>
                   <X className="h-4 w-4 mr-2" />
-                  Clear All Filters
+                  Clear Filters
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -311,112 +385,78 @@ export function FilterablePageHeader({
       </div>
 
       {/* Search and Filters Section */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="space-y-4">
-            {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder={`Search ${title.toLowerCase()}...`}
-                defaultValue={currentSearch}
-                onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10"
-                disabled={isPending}
-              />
-            </div>
-
-            {/* Filters Toggle Button (Mobile) */}
-            {filterConfig.length > 0 && (
-              <div className="sm:hidden">
-                <Button
-                  variant="outline"
-                  onClick={() => setFiltersExpanded(!filtersExpanded)}
-                  className="w-full justify-between"
-                  disabled={isPending}
-                >
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4" />
-                    <span>Filters</span>
-                    {hasActiveFilters && (
-                      <Badge variant="secondary" className="text-xs">
-                        {activeFilterCount}
-                      </Badge>
-                    )}
-                  </div>
-                  {shouldShowFilters ? 
-                    <ChevronUp className="h-4 w-4" /> : 
-                    <ChevronDown className="h-4 w-4" />
-                  }
-                </Button>
+      {shouldShowFilters && (
+        <Card>
+          <CardContent className="p-4">
+            <div className="space-y-4">
+              {/* Search Bar */}
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search..."
+                  value={currentSearch}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="pl-10"
+                />
               </div>
-            )}
 
-            {/* Filters */}
-            {filterConfig.length > 0 && shouldShowFilters && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Filter className="h-4 w-4" />
-                    <span className="text-sm font-medium">Filters</span>
-                    {hasActiveFilters && (
-                      <Badge variant="secondary" className="text-xs">
-                        {activeFilterCount} active
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {hasActiveFilters && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleClearFilters}
-                        className="text-xs h-8"
-                        disabled={isPending}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Clear All
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setFiltersExpanded(false)}
-                      className="text-xs h-8 sm:hidden"
-                    >
-                      Hide
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+              {/* Filter Grid */}
+              {filterConfig.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {filterConfig.map((filter) => (
-                    <div key={filter.key} className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <div key={filter.key} className="space-y-2">
+                      <label className="text-sm font-medium text-muted-foreground">
                         {filter.label}
                         {filter.validation?.required && (
-                          <span className="text-destructive">*</span>
+                          <span className="text-destructive ml-1">*</span>
                         )}
                       </label>
                       {renderFilterInput(filter)}
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Loading indicator */}
-            {isPending && (
-              <div className="flex items-center justify-center py-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
-                  <span>Loading...</span>
+              {/* Active Filters */}
+              {hasActiveFilters && (
+                <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+                  <span className="text-sm text-muted-foreground">Active filters:</span>
+                  {currentSearch && (
+                    <Badge variant="secondary" className="gap-1">
+                      Search: {currentSearch}
+                      <X 
+                        className="h-3 w-3 cursor-pointer" 
+                        onClick={() => handleSearch('')}
+                      />
+                    </Badge>
+                  )}
+                  {Object.entries(currentFilters).map(([key, value]) => {
+                    if (!value.trim()) return null
+                    const filter = filterConfig.find(f => f.key === key)
+                    return (
+                      <Badge key={key} variant="secondary" className="gap-1">
+                        {filter?.label}: {value}
+                        <X 
+                          className="h-3 w-3 cursor-pointer" 
+                          onClick={() => handleFilterChange(key, '')}
+                        />
+                      </Badge>
+                    )
+                  })}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearFilters}
+                    className="h-6 px-2 text-xs"
+                  >
+                    Clear All
+                  </Button>
                 </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

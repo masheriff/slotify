@@ -1,4 +1,4 @@
-// app/admin/organizations/page.tsx - FIXED VERSION (Keep existing import)
+// app/admin/organizations/page.tsx - FIXED VERSION
 import { Metadata } from "next";
 import { 
   parseListParams, 
@@ -91,7 +91,6 @@ export default async function OrganizationsPage({
     handleListPageRedirect('/admin/organizations', params, result.data.totalPages);
 
     // Transform Better Auth Organization data to OrganizationListItem format
-    // This mapping matches your OrganizationListItem interface exactly
     const tableData: OrganizationListItem[] = result.data.data.map(org => ({
       id: org.id,
       name: org.name,
@@ -128,10 +127,7 @@ export default async function OrganizationsPage({
             createHref="/admin/organizations/create"
             filterConfig={organizationFilterConfig}
             showExport={LIST_CONFIG.exportable}
-            onExport={async () => {
-              // Implementation for export functionality
-              console.log('Exporting organizations data...');
-            }}
+            // Remove the onExport prop - export functionality will be handled by the client component
           />
 
           <DataTable
