@@ -40,6 +40,7 @@ import {
   uploadOrganizationLogo, 
   deleteFile 
 } from "@/actions/file-upload-actions"
+import { ServerActionResponse } from "@/types/server-actions.types"
 
 // Create a local slug checker to avoid import conflicts
 const checkSlugAvailabilityAPI = async (slug: string, excludeOrgId?: string): Promise<{ available: boolean; suggestedSlug?: string }> => {
@@ -285,69 +286,91 @@ export function OrganizationForm({ mode, organizationId, onSuccess }: Organizati
     }
   }, [mode, organizationId, initialLoading, loadOrganizationData])
 
+  
+
   // Form submission handler
-  const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
-    setIsLoading(true)
-    
-    try {
-      const cleanedLogo = data.logo?.trim() === '' ? undefined : data.logo
+const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
+  setIsLoading(true)
+  
+  try {
+    const cleanedLogo = data.logo?.trim() === '' ? undefined : data.logo
 
-      const organizationData = {
-        name: data.name,
-        slug: data.slug,
-        logo: cleanedLogo,
-        createdAt: new Date().toISOString(),
-        metadata: {
-          type: data.type,
-          contactEmail: data.contactEmail,
-          contactPhone: data.contactPhone,
-          addressLine1: data.addressLine1,
-          addressLine2: data.addressLine2,
-          city: data.city,
-          state: data.state,
-          postalCode: data.postalCode,
-          country: data.country,
-          timezone: data.timezone,
-          isActive: true,
-          settings: {
-            features: {
-              multiTenant: false,
-              advancedReporting: true,
-              apiAccess: false,
-              customBranding: true,
-            },
-            billing: {
-              plan: "standard",
-              status: "active",
-            },
+    const organizationData = {
+      name: data.name,
+      slug: data.slug,
+      logo: cleanedLogo,
+      createdAt: new Date().toISOString(),
+      metadata: {
+        type: data.type,
+        contactEmail: data.contactEmail,
+        contactPhone: data.contactPhone,
+        addressLine1: data.addressLine1,
+        addressLine2: data.addressLine2,
+        city: data.city,
+        state: data.state,
+        postalCode: data.postalCode,
+        country: data.country,
+        timezone: data.timezone,
+        isActive: true,
+        settings: {
+          features: {
+            multiTenant: false,
+            advancedReporting: true,
+            apiAccess: false,
+            customBranding: true,
           },
-          hipaaOfficer: data.hipaaOfficer,
-          businessAssociateAgreement: data.businessAssociateAgreement,
-          dataRetentionYears: data.dataRetentionYears,
+          billing: {
+            plan: "standard",
+            status: "active",
+          },
         },
-      }
-
-      let result
-      
-      if (mode === 'create') {
-        result = await createOrganization(organizationData)
-      } else if (organizationId) {
-        result = await updateOrganization(organizationId, organizationData)
-      }
-
-      if (result?.success) {
-        toast.success(mode === 'create' ? 'Organization created successfully!' : 'Organization updated successfully!')
-        onSuccess?.()
-      } else {
-        toast.error(result?.error || 'An error occurred')
-      }
-    } catch (error) {
-      console.error('Form submission error:', error)
-      toast.error('An unexpected error occurred')
-    } finally {
-      setIsLoading(false)
+        hipaaOfficer: data.hipaaOfficer,
+        businessAssociateAgreement: data.businessAssociateAgreement,
+        dataRetentionYears: data.dataRetentionYears,
+      },
     }
+
+    let result: ServerActionResponse
+    
+    if (mode === 'create') {
+      result = await createOrganization(organizationData)
+    } else if (organizationId) {
+      result = await updateOrganization(organizationId, organizationData)
+    } else {
+      throw new Error('Organization ID is required for update mode')
+    }
+
+    if (result?.success) {
+      toast.success(mode === 'create' ? 'Organization created successfully!' : 'Organization updated successfully!')
+      
+      // Navigate to the organizations list page after successful creation
+      if (mode === 'create') {
+        router.push('/admin/organizations')
+      }
+      
+      onSuccess?.()
+    } else {
+      // Map validationErrors if present to match { message: string; path: string[] }
+      if (result && Array.isArray((result as any).validationErrors)) {
+        (result as any).validationErrors = (result as any).validationErrors.map((issue: any) => ({
+          message: issue.message,
+          path: issue.path.filter((p: any) => typeof p === 'string'),
+        }))
+      }
+      const errorMessage = result?.error ? getErrorMessage(result.error) : 'An error occurred'
+      toast.error(errorMessage)
+      console.error('Organization creation/update failed:', result)
+    }
+  } catch (error) {
+    console.error('Form submission error:', error)
+    
+    // Handle network or other unexpected errors
+    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+    toast.error(errorMessage)
+  } finally {
+    setIsLoading(false)
   }
+}
 
   // Logo upload handler
   const handleLogoUpload = useCallback(async (file: File): Promise<{ success: boolean; url?: string; error?: string }> => {

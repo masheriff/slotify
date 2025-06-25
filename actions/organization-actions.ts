@@ -84,7 +84,7 @@ export async function createOrganization(data: OrganizationData) {
     const organizationId = generateId();
 
     // Create organization using Better Auth
-    await auth.api.createOrganization({
+    const orgResult = await auth.api.createOrganization({
       body: {
         name: validatedData.name,
         slug: validatedData.slug,
@@ -94,36 +94,46 @@ export async function createOrganization(data: OrganizationData) {
       headers: await headers()
     });
 
-    console.log("✅ Organization created successfully");
+    console.log("✅ Organization created successfully", orgResult);
+    
     return {
       success: true,
-      data: { id: organizationId },
+      data: { 
+        id: organizationId,
+        organization: orgResult 
+      },
       message: "Organization created successfully",
     };
   } catch (error) {
     console.error("❌ Error creating organization:", error);
 
+    // Handle Zod validation errors
     if (error instanceof z.ZodError) {
       console.error("❌ Validation error:", error.errors);
+      const firstError = error.errors[0];
       return {
         success: false,
-        error: error.errors[0].message,
+        error: `${firstError.path.join('.')}: ${firstError.message}`,
+        validationErrors: error.errors,
       };
     }
 
+    // Handle Better Auth API errors
     if (error instanceof APIError) {
+      console.error("❌ Better Auth API error:", error.message);
       return {
         success: false,
         error: error.message,
       };
     }
 
+    // Handle other errors
+    const errorMessage = error instanceof Error ? error.message : "Failed to create organization";
+    console.error("❌ Unknown error:", errorMessage);
+    
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to create organization",
+      error: errorMessage,
     };
   }
 }
