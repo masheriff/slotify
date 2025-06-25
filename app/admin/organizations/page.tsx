@@ -1,10 +1,9 @@
-// app/admin/organizations/page.tsx - SIMPLE FIX, NO WRAPPER
+// app/admin/organizations/page.tsx - FIXED data access
 import { Metadata } from "next";
 import { 
   parseListParams, 
   fetchListData, 
   handleListPageRedirect,
-  buildCanonicalListURL,
   logListPageMetrics,
   validateListPageAccess 
 } from "@/lib/list-page-server";
@@ -81,11 +80,21 @@ export default async function OrganizationsPage({
       );
     }
 
-    handleListPageRedirect('/admin/organizations', params, result.data.totalPages);
+    // FIXED: Now we access data directly since fetchListData no longer double-wraps
+    const paginationData = result.data;
+    const organizationsArray = paginationData.data;
 
-    
+    console.log('🔍 Debug pagination data:', {
+      totalCount: paginationData.totalCount,
+      totalPages: paginationData.totalPages,
+      currentPage: paginationData.page,
+      pageSize: paginationData.pageSize,
+      arrayLength: organizationsArray.length
+    });
 
-    const tableData: OrganizationListItem[] = result.data.data.map((org) => ({
+    handleListPageRedirect('/admin/organizations', params, paginationData.totalPages);
+
+    const tableData: OrganizationListItem[] = organizationsArray.map((org: any) => ({
       id: org.id,
       name: org.name,
       slug: org.slug || '',
@@ -119,26 +128,25 @@ export default async function OrganizationsPage({
             filterConfig={organizationFilterConfig}
           />
 
-          {/* SIMPLE: Keep your existing pattern, just fix the totalCount */}
           <DataTable
             columns={organizationColumns}
             data={tableData}
             pagination={{
-              currentPage: result.data.page,
-              pageSize: result.data.pageSize,
-              totalPages: result.data.totalPages,
-              hasNextPage: result.data.hasNextPage,
-              hasPreviousPage: result.data.hasPreviousPage,
-              totalCount: result.data.totalCount, // Make sure this is included from actions
+              currentPage: paginationData.page,
+              pageSize: paginationData.pageSize,
+              totalPages: paginationData.totalPages,
+              hasNextPage: paginationData.hasNextPage,
+              hasPreviousPage: paginationData.hasPreviousPage,
+              totalCount: paginationData.totalCount,
             }}
             sorting={{
               sortBy: params.sortBy,
               sortDirection: params.sortDirection,
             }}
             emptyMessage="No organizations found. Create your first organization to get started."
-            selectable={user?.role === 'super_admin'}
+            selectable={user?.role === 'system_admin'}
             bulkActions={
-              user?.role === 'super_admin' ? (
+              user?.role === 'system_admin' ? (
                 <div className="flex gap-2">
                   {/* Bulk action buttons */}
                 </div>

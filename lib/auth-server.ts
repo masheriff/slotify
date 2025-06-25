@@ -37,7 +37,7 @@ export async function requireAuth() {
 }
 
 /**
- * Require super admin access - FIXED to check user role directly
+ * Require super admin access - Fixed to check user role directly
  */
 export async function requireSuperAdmin() {
   const session = await requireAuth();
@@ -50,8 +50,7 @@ export async function requireSuperAdmin() {
     expectedRole: HEALTHCARE_ROLES.SYSTEM_ADMIN
   });
   
-  // FIXED: Check user role directly instead of requiring membership
-  // Super admins should be able to access organization management even without active membership
+  // Check user role directly instead of requiring membership
   if (!isSuperAdmin(user.role ?? "")) {
     console.error('❌ Super admin access denied:', {
       userRole: user.role,
@@ -94,9 +93,8 @@ export async function requireAdmin() {
     role: user.role
   });
 
-  // For organization-level admins, we need membership
+  // System admins don't need membership
   if (user.role === HEALTHCARE_ROLES.SYSTEM_ADMIN) {
-    // System admins don't need membership
     console.log('✅ Admin access granted via system admin role');
     return { session, user, membership: null };
   }
@@ -117,6 +115,7 @@ export async function requireAdmin() {
 
 /**
  * Require organization admin access (admin of specific organization)
+ * FIXED: Properly handle system admin bypass
  */
 export async function requireOrgAdmin(organizationId: string) {
   const session = await requireAuth();
@@ -128,9 +127,9 @@ export async function requireOrgAdmin(organizationId: string) {
     userRole: user.role
   });
   
-  // If user is system admin, they have access to everything
+  // FIXED: If user is system admin, they have access to everything WITHOUT membership check
   if (isSuperAdmin(user.role ?? "")) {
-    console.log('✅ Access granted via system admin role');
+    console.log('✅ Access granted via system admin role - bypassing membership check');
     return { session, user };
   }
   
@@ -138,7 +137,7 @@ export async function requireOrgAdmin(organizationId: string) {
   console.log('🔍 Not system admin, checking org-specific permissions');
   
   try {
-    // Use Better Auth's organization access check
+    // Use Better Auth's organization access check for non-system admins
     const hasAccess = await auth.api.hasPermission({
       headers: await headers(),
       body: {
@@ -147,20 +146,21 @@ export async function requireOrgAdmin(organizationId: string) {
       },
     });
 
-    if (!hasAccess) {
-      throw new Error("Organization admin access required");
+    if (!hasAccess.success) {
+      throw new Error("User is not a member of the organization");
     }
 
     console.log('✅ Organization admin access granted');
     return { session, user };
   } catch (error) {
     console.error('❌ Organization access check failed:', error);
-    throw new Error("Organization admin access required");
+    throw new Error("User is not a member of the organization");
   }
 }
 
 /**
  * Check if current user can perform action on resource
+ * FIXED: Handle system admin bypass
  */
 export async function checkPermission(
   resource: string,
@@ -168,6 +168,16 @@ export async function checkPermission(
   organizationId?: string
 ): Promise<boolean> {
   try {
+    const session = await getServerSession();
+    if (!session?.user) return false;
+
+    // System admins can do everything without permission checks
+    if (isSuperAdmin(session.user.role ?? "")) {
+      console.log('✅ Permission granted via system admin role');
+      return true;
+    }
+
+    // For other users, use Better Auth permission check
     const hasPermission = await auth.api.hasPermission({
       headers: await headers(),
       body: {
@@ -176,7 +186,7 @@ export async function checkPermission(
       },
     });
 
-    return hasPermission.success;
+    return hasPermission?.success || false;
   } catch (error) {
     console.error("Permission check failed:", error);
     return false;
@@ -185,13 +195,19 @@ export async function checkPermission(
 
 /**
  * Get current user's role in specific organization
+ * FIXED: Handle system admin special case
  */
 export async function getUserRoleInOrg(organizationId: string): Promise<string | null> {
   try {
     const user = await getServerSession();
     if (!user?.user) return null;
 
-    // Use Better Auth to check user's role in the organization
+    // System admins always have system admin role regardless of membership
+    if (isSuperAdmin(user.user.role ?? "")) {
+      return HEALTHCARE_ROLES.SYSTEM_ADMIN;
+    }
+
+    // For other users, check their actual membership role
     const hasPermission = await auth.api.hasPermission({
       headers: await headers(),
       body: {

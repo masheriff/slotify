@@ -76,8 +76,6 @@ export function OrganizationDetailsContent({
     );
   };
 
-  const memberCount = organization.members?.length || 0;
-
   return (
     <div className="space-y-6">
       {/* Page Header - Simple design without slug */}
@@ -123,9 +121,9 @@ export function OrganizationDetailsContent({
           >
             <Users className="h-4 w-4" />
             Manage Members
-            {memberCount > 0 && (
+            {organization.memberCount > 0 && (
               <Badge variant="secondary" className="ml-1 text-xs">
-                {memberCount}
+                {organization.memberCount}
               </Badge>
             )}
           </Button>

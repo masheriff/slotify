@@ -1,4 +1,4 @@
-// lib/list-page-server.ts - Server-side utilities for all list pages
+// lib/list-page-server.ts - FIXED: Remove double wrapping
 import { redirect } from "next/navigation";
 
 export interface ListParams {
@@ -110,6 +110,7 @@ export async function parseListParams(
 
 /**
  * Fetch list data with error handling and logging
+ * FIXED: Don't double-wrap the data - return the action result directly
  */
 export async function fetchListData<T>(
   dataFetcher: (params: ListParams) => Promise<any>,
@@ -133,16 +134,15 @@ export async function fetchListData<T>(
     
     const duration = Date.now() - startTime;
     console.log(`✅ [${context.module}] Server fetch successful:`, {
-      count: result.data?.length || 0,
-      page: result.page,
-      totalPages: result.totalPages,
+      count: result.data?.data?.length || 0,
+      page: result.data?.page,
+      totalPages: result.data?.totalPages,
       duration: `${duration}ms`,
     });
 
-    return {
-      success: true,
-      data: result,
-    };
+    // FIXED: Return the action result directly without wrapping
+    // The action already returns { success: boolean, data?: {...}, error?: string }
+    return result;
   } catch (error) {
     const duration = Date.now() - startTime;
     console.error(`❌ [${context.module}] Server fetch failed:`, {
@@ -236,7 +236,7 @@ export function createEmptyListResult<T>(params: ListParams): ListDataResult<T> 
       totalPages: 0,
       hasNextPage: false,
       hasPreviousPage: false,
-      totalCount: undefined
+      totalCount: 0
     },
   };
 }
