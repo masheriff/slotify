@@ -9,23 +9,23 @@ import { toast } from "sonner"
 
 interface FileUploadProps {
   onUpload: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>
-  onDelete?: (url: string) => Promise<{ success: boolean; error?: string }>
+  onRemove?: (url: string) => Promise<{ success: boolean; error?: string }>
   accept?: string
   maxSize?: number // in bytes
   className?: string
   placeholder?: string
-  currentFileUrl?: string
+  value?: string // Current file URL/path
   disabled?: boolean
 }
 
 export function FileUpload({
   onUpload,
-  onDelete,
+  onRemove,
   accept = "image/*",
   maxSize = 5 * 1024 * 1024, // 5MB default
   className,
   placeholder = "Click to upload or drag and drop",
-  currentFileUrl,
+  value, // This is the current file URL
   disabled = false
 }: FileUploadProps) {
   const [isDragging, setIsDragging] = useState(false)
@@ -43,34 +43,39 @@ export function FileUpload({
     try {
       const result = await onUpload(file)
       if (result.success) {
-        toast.success("File uploaded successfully")
+        // Don't show success toast here - let the parent handle it
+        // The parent (organization form) already shows success toast
+        console.log('File uploaded successfully:', result.url)
       } else {
         toast.error(result.error || "Upload failed")
       }
     } catch (error) {
+      console.error('Upload error:', error)
       toast.error("Upload failed")
     } finally {
       setIsUploading(false)
     }
   }, [onUpload, maxSize])
 
-  const handleFileDelete = useCallback(async () => {
-    if (!currentFileUrl || !onDelete) return
+  const handleFileRemove = useCallback(async () => {
+    if (!value || !onRemove) return
 
     setIsDeleting(true)
     try {
-      const result = await onDelete(currentFileUrl)
+      const result = await onRemove(value)
       if (result.success) {
-        toast.success("File deleted successfully")
+        // Don't show success toast here - let the parent handle it
+        console.log('File removed successfully')
       } else {
-        toast.error(result.error || "Delete failed")
+        toast.error(result.error || "Remove failed")
       }
     } catch (error) {
-      toast.error("Delete failed")
+      console.error('Remove error:', error)
+      toast.error("Remove failed")
     } finally {
       setIsDeleting(false)
     }
-  }, [currentFileUrl, onDelete])
+  }, [value, onRemove])
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -110,7 +115,8 @@ export function FileUpload({
     }
   }, [handleFileUpload])
 
-  if (currentFileUrl) {
+  // Show current file if value exists
+  if (value && value.trim() !== '') {
     return (
       <div className={cn("relative", className)}>
         {/* Current File Display */}
@@ -118,28 +124,35 @@ export function FileUpload({
           <div className="flex-shrink-0">
             {accept.includes("image") ? (
               <img
-                src={currentFileUrl}
+                src={value}
                 alt="Uploaded file"
                 className="w-12 h-12 object-cover rounded"
+                onError={(e) => {
+                  // Fallback to file icon if image fails to load
+                  e.currentTarget.style.display = 'none'
+                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                }}
               />
-            ) : (
-              <File className="w-12 h-12 text-muted-foreground" />
-            )}
+            ) : null}
+            <File className={cn(
+              "w-12 h-12 text-muted-foreground",
+              accept.includes("image") ? "hidden" : ""
+            )} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">
-              {currentFileUrl.split('/').pop()}
+              {value.split('/').pop() || 'Uploaded file'}
             </p>
             <p className="text-xs text-muted-foreground">
               Click to replace file
             </p>
           </div>
-          {onDelete && (
+          {onRemove && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              onClick={handleFileDelete}
+              onClick={handleFileRemove}
               disabled={isDeleting || disabled}
               className="flex-shrink-0"
             >
@@ -171,6 +184,7 @@ export function FileUpload({
     )
   }
 
+  // Show upload area if no file
   return (
     <div className={cn("relative", className)}>
       <div
