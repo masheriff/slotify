@@ -1,4 +1,4 @@
-// types/index.ts - Main export file
+// types/index.ts - Main export file (FIXED - no conflicts)
 export * from './auth.types';
 export * from './api.types';
 export * from './permissions.types';
@@ -12,3 +12,4 @@ export * from './table-config.types';
 export * from './common.types';
 export * from './filter-form.types';
 export * from './seed.types';
+export * from './organization.types'; // Add organization types

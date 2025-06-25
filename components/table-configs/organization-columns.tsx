@@ -1,4 +1,4 @@
-// lib/table-configs/organization-columns.tsx - Updated with proper type handling and actions
+// components/table-configs/organization-columns.tsx - FIXED VERSION
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
@@ -12,33 +12,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Eye, Edit, Users, Mail, Phone, MapPin } from "lucide-react"
+import { MoreHorizontal, Eye, Edit, Users } from "lucide-react"
 import { format } from "date-fns"
 import Image from "next/image"
-import { OrganizationMetadata } from "@/types"
-
-// Organization type for table display
-interface OrganizationTableRow {
-  id: string
-  name: string
-  slug?: string
-  logo?: string
-  createdAt: Date | string
-  metadata: OrganizationMetadata
-  type?: string // Computed field from metadata
-  isActive?: boolean // Computed field from metadata
-  contactEmail?: string // Computed field from metadata
-}
+import { OrganizationTableRow } from "@/types/organization.types"
 
 export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
-  // Logo and Name Column
+  // 1st Column: Logo + Name
   {
     accessorKey: "name",
     header: "Organization",
     cell: ({ row }) => {
       const name = row.getValue("name") as string
       const logo = row.original.logo
-      const slug = row.original.slug
       
       return (
         <div className="flex items-center space-x-3">
@@ -48,7 +34,7 @@ export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
                 src={logo}
                 alt={`${name} logo`}
                 fill
-                className="object-contain" // NOT rounded - as requested
+                className="object-contain rounded-md"
                 sizes="40px"
               />
             </div>
@@ -59,23 +45,35 @@ export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
           )}
           <div>
             <div className="font-medium">{name}</div>
-            {slug && (
-              <div className="text-sm text-muted-foreground">/{slug}</div>
-            )}
           </div>
         </div>
       )
     },
   },
 
-  // Type Column - FIXED to read from metadata
+  // 2nd Column: Slug
+  {
+    accessorKey: "slug",
+    header: "Slug",
+    cell: ({ row }) => {
+      const slug = row.getValue("slug") as string
+      
+      return (
+        <div className="text-sm font-mono text-muted-foreground">
+          {slug ? `/${slug}` : "—"}
+        </div>
+      )
+    },
+  },
+
+  // 3rd Column: Organization Type
   {
     accessorKey: "type",
     header: "Type",
     cell: ({ row }) => {
-      // Get type from metadata or computed field
+      // Get type from metadata
       const metadata = row.original.metadata
-      const type = metadata?.type || row.original.type
+      const type = metadata?.type
       
       return (
         <Badge variant={type === "admin" ? "default" : "secondary"}>
@@ -85,62 +83,10 @@ export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
     },
   },
 
-  // Contact Information Column
-  {
-    accessorKey: "contactEmail",
-    header: "Contact",
-    cell: ({ row }) => {
-      const metadata = row.original.metadata
-      const email = metadata?.contactEmail
-      const phone = metadata?.contactPhone
-      const city = metadata?.city
-      const state = metadata?.state
-      
-      return (
-        <div className="space-y-1">
-          {email && (
-            <div className="flex items-center gap-1 text-sm">
-              <Mail className="h-3 w-3 text-muted-foreground" />
-              <span className="truncate">{email}</span>
-            </div>
-          )}
-          {phone && (
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Phone className="h-3 w-3" />
-              <span>{phone}</span>
-            </div>
-          )}
-          {city && state && (
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <MapPin className="h-3 w-3" />
-              <span>{city}, {state}</span>
-            </div>
-          )}
-        </div>
-      )
-    },
-  },
-
-  // Status Column
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const metadata = row.original.metadata
-      const isActive = metadata?.isActive ?? true
-      
-      return (
-        <Badge variant={isActive ? "default" : "secondary"}>
-          {isActive ? "Active" : "Inactive"}
-        </Badge>
-      )
-    },
-  },
-
-  // Created Date Column
+  // 4th Column: Created At
   {
     accessorKey: "createdAt",
-    header: "Created",
+    header: "Created At",
     cell: ({ row }) => {
       const date = row.getValue("createdAt") as Date | string
       const formattedDate = typeof date === 'string' ? new Date(date) : date
@@ -153,7 +99,7 @@ export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
     },
   },
 
-  // Actions Column - UPDATED per requirements
+  // Actions Column
   {
     id: "actions",
     header: "Actions",
@@ -187,7 +133,6 @@ export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
               Edit Organization
             </DropdownMenuItem>
             
-            {/* Invite Members - renamed from "Send Invitation" as requested */}
             <DropdownMenuItem
               onClick={() => window.open(`/admin/organizations/${organization.id}/members/invite`, '_self')}
             >
@@ -201,8 +146,6 @@ export const organizationColumns: ColumnDef<OrganizationTableRow>[] = [
               <Users className="mr-2 h-4 w-4" />
               Manage Members
             </DropdownMenuItem>
-            
-            {/* NO DELETE OPTION - removed as requested */}
           </DropdownMenuContent>
         </DropdownMenu>
       )
