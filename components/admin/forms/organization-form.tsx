@@ -310,85 +310,96 @@ export function OrganizationForm({
   // Fix for the onSubmit function in organization-form.tsx
 
   // Replace the onSubmit function with this implementation:
-  const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
+  const onSubmit: SubmitHandler<FormData> = async (data) => {
     try {
       setIsLoading(true);
-      console.log("Form submission data:", data);
+      console.log("🚀 Form submission started:", { mode, organizationId });
+      console.log("📄 Form data received:", JSON.stringify(data, null, 2));
 
-      // Handle empty logo field
-      // Note: We're now using "" for empty values rather than undefined
-      // This ensures consistent handling between create and edit modes
+      // FIXED: Clean logo field properly
       const cleanedLogo = data.logo && data.logo.trim() !== "" ? data.logo : "";
 
-      // Extract metadata fields
-      const metadata = {
-        type: data.type,
-        contactEmail: data.contactEmail,
-        contactPhone: data.contactPhone,
-        addressLine1: data.addressLine1,
-        addressLine2: data.addressLine2 || "",
-        city: data.city,
-        state: data.state,
-        postalCode: data.postalCode,
-        country: data.country,
-        timezone: data.timezone,
-        hipaaOfficer: data.hipaaOfficer || "",
-        businessAssociateAgreement: data.businessAssociateAgreement,
-        dataRetentionYears: data.dataRetentionYears,
-        isActive: true,
-        settings: {
-          features: {
-            multiTenant: false,
-            advancedReporting: false,
-            apiAccess: false,
-            customBranding: false,
-          },
-          billing: {
-            plan: "basic",
-            status: "active",
-          },
-          notifications: {
-            email: true,
-            sms: false,
-          },
-        },
-      };
-
+      // FIXED: Properly structure the data to match server schema
       const organizationData: OrganizationInput = {
         name: data.name,
         slug: data.slug,
-        logo: cleanedLogo, // Using empty string instead of undefined
-        metadata,
+        logo: cleanedLogo,
+        metadata: {
+          // CRITICAL FIX: Preserve type from loaded data in edit mode, default to client in create mode
+          type: data.type, // This will be "admin" or "client" based on what was loaded
+          contactEmail: data.contactEmail,
+          contactPhone: data.contactPhone,
+          addressLine1: data.addressLine1,
+          addressLine2: data.addressLine2 || "",
+          city: data.city,
+          state: data.state,
+          postalCode: data.postalCode,
+          country: data.country,
+          timezone: data.timezone,
+          hipaaOfficer: data.hipaaOfficer,
+          businessAssociateAgreement: data.businessAssociateAgreement,
+          dataRetentionYears: data.dataRetentionYears,
+          isActive: true, // Always set to active for new/updated organizations
+          settings: {
+            features: {
+              multiTenant: false,
+              advancedReporting: false,
+              apiAccess: false,
+              customBranding: false,
+            },
+            billing: {
+              plan: "basic",
+              status: "active",
+            },
+            notifications: {
+              email: true,
+              sms: false,
+            },
+          },
+        },
         createdAt: "",
       };
 
-      // Log the data being sent for debugging
+      // Enhanced debugging
       console.log(
-        `${mode} mode - sending data:`,
-        JSON.stringify(organizationData)
+        "📤 Sending to server:",
+        JSON.stringify(organizationData, null, 2)
       );
+      console.log("🔍 Critical fields check:", {
+        mode,
+        organizationId,
+        type: organizationData.metadata.type,
+        hipaaOfficer: organizationData.metadata.hipaaOfficer,
+        businessAssociateAgreement:
+          organizationData.metadata.businessAssociateAgreement,
+      });
 
       let result: ServerActionResponse;
 
       if (mode === "create") {
+        console.log("🆕 Creating new organization");
         result = await createOrganization(organizationData);
       } else {
         // For edit mode, ensure organizationId is available
         if (!organizationId) {
           throw new Error("Organization ID is required for updates");
         }
+        console.log("✏️ Updating existing organization:", organizationId);
         result = await updateOrganization(organizationId, organizationData);
       }
 
-      console.log(`${mode} result:`, result);
+      console.log("📥 Server response:", JSON.stringify(result, null, 2));
 
       if (result.success) {
-        toast.success(
+        const successMessage =
           mode === "create"
             ? "Organization created successfully!"
-            : "Organization updated successfully!"
-        );
+            : "Organization updated successfully!";
 
+        console.log("✅ Operation successful:", successMessage);
+        toast.success(successMessage);
+
+        // Navigate on success
         if (onSuccess) {
           onSuccess();
         } else {
@@ -396,28 +407,50 @@ export function OrganizationForm({
           router.refresh();
         }
       } else {
-        console.error("Submission error:", result.error);
+        console.error("❌ Server returned error:", result.error);
+        console.error("❌ Validation errors:", result.validationErrors);
 
-        // Handle validation errors
-        if (result.validationErrors) {
-          result.validationErrors.forEach((error) => {
+        // Handle validation errors from server
+        if (result.validationErrors && result.validationErrors.length > 0) {
+          console.log("🔍 Processing validation errors:");
+          result.validationErrors.forEach((error, index) => {
+            console.log(
+              `  ${index + 1}. Path: ${error.path?.join(".")}, Message: ${error.message}`
+            );
+
+            // Map server validation errors to form fields
             const fieldPath = error.path?.join(".") || "general";
-            form.setError(fieldPath as any, {
+
+            // Handle nested metadata paths
+            let formFieldPath = fieldPath;
+            if (fieldPath.startsWith("metadata.")) {
+              formFieldPath = fieldPath.replace("metadata.", "");
+            }
+
+            form.setError(formFieldPath as any, {
               type: "manual",
               message: error.message,
             });
           });
+
+          toast.error("Please check the form for validation errors");
         } else {
-          toast.error(getErrorMessage(result.error ?? "An error occurred"));
+          // Handle general errors
+          const errorMessage = getErrorMessage(
+            result.error ?? "An error occurred"
+          );
+          console.error("💥 General error:", errorMessage);
+          toast.error(errorMessage);
         }
       }
     } catch (error) {
-      console.error("Unexpected error:", error);
+      console.error("💥 Unexpected error in form submission:", error);
       const errorMessage =
         error instanceof Error ? error.message : "An unexpected error occurred";
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
+      console.log("🏁 Form submission completed");
     }
   };
 

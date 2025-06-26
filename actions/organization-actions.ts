@@ -1,32 +1,53 @@
-// actions/organization-actions.ts - Simple fix using existing requireSuperAdmin
+/// actions/organization-actions.ts - COMPLETE FIX
 'use server';
 import { db } from "@/db";
 import { organizations, members } from "@/db/schema";
 import { eq, sql, and, desc, asc } from "drizzle-orm";
 import { generateId } from "better-auth";
 import { z } from "zod";
-import { requireSuperAdmin } from "@/lib/auth-server";
+import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
 import { ServerActionResponse } from "@/types/server-actions.types";
+import { isSuperAdmin } from "@/lib/permissions/healthcare-access-control";
 
-// Organization validation schema
+// FIXED: Server schema matches form schema exactly
 const organizationDataSchema = z.object({
-  name: z.string().min(1, "Organization name is required"),
-  slug: z.string().min(1, "Organization slug is required"),
-  logo: z.string().optional(),
+  name: z.string().min(2, "Organization name must be at least 2 characters"),
+  slug: z
+    .string()
+    .min(2, "Slug must be at least 2 characters")
+    .regex(
+      /^[a-z0-9-]+$/,
+      "Slug can only contain lowercase letters, numbers, and hyphens"
+    ),
+  logo: z
+    .string()
+    .optional()
+    .refine((val) => {
+      if (!val || val.trim() === "") return true;
+      return val.startsWith("/") || val.startsWith("http");
+    }, "Logo must be a valid URL or path"),
+  
   metadata: z.object({
     type: z.enum(["admin", "client"]),
-    contactEmail: z.string().email("Valid email is required"),
-    contactPhone: z.string().min(1, "Contact phone is required"),
-    addressLine1: z.string().min(1, "Address is required"),
+    // FIXED: Match form validation requirements exactly
+    contactEmail: z.string().email("Please enter a valid email address"),
+    contactPhone: z.string().min(10, "Please enter a valid phone number"),
+    addressLine1: z.string().min(1, "Address line 1 is required"),
     addressLine2: z.string().optional(),
     city: z.string().min(1, "City is required"),
-    state: z.string().min(1, "State is required"),
+    state: z.string().min(1, "State/Province is required"),
     postalCode: z.string().min(1, "Postal code is required"),
     country: z.string().min(1, "Country is required"),
     timezone: z.string().min(1, "Timezone is required"),
-    hipaaOfficer: z.string().optional(),
-    businessAssociateAgreement: z.boolean().optional(),
-    dataRetentionYears: z.string().optional(),
+    // FIXED: Match form requirements exactly
+    hipaaOfficer: z.string().min(1, "HIPAA Officer is required"),
+    businessAssociateAgreement: z
+      .boolean()
+      .refine(
+        (val) => val === true,
+        "Business Associate Agreement must be signed"
+      ),
+    dataRetentionYears: z.string().min(1, "Data retention period is required"),
     isActive: z.boolean().default(true),
     settings: z.object({
       features: z.object({
@@ -54,8 +75,16 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
   try {
     console.log("🏢 Creating organization:", data.name);
 
-    // Only super admins can create organizations
-    await requireSuperAdmin();
+    // FIXED: Use direct role check for system admin
+    const session = await getServerSession();
+    if (!session?.user) {
+      throw new Error("Authentication required");
+    }
+
+    // FIXED: Direct system admin check instead of membership-based check
+    if (!isSuperAdmin(session.user.role ?? "")) {
+      throw new Error("System admin access required");
+    }
 
     // Validate the data
     const validatedData = organizationDataSchema.parse(data);
@@ -143,8 +172,16 @@ export async function updateOrganization(
   try {
     console.log("✏️ Updating organization:", organizationId);
 
-    // Only super admins can update organizations
-    await requireSuperAdmin();
+    // FIXED: Use direct role check for system admin
+    const session = await getServerSession();
+    if (!session?.user) {
+      throw new Error("Authentication required");
+    }
+
+    // FIXED: Direct system admin check instead of membership-based check
+    if (!isSuperAdmin(session.user.role ?? "")) {
+      throw new Error("System admin access required");
+    }
 
     // Validate the data
     const validatedData = organizationDataSchema.parse(data);
@@ -183,10 +220,18 @@ export async function updateOrganization(
       };
     }
 
-    // Merge existing metadata with updates
+    // FIXED: Properly merge metadata while preserving existing type in edit mode
+    interface ExistingMetadata {
+      isActive?: boolean;
+      [key: string]: any;
+    }
+    
+    const existingMetadata: ExistingMetadata = (existingOrg.metadata as ExistingMetadata) || {};
     const updatedMetadata = {
-      ...(existingOrg.metadata ?? {}),
-      ...data.metadata,
+      ...existingMetadata,
+      ...validatedData.metadata,
+      // IMPORTANT: Preserve isActive flag from existing metadata unless explicitly changed
+      isActive: existingMetadata.isActive !== false ? true : existingMetadata.isActive,
     };
 
     // Prepare update data
@@ -194,14 +239,14 @@ export async function updateOrganization(
       updatedAt: new Date(),
     };
 
-    if (data.name) updateData.name = data.name;
-    if (data.slug) updateData.slug = data.slug;
-    if (data.logo !== undefined) updateData.logo = data.logo;
+    if (validatedData.name) updateData.name = validatedData.name;
+    if (validatedData.slug) updateData.slug = validatedData.slug;
+    if (validatedData.logo !== undefined) updateData.logo = validatedData.logo;
     updateData.metadata = updatedMetadata;
 
-    console.log("📝 Updating organization in database");
+    console.log("📝 Database update data:", JSON.stringify(updateData, null, 2));
 
-    // Update organization
+    // Update organization directly in database (bypassing Better Auth organization middleware)
     const [updatedOrg] = await db
       .update(organizations)
       .set(updateData)
@@ -230,6 +275,7 @@ export async function updateOrganization(
 
     // Handle validation errors
     if (error instanceof z.ZodError) {
+      console.error("Validation errors:", error.errors);
       return {
         success: false,
         error: error.errors[0].message,
@@ -262,8 +308,16 @@ export async function getOrganizationById(organizationId: string): Promise<Serve
   try {
     console.log("🔍 Getting organization by ID:", organizationId);
 
-    // Only super admins can view organizations
-    await requireSuperAdmin();
+    // FIXED: Use direct role check for system admin
+    const session = await getServerSession();
+    if (!session?.user) {
+      throw new Error("Authentication required");
+    }
+
+    // FIXED: Direct system admin check instead of membership-based check
+    if (!isSuperAdmin(session.user.role ?? "")) {
+      throw new Error("System admin access required");
+    }
 
     const [organization] = await db
       .select()
@@ -292,6 +346,10 @@ export async function getOrganizationById(organizationId: string): Promise<Serve
     };
   }
 }
+
+// ... rest of your existing functions remain unchanged
+
+// ... rest of your existing functions remain unchanged
 
 export async function deleteOrganization(organizationId: string): Promise<ServerActionResponse> {
   try {
