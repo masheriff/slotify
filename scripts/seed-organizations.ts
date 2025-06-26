@@ -30,7 +30,7 @@ const seedData: SeedOrganization[] = [
     name: "5AM Corp",
     slug: "5am-corp",
     type: "admin",
-    logo: "https://via.placeholder.com/150/0066CC/FFFFFF?text=5AM",
+    logo: "",
     metadata: {
       type: "admin",
       contactEmail: "admin@5amcorp.com",
@@ -91,7 +91,7 @@ const seedData: SeedOrganization[] = [
     name: "Hart Medical Centre",
     slug: "hart-medical-centre",
     type: "client",
-    logo: "https://via.placeholder.com/150/009900/FFFFFF?text=HART",
+    logo: "",
     metadata: {
       type: "client",
       contactEmail: "info@hartmedical.com",

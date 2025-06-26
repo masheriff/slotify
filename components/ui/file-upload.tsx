@@ -149,7 +149,7 @@ export function FileUpload({
     const isImage = accept.includes('image')
     
     return (
-      <div className={cn("flex items-center gap-2 p-3 border rounded-lg bg-muted/50", className)}>
+      <div className={cn("flex items-center gap-2 h-[150px] px-4 border rounded-lg bg-muted/50", className)}>
         {isImage ? (
           <img 
             src={value} 
@@ -204,7 +204,7 @@ export function FileUpload({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={cn(
-          "flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg transition-colors cursor-pointer",
+          "flex flex-col items-center justify-center h-[150px] border-2 border-dashed rounded-lg transition-colors cursor-pointer",
           isDragging && "border-primary bg-primary/5",
           disabled && "opacity-50 cursor-not-allowed",
           !isDragging && !disabled && "hover:border-primary/50",

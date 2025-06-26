@@ -1,5 +1,5 @@
 {
-  "id": "fe41741f-9f21-4485-868d-13f92a5f7bc0",
+  "id": "bb16c35f-2d27-43f0-8c2c-42a548471a8d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -419,10 +419,10 @@
         }
       },
       "foreignKeys": {
-        "appointments_organization_id_organization_id_fk": {
-          "name": "appointments_organization_id_organization_id_fk",
+        "appointments_organization_id_organizations_id_fk": {
+          "name": "appointments_organization_id_organizations_id_fk",
           "tableFrom": "appointments",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -790,10 +790,10 @@
         }
       },
       "foreignKeys": {
-        "audit_cleanup_logs_organization_id_organization_id_fk": {
-          "name": "audit_cleanup_logs_organization_id_organization_id_fk",
+        "audit_cleanup_logs_organization_id_organizations_id_fk": {
+          "name": "audit_cleanup_logs_organization_id_organizations_id_fk",
           "tableFrom": "audit_cleanup_logs",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -979,10 +979,10 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "audit_logs_organization_id_organization_id_fk": {
-          "name": "audit_logs_organization_id_organization_id_fk",
+        "audit_logs_organization_id_organizations_id_fk": {
+          "name": "audit_logs_organization_id_organizations_id_fk",
           "tableFrom": "audit_logs",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -1123,10 +1123,10 @@
         }
       },
       "foreignKeys": {
-        "invitations_organization_id_organization_id_fk": {
-          "name": "invitations_organization_id_organization_id_fk",
+        "invitations_organization_id_organizations_id_fk": {
+          "name": "invitations_organization_id_organizations_id_fk",
           "tableFrom": "invitations",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -1240,10 +1240,10 @@
         }
       },
       "foreignKeys": {
-        "members_organization_id_organization_id_fk": {
-          "name": "members_organization_id_organization_id_fk",
+        "members_organization_id_organizations_id_fk": {
+          "name": "members_organization_id_organizations_id_fk",
           "tableFrom": "members",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -1282,8 +1282,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.organization": {
-      "name": "organization",
+    "public.organizations": {
+      "name": "organizations",
       "schema": "",
       "columns": {
         "id": {
@@ -1365,8 +1365,8 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "organization_slug_unique": {
-          "name": "organization_slug_unique",
+        "organizations_slug_unique": {
+          "name": "organizations_slug_unique",
           "nullsNotDistinct": false,
           "columns": [
             "slug"
@@ -1606,10 +1606,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "user_preferences_default_organization_id_organization_id_fk": {
-          "name": "user_preferences_default_organization_id_organization_id_fk",
+        "user_preferences_default_organization_id_organizations_id_fk": {
+          "name": "user_preferences_default_organization_id_organizations_id_fk",
           "tableFrom": "user_preferences",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "default_organization_id"
           ],
@@ -2281,10 +2281,10 @@
         }
       },
       "foreignKeys": {
-        "bookings_organization_id_organization_id_fk": {
-          "name": "bookings_organization_id_organization_id_fk",
+        "bookings_organization_id_organizations_id_fk": {
+          "name": "bookings_organization_id_organizations_id_fk",
           "tableFrom": "bookings",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -3078,10 +3078,10 @@
         }
       },
       "foreignKeys": {
-        "charge_entries_organization_id_organization_id_fk": {
-          "name": "charge_entries_organization_id_organization_id_fk",
+        "charge_entries_organization_id_organizations_id_fk": {
+          "name": "charge_entries_organization_id_organizations_id_fk",
           "tableFrom": "charge_entries",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -3704,10 +3704,10 @@
         }
       },
       "foreignKeys": {
-        "holter_assignments_organization_id_organization_id_fk": {
-          "name": "holter_assignments_organization_id_organization_id_fk",
+        "holter_assignments_organization_id_organizations_id_fk": {
+          "name": "holter_assignments_organization_id_organizations_id_fk",
           "tableFrom": "holter_assignments",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -4171,10 +4171,10 @@
         }
       },
       "foreignKeys": {
-        "holter_devices_organization_id_organization_id_fk": {
-          "name": "holter_devices_organization_id_organization_id_fk",
+        "holter_devices_organization_id_organizations_id_fk": {
+          "name": "holter_devices_organization_id_organizations_id_fk",
           "tableFrom": "holter_devices",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -4806,10 +4806,10 @@
         }
       },
       "foreignKeys": {
-        "interpretations_organization_id_organization_id_fk": {
-          "name": "interpretations_organization_id_organization_id_fk",
+        "interpretations_organization_id_organizations_id_fk": {
+          "name": "interpretations_organization_id_organizations_id_fk",
           "tableFrom": "interpretations",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -5277,10 +5277,10 @@
         }
       },
       "foreignKeys": {
-        "interpreting_doctors_organization_id_organization_id_fk": {
-          "name": "interpreting_doctors_organization_id_organization_id_fk",
+        "interpreting_doctors_organization_id_organizations_id_fk": {
+          "name": "interpreting_doctors_organization_id_organizations_id_fk",
           "tableFrom": "interpreting_doctors",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -5521,10 +5521,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "agent_organization_assignments_agent_organization_id_organization_id_fk": {
-          "name": "agent_organization_assignments_agent_organization_id_organization_id_fk",
+        "agent_organization_assignments_agent_organization_id_organizations_id_fk": {
+          "name": "agent_organization_assignments_agent_organization_id_organizations_id_fk",
           "tableFrom": "agent_organization_assignments",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "agent_organization_id"
           ],
@@ -5534,10 +5534,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "agent_organization_assignments_client_organization_id_organization_id_fk": {
-          "name": "agent_organization_assignments_client_organization_id_organization_id_fk",
+        "agent_organization_assignments_client_organization_id_organizations_id_fk": {
+          "name": "agent_organization_assignments_client_organization_id_organizations_id_fk",
           "tableFrom": "agent_organization_assignments",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "client_organization_id"
           ],
@@ -5743,10 +5743,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "front_desk_location_assignments_organization_id_organization_id_fk": {
-          "name": "front_desk_location_assignments_organization_id_organization_id_fk",
+        "front_desk_location_assignments_organization_id_organizations_id_fk": {
+          "name": "front_desk_location_assignments_organization_id_organizations_id_fk",
           "tableFrom": "front_desk_location_assignments",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -5996,10 +5996,10 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "member_extensions_organization_id_organization_id_fk": {
-          "name": "member_extensions_organization_id_organization_id_fk",
+        "member_extensions_organization_id_organizations_id_fk": {
+          "name": "member_extensions_organization_id_organizations_id_fk",
           "tableFrom": "member_extensions",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -6350,10 +6350,10 @@
         }
       },
       "foreignKeys": {
-        "patients_organization_id_organization_id_fk": {
-          "name": "patients_organization_id_organization_id_fk",
+        "patients_organization_id_organizations_id_fk": {
+          "name": "patients_organization_id_organizations_id_fk",
           "tableFrom": "patients",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -6769,10 +6769,10 @@
         }
       },
       "foreignKeys": {
-        "procedure_test_locations_organization_id_organization_id_fk": {
-          "name": "procedure_test_locations_organization_id_organization_id_fk",
+        "procedure_test_locations_organization_id_organizations_id_fk": {
+          "name": "procedure_test_locations_organization_id_organizations_id_fk",
           "tableFrom": "procedure_test_locations",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -7097,10 +7097,10 @@
         }
       },
       "foreignKeys": {
-        "referring_doctors_organization_id_organization_id_fk": {
-          "name": "referring_doctors_organization_id_organization_id_fk",
+        "referring_doctors_organization_id_organizations_id_fk": {
+          "name": "referring_doctors_organization_id_organizations_id_fk",
           "tableFrom": "referring_doctors",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -7334,10 +7334,10 @@
         }
       },
       "foreignKeys": {
-        "specialties_organization_id_organization_id_fk": {
-          "name": "specialties_organization_id_organization_id_fk",
+        "specialties_organization_id_organizations_id_fk": {
+          "name": "specialties_organization_id_organizations_id_fk",
           "tableFrom": "specialties",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -7645,10 +7645,10 @@
         }
       },
       "foreignKeys": {
-        "referring_entities_organization_id_organization_id_fk": {
-          "name": "referring_entities_organization_id_organization_id_fk",
+        "referring_entities_organization_id_organizations_id_fk": {
+          "name": "referring_entities_organization_id_organizations_id_fk",
           "tableFrom": "referring_entities",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -8009,10 +8009,10 @@
         }
       },
       "foreignKeys": {
-        "referring_locations_organization_id_organization_id_fk": {
-          "name": "referring_locations_organization_id_organization_id_fk",
+        "referring_locations_organization_id_organizations_id_fk": {
+          "name": "referring_locations_organization_id_organizations_id_fk",
           "tableFrom": "referring_locations",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],
@@ -8419,10 +8419,10 @@
         }
       },
       "foreignKeys": {
-        "technicians_organization_id_organization_id_fk": {
-          "name": "technicians_organization_id_organization_id_fk",
+        "technicians_organization_id_organizations_id_fk": {
+          "name": "technicians_organization_id_organizations_id_fk",
           "tableFrom": "technicians",
-          "tableTo": "organization",
+          "tableTo": "organizations",
           "columnsFrom": [
             "organization_id"
           ],

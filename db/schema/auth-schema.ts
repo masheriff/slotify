@@ -131,7 +131,7 @@ export const verifications = pgTable(
 
 // Organizations table with metadata for custom fields
 export const organizations = pgTable(
-  "organization",
+  "organizations",
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
