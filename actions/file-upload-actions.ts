@@ -6,7 +6,8 @@ import { join } from "path"
 import { generateId } from "better-auth"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+// Added webp to allowed types
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]
 
 interface UploadResult {
   success: boolean
@@ -31,7 +32,7 @@ function validateFile(file: File, allowedTypes: string[] = ALLOWED_IMAGE_TYPES):
   if (!allowedTypes.includes(file.type)) {
     return {
       valid: false,
-      error: `File type ${file.type} is not allowed`
+      error: `File type ${file.type} is not allowed. Allowed types: ${allowedTypes.join(', ')}`
     }
   }
 
