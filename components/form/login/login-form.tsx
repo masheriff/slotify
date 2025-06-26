@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { z } from 'zod';
 import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Mail, AlertCircle, CheckCircle, Send } from "lucide-react";
+import { AlertCircle, CheckCircle, Send } from "lucide-react";
 import { sendMagicLinkAction, type MagicLinkSignInInput } from "@/actions/login-actions";
 import { useLoadingControl } from "@/lib/with-loading";
 

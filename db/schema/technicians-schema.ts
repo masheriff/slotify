@@ -1,7 +1,6 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg-core";
 import { organizations, users } from "./auth-schema"; // Import users table for foreign key references
 import { facilitySpecialtyEnum } from "./procedure-test-locations-schema"; // Import specialty enum
-import { ta } from "zod/v4/locales";
 
 // Technician certification level enum
 export const certificationLevelEnum = pgEnum("certification_level", [

@@ -1,6 +1,5 @@
 import { pgTable, text, timestamp, date, index } from "drizzle-orm/pg-core";
 import { organizations, users } from "./auth-schema"; // Import users table for foreign key references
-import { ta } from "zod/v4/locales";
 
 export const patients = pgTable(
   "patients",

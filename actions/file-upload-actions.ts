@@ -4,7 +4,6 @@
 import { writeFile, unlink, mkdir } from "fs/promises"
 import { join } from "path"
 import { generateId } from "better-auth"
-import { z } from "zod"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"]

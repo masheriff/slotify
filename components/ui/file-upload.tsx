@@ -91,140 +91,101 @@ export function FileUpload({
     e.preventDefault()
     setIsDragging(false)
 
-    if (disabled) return
-
     const files = Array.from(e.dataTransfer.files)
-    if (files.length > 0) {
+    if (files.length > 0 && !disabled && !isUploading) {
       handleFileUpload(files[0])
     }
-  }, [handleFileUpload, disabled])
+  }, [disabled, isUploading, handleFileUpload])
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files && files.length > 0 && !disabled && !isUploading) {
+      handleFileUpload(files[0])
+    }
+  }, [disabled, isUploading, handleFileUpload])
 
   const handleClick = useCallback(() => {
-    if (disabled) return
-    fileInputRef.current?.click()
-  }, [disabled])
-
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || [])
-    if (files.length > 0) {
-      handleFileUpload(files[0])
+    if (!disabled && !isUploading && fileInputRef.current) {
+      fileInputRef.current.click()
     }
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
-  }, [handleFileUpload])
+  }, [disabled, isUploading])
 
-  // Show current file if value exists
-  if (value && value.trim() !== '') {
+  // If we have a value (file is uploaded), show the file info with remove button
+  if (value && !isUploading) {
+    const fileName = value.split('/').pop() || 'Uploaded file'
+    const isImage = accept.includes('image')
+    
     return (
-      <div className={cn("relative", className)}>
-        {/* Current File Display */}
-        <div className="flex items-center gap-3 p-3 border rounded-lg bg-muted/50">
-          <div className="flex-shrink-0">
-            {accept.includes("image") ? (
-              <img
-                src={value}
-                alt="Uploaded file"
-                className="w-12 h-12 object-cover rounded"
-                onError={(e) => {
-                  // Fallback to file icon if image fails to load
-                  e.currentTarget.style.display = 'none'
-                  e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                }}
-              />
-            ) : null}
-            <File className={cn(
-              "w-12 h-12 text-muted-foreground",
-              accept.includes("image") ? "hidden" : ""
-            )} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">
-              {value.split('/').pop() || 'Uploaded file'}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Click to replace file
-            </p>
-          </div>
-          {onRemove && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleFileRemove}
-              disabled={isDeleting || disabled}
-              className="flex-shrink-0"
-            >
-              {isDeleting ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <X className="w-4 h-4" />
-              )}
-            </Button>
-          )}
-        </div>
-        
-        {/* Hidden input for replacing file */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={accept}
-          onChange={handleFileChange}
-          className="hidden"
-          disabled={disabled}
-        />
-        
-        {/* Clickable overlay for replacing */}
-        <div
-          className="absolute inset-0 cursor-pointer"
-          onClick={handleClick}
-        />
+      <div className={cn("flex items-center gap-2 p-3 border rounded-lg bg-muted/50", className)}>
+        {isImage ? (
+          <img 
+            src={value} 
+            alt={fileName}
+            className="h-8 w-auto object-contain shrink-0 rounded"
+          />
+        ) : (
+          <File className="h-4 w-4 text-muted-foreground shrink-0" />
+        )}
+        <span className="text-sm truncate flex-1">{fileName}</span>
+        {onRemove && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleFileRemove}
+            disabled={isDeleting || disabled}
+            className="shrink-0"
+          >
+            {isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <X className="h-4 w-4" />
+            )}
+          </Button>
+        )}
       </div>
     )
   }
 
-  // Show upload area if no file
+  // Upload area when no file is uploaded or during upload
   return (
     <div className={cn("relative", className)}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={accept}
+        onChange={handleFileSelect}
+        className="sr-only"
+        disabled={disabled || isUploading}
+      />
+      
       <div
-        className={cn(
-          "border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer",
-          isDragging
-            ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-muted-foreground/50",
-          disabled && "opacity-50 cursor-not-allowed"
-        )}
+        onClick={handleClick}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={handleClick}
+        className={cn(
+          "flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg transition-colors cursor-pointer",
+          isDragging && "border-primary bg-primary/5",
+          disabled && "opacity-50 cursor-not-allowed",
+          !isDragging && !disabled && "hover:border-primary/50",
+          className
+        )}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={accept}
-          onChange={handleFileChange}
-          className="hidden"
-          disabled={disabled}
-        />
-        
-        <div className="flex flex-col items-center gap-2">
-          {isUploading ? (
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          ) : (
-            <Upload className="w-8 h-8 text-muted-foreground" />
-          )}
-          <div>
-            <p className="text-sm font-medium">
-              {isUploading ? "Uploading..." : placeholder}
+        {isUploading ? (
+          <>
+            <Loader2 className="h-10 w-10 animate-spin text-muted-foreground mb-4" />
+            <p className="text-sm text-muted-foreground">Uploading...</p>
+          </>
+        ) : (
+          <>
+            <Upload className="h-10 w-10 text-muted-foreground mb-4" />
+            <p className="text-sm text-muted-foreground">{placeholder}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Max size: {Math.round(maxSize / 1024 / 1024)}MB
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              {accept.includes("image") ? "PNG, JPG, GIF up to " : "Files up to "}
-              {Math.round(maxSize / 1024 / 1024)}MB
-            </p>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   )

@@ -2,7 +2,6 @@ import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg
 import { organizations, users } from "./auth-schema";
 import { bookings } from "./bookings-schema";
 import { interpretingDoctors } from "./interpreting-doctors-schema";
-import { ta } from "zod/v4/locales";
 
 // Interpretation status enum
 export const interpretationStatusEnum = pgEnum("interpretation_status", [
