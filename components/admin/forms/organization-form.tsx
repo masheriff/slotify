@@ -1,7 +1,7 @@
 // components/admin/forms/organization-form.tsx
 "use client";
 
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, SubmitHandler } from "react-hook-form";
@@ -283,49 +283,50 @@ export function OrganizationForm({
   );
 
   // Load organization data (only runs once in edit mode)
-  const loadOrganizationData = useCallback(async () => {
-    if (mode !== "edit" || !organizationId) return;
-
-    try {
-      const result = await getOrganizationById(organizationId);
-      if (result.success && result.data) {
-        const org = result.data;
-        const metadata = org.metadata as any;
-
-        form.reset({
-          name: org.name,
-          slug: org.slug || "",
-          logo: org.logo ?? undefined,
-          type: "client",
-          contactEmail: metadata?.contactEmail || "",
-          contactPhone: metadata?.contactPhone || "",
-          addressLine1: metadata?.addressLine1 || "",
-          addressLine2: metadata?.addressLine2 || "",
-          city: metadata?.city || "",
-          state: metadata?.state || "",
-          postalCode: metadata?.postalCode || "",
-          country: metadata?.country || "",
-          timezone: metadata?.timezone || "",
-          hipaaOfficer: metadata?.hipaaOfficer || "",
-          businessAssociateAgreement:
-            metadata?.businessAssociateAgreement || false,
-          dataRetentionYears: metadata?.dataRetentionYears || "",
-        });
-      } else {
-        toast.error("Failed to load organization data");
-        router.back();
-      }
-    } catch (error) {
-      console.error("Failed to load organization:", error);
+const loadOrganizationData = useCallback(async () => {
+  if (!organizationId) return;
+  
+  try {
+    const result = await getOrganizationById(organizationId);
+    
+    if (result.success && result.data) {
+      const { name, slug, logo, metadata } = result.data;
+      
+      form.reset({
+        name: name || "",
+        slug: slug || "",
+        logo: logo === null || logo === undefined || logo === "null" 
+          ? undefined 
+          : logo,
+        type: "client",
+        contactEmail: metadata?.contactEmail || "",
+        contactPhone: metadata?.contactPhone || "",
+        addressLine1: metadata?.addressLine1 || "",
+        addressLine2: metadata?.addressLine2 || "",
+        city: metadata?.city || "",
+        state: metadata?.state || "",
+        postalCode: metadata?.postalCode || "",
+        country: metadata?.country || "",
+        timezone: metadata?.timezone || "",
+        hipaaOfficer: metadata?.hipaaOfficer || "",
+        businessAssociateAgreement: metadata?.businessAssociateAgreement || false,
+        dataRetentionYears: metadata?.dataRetentionYears || "",
+      });
+    } else {
       toast.error("Failed to load organization data");
       router.back();
-    } finally {
-      setInitialLoading(false);
     }
-  }, [mode, organizationId, form, router]);
+  } catch (error) {
+    console.error("Failed to load organization:", error);
+    toast.error("Failed to load organization data");
+    router.back();
+  } finally {
+    setInitialLoading(false);
+  }
+}, [organizationId, form, router]); // Remove mode from dependencies if it doesn't change
 
   // Initialize data on mount
-  useMemo(() => {
+  useEffect(() => {
     if (mode === "edit" && organizationId && initialLoading) {
       loadOrganizationData();
     } else if (mode === "create") {
@@ -334,96 +335,101 @@ export function OrganizationForm({
   }, [mode, organizationId, initialLoading, loadOrganizationData]);
 
   // Form submission handler
-const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
-  setIsLoading(true)
-  
-  try {
-    const cleanedLogo = data.logo?.trim() === '' ? undefined : data.logo
+  const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
+    setIsLoading(true);
 
-    // Structure the data to match OrganizationInput interface
-    const organizationData: OrganizationInput = {
-      name: data.name,
-      slug: data.slug,
-      logo: cleanedLogo,
-      createdAt: new Date().toISOString(),
-      metadata: {
-        type: data.type,
-        contactEmail: data.contactEmail,
-        contactPhone: data.contactPhone,
-        addressLine1: data.addressLine1,
-        addressLine2: data.addressLine2,
-        city: data.city,
-        state: data.state,
-        postalCode: data.postalCode,
-        country: data.country,
-        timezone: data.timezone,
-        isActive: true,
-        settings: {
-          features: {
-            multiTenant: false,
-            advancedReporting: true,
-            apiAccess: false,
-            customBranding: true,
+    try {
+      const cleanedLogo = data.logo?.trim() === "" ? undefined : data.logo;
+
+      // Structure the data to match OrganizationInput interface
+      const organizationData: OrganizationInput = {
+        name: data.name,
+        slug: data.slug,
+        logo: cleanedLogo,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          type: data.type,
+          contactEmail: data.contactEmail,
+          contactPhone: data.contactPhone,
+          addressLine1: data.addressLine1,
+          addressLine2: data.addressLine2,
+          city: data.city,
+          state: data.state,
+          postalCode: data.postalCode,
+          country: data.country,
+          timezone: data.timezone,
+          isActive: true,
+          settings: {
+            features: {
+              multiTenant: false,
+              advancedReporting: true,
+              apiAccess: false,
+              customBranding: true,
+            },
+            billing: {
+              plan: "standard",
+              status: "active",
+            },
+            notifications: {
+              email: true,
+              sms: false,
+            },
           },
-          billing: {
-            plan: "standard",
-            status: "active",
-          },
-          notifications: {
-            email: true,
-            sms: false,
-          },
+          hipaaOfficer: data.hipaaOfficer,
+          businessAssociateAgreement: data.businessAssociateAgreement,
+          dataRetentionYears: data.dataRetentionYears,
         },
-        hipaaOfficer: data.hipaaOfficer,
-        businessAssociateAgreement: data.businessAssociateAgreement,
-        dataRetentionYears: data.dataRetentionYears,
-      },
-    }
+      };
 
-    let result: ServerActionResponse
-    
-    if (mode === 'create') {
-      result = await createOrganization(organizationData)
-    } else if (organizationId) {
-      result = await updateOrganization(organizationId, organizationData)
-    } else {
-      throw new Error('Organization ID is required for update mode')
-    }
+      let result: ServerActionResponse;
 
-    if (result?.success) {
-      toast.success(mode === 'create' ? 'Organization created successfully!' : 'Organization updated successfully!')
-      
-      // Navigate to the organizations list page after successful creation
-      if (mode === 'create') {
-        router.push('/admin/organizations')
+      if (mode === "create") {
+        result = await createOrganization(organizationData);
+      } else if (organizationId) {
+        result = await updateOrganization(organizationId, organizationData);
+      } else {
+        throw new Error("Organization ID is required for update mode");
       }
-      
-      onSuccess?.()
-    } else {
-      // Handle different types of errors
-      let errorMessage = 'An error occurred'
-      
-      // First, check for validation errors
-      if (result?.validationErrors && result.validationErrors.length > 0) {
-        errorMessage = getValidationErrorMessage(result.validationErrors)
-      } else if (result?.error) {
-        // Then handle other types of errors
-        errorMessage = getErrorMessage(result.error)
+
+      if (result?.success) {
+        toast.success(
+          mode === "create"
+            ? "Organization created successfully!"
+            : "Organization updated successfully!"
+        );
+
+        // Navigate to the organizations list page after successful creation
+        if (mode === "create") {
+          router.push("/admin/organizations");
+        }
+
+        onSuccess?.();
+      } else {
+        // Handle different types of errors
+        let errorMessage = "An error occurred";
+
+        // First, check for validation errors
+        if (result?.validationErrors && result.validationErrors.length > 0) {
+          errorMessage = getValidationErrorMessage(result.validationErrors);
+        } else if (result?.error) {
+          // Then handle other types of errors
+          errorMessage = getErrorMessage(result.error);
+        }
+
+        toast.error(errorMessage);
+        console.error("Organization creation/update failed:", result);
       }
-      
-      toast.error(errorMessage)
-      console.error('Organization creation/update failed:', result)
+    } catch (error) {
+      console.error("Form submission error:", error);
+
+      // Handle network or other unexpected errors
+      const errorMessage =
+        error instanceof Error ? error.message : "An unexpected error occurred";
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Form submission error:', error)
-    
-    // Handle network or other unexpected errors
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
-    toast.error(errorMessage)
-  } finally {
-    setIsLoading(false)
-  }
-}
+  };
 
   // Logo upload handler
   const handleLogoUpload = useCallback(
