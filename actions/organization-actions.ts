@@ -1,29 +1,22 @@
-// Updated organization-actions.ts - Direct Database Approach using existing types
-
-"use server";
-
-import { z } from "zod";
-import { generateId } from "better-auth";
-import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
-import { isSuperAdmin } from "@/lib/permissions/healthcare-access-control";
+// actions/organization-actions.ts - Simple fix using existing requireSuperAdmin
+'use server';
 import { db } from "@/db";
 import { organizations, members } from "@/db/schema";
-import { eq, and, like, or, desc, asc, count, sql, gte } from "drizzle-orm";
+import { eq, sql, and, desc, asc } from "drizzle-orm";
+import { generateId } from "better-auth";
+import { z } from "zod";
+import { requireSuperAdmin } from "@/lib/auth-server";
 import { ServerActionResponse } from "@/types/server-actions.types";
-import { OrganizationMetadata } from "@/types/organization.types";
 
-// Organization data validation schema using existing types
+// Organization validation schema
 const organizationDataSchema = z.object({
   name: z.string().min(1, "Organization name is required"),
   slug: z.string().min(1, "Organization slug is required"),
-  logo: z.string().optional().refine((val) => {
-    if (!val || val.trim() === '') return true;
-    return val.startsWith('/') || val.startsWith('http');
-  }, "Logo must be a valid URL or path"),
+  logo: z.string().optional(),
   metadata: z.object({
     type: z.enum(["admin", "client"]),
     contactEmail: z.string().email("Valid email is required"),
-    contactPhone: z.string().min(1, "Phone number is required"),
+    contactPhone: z.string().min(1, "Contact phone is required"),
     addressLine1: z.string().min(1, "Address is required"),
     addressLine2: z.string().optional(),
     city: z.string().min(1, "City is required"),
@@ -31,6 +24,9 @@ const organizationDataSchema = z.object({
     postalCode: z.string().min(1, "Postal code is required"),
     country: z.string().min(1, "Country is required"),
     timezone: z.string().min(1, "Timezone is required"),
+    hipaaOfficer: z.string().optional(),
+    businessAssociateAgreement: z.boolean().optional(),
+    dataRetentionYears: z.string().optional(),
     isActive: z.boolean().default(true),
     settings: z.object({
       features: z.object({
@@ -47,31 +43,23 @@ const organizationDataSchema = z.object({
         email: z.boolean().optional(),
         sms: z.boolean().optional(),
       }).optional(),
-    }).default({}),
-    hipaaOfficer: z.string().optional(),
-    businessAssociateAgreement: z.boolean().optional(),
-    dataRetentionYears: z.string().optional(),
+    }).optional(),
   }),
+  createdAt: z.string().optional(),
 });
 
-// Input type for organization data
-export interface OrganizationInput {
-  name: string;
-  slug: string;
-  logo?: string;
-  createdAt: Date | string;
-  metadata: OrganizationMetadata;
-}
+export type OrganizationInput = z.infer<typeof organizationDataSchema>;
 
 export async function createOrganization(data: OrganizationInput): Promise<ServerActionResponse> {
   try {
     console.log("🏢 Creating organization:", data.name);
 
+    // Only super admins can create organizations
     await requireSuperAdmin();
 
     // Validate the data
     const validatedData = organizationDataSchema.parse(data);
-    console.log("✅ Validation passed, creating organization:", validatedData);
+    console.log("✅ Validation passed, creating organization");
 
     // Check if slug already exists
     const existingOrg = await db
@@ -81,7 +69,6 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
       .limit(1);
 
     if (existingOrg.length > 0) {
-      console.log("❌ Slug already exists:", validatedData.slug);
       return {
         success: false,
         error: `Organization with slug "${validatedData.slug}" already exists`,
@@ -91,7 +78,7 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
     // Generate organization ID
     const organizationId = generateId();
 
-    // Create organization directly in database
+    // Create organization
     const [createdOrg] = await db
       .insert(organizations)
       .values({
@@ -105,7 +92,7 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
       })
       .returning();
 
-    console.log("✅ Organization created successfully:", createdOrg);
+    console.log("✅ Organization created successfully:", createdOrg.id);
     
     return {
       success: true,
@@ -119,9 +106,8 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
   } catch (error) {
     console.error("❌ Error creating organization:", error);
 
-    // Handle Zod validation errors
+    // Handle validation errors
     if (error instanceof z.ZodError) {
-      console.error("❌ Validation error:", error.errors);
       return {
         success: false,
         error: error.errors[0].message,
@@ -133,9 +119,9 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
       };
     }
 
-    // Handle database constraint errors (like duplicate slug)
+    // Handle database constraint errors
     if (error && typeof error === 'object' && 'code' in error) {
-      if (error.code === '23505') { // PostgreSQL unique constraint violation
+      if (error.code === '23505') {
         return {
           success: false,
           error: "An organization with this slug already exists",
@@ -143,13 +129,9 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
       }
     }
 
-    // Handle other errors
-    const errorMessage = error instanceof Error ? error.message : "Failed to create organization";
-    console.error("❌ Unknown error:", errorMessage);
-    
     return {
       success: false,
-      error: errorMessage,
+      error: error instanceof Error ? error.message : "Failed to create organization",
     };
   }
 }
@@ -160,47 +142,13 @@ export async function updateOrganization(
 ): Promise<ServerActionResponse> {
   try {
     console.log("✏️ Updating organization:", organizationId);
-    console.log("📝 Update data:", JSON.stringify(data));
-
-    // Check authentication first
-    const session = await getServerSession();
-    if (!session?.user) {
-      return {
-        success: false,
-        error: "Authentication required",
-      };
-    }
-
-    const user = session.user;
 
     // Only super admins can update organizations
-    if (!isSuperAdmin(user.role ?? "")) {
-      return {
-        success: false,
-        error: "Insufficient permissions to update organization",
-      };
-    }
+    await requireSuperAdmin();
 
     // Validate the data
-    try {
-      const validatedData = organizationDataSchema.parse(data);
-      console.log("✅ Validation passed, updating organization:", validatedData);
-    } catch (validationError) {
-      console.error("❌ Validation error:", validationError);
-      // Return more detailed validation errors
-      if (validationError instanceof z.ZodError) {
-        return {
-          success: false,
-          error: "Validation failed",
-          validationErrors: validationError.errors.map(err => ({
-            message: err.message,
-            path: err.path,
-            code: err.code
-          })),
-        };
-      }
-      throw validationError; // Re-throw if not a Zod error
-    }
+    const validatedData = organizationDataSchema.parse(data);
+    console.log("✅ Validation passed, updating organization");
 
     // Check if slug already exists for other organizations
     if (data.slug) {
@@ -221,7 +169,7 @@ export async function updateOrganization(
       }
     }
 
-    // Get current organization to ensure we don't lose data
+    // Get current organization
     const [existingOrg] = await db
       .select()
       .from(organizations)
@@ -246,21 +194,14 @@ export async function updateOrganization(
       updatedAt: new Date(),
     };
 
-    // Only include fields that are provided in the update
     if (data.name) updateData.name = data.name;
     if (data.slug) updateData.slug = data.slug;
-    
-    // Handle logo field - empty string means remove logo
-    if (data.logo !== undefined) {
-      updateData.logo = data.logo;
-    }
-    
-    // Always update metadata with merged data
+    if (data.logo !== undefined) updateData.logo = data.logo;
     updateData.metadata = updatedMetadata;
 
-    console.log("📝 Final update data:", updateData);
+    console.log("📝 Updating organization in database");
 
-    // Update organization in database
+    // Update organization
     const [updatedOrg] = await db
       .update(organizations)
       .set(updateData)
@@ -287,9 +228,8 @@ export async function updateOrganization(
   } catch (error) {
     console.error("❌ Error updating organization:", error);
 
-    // Handle Zod validation errors
+    // Handle validation errors
     if (error instanceof z.ZodError) {
-      console.error("❌ Validation error:", error.errors);
       return {
         success: false,
         error: error.errors[0].message,
@@ -313,9 +253,7 @@ export async function updateOrganization(
 
     return {
       success: false,
-      error: error instanceof Error
-        ? error.message
-        : "Failed to update organization",
+      error: error instanceof Error ? error.message : "Failed to update organization",
     };
   }
 }
@@ -324,67 +262,8 @@ export async function getOrganizationById(organizationId: string): Promise<Serve
   try {
     console.log("🔍 Getting organization by ID:", organizationId);
 
-    // Check authentication first
-    const session = await getServerSession();
-    if (!session?.user) {
-      return {
-        success: false,
-        error: "Authentication required",
-      };
-    }
-
-    const user = session.user;
-    console.log("🔍 User role:", user.role);
-
-    // For system admins, query database directly
-    if (isSuperAdmin(user.role ?? "")) {
-      console.log("✅ System admin detected - querying database directly");
-      
-      const [organization] = await db
-        .select()
-        .from(organizations)
-        .where(eq(organizations.id, organizationId))
-        .limit(1);
-
-      if (!organization) {
-        return {
-          success: false,
-          error: "Organization not found",
-        };
-      }
-
-      // Also get member count for the organization
-      const [memberCountResult] = await db
-        .select({ count: count() })
-        .from(members)
-        .where(eq(members.organizationId, organizationId));
-
-      console.log("✅ Organization retrieved successfully");
-      return {
-        success: true,
-        data: {
-          ...organization,
-          memberCount: memberCountResult?.count || 0,
-        },
-      };
-    }
-
-    // For non-system admins, check if they have access to this organization
-    const [userMembership] = await db
-      .select()
-      .from(members)
-      .where(and(
-        eq(members.userId, user.id),
-        eq(members.organizationId, organizationId)
-      ))
-      .limit(1);
-
-    if (!userMembership) {
-      return {
-        success: false,
-        error: "Access denied - you don't have access to this organization",
-      };
-    }
+    // Only super admins can view organizations
+    await requireSuperAdmin();
 
     const [organization] = await db
       .select()
@@ -399,11 +278,12 @@ export async function getOrganizationById(organizationId: string): Promise<Serve
       };
     }
 
-    console.log("✅ Organization retrieved successfully");
+    console.log("✅ Organization found:", organization.name);
     return {
       success: true,
       data: organization,
     };
+    
   } catch (error) {
     console.error("❌ Error getting organization:", error);
     return {
@@ -415,22 +295,19 @@ export async function getOrganizationById(organizationId: string): Promise<Serve
 
 export async function deleteOrganization(organizationId: string): Promise<ServerActionResponse> {
   try {
-    console.log("🗑️ Attempting to delete organization:", organizationId);
+    console.log("🗑️ Deleting organization:", organizationId);
 
-    // Check authentication and permissions
+    // Only super admins can delete organizations
     await requireSuperAdmin();
 
-    // Validate organization exists
-    const existingOrg = await db
-      .select({ 
-        id: organizations.id, 
-        name: organizations.name 
-      })
+    // Check if organization exists
+    const [existingOrg] = await db
+      .select({ id: organizations.id, name: organizations.name })
       .from(organizations)
       .where(eq(organizations.id, organizationId))
       .limit(1);
 
-    if (existingOrg.length === 0) {
+    if (!existingOrg) {
       return {
         success: false,
         error: "Organization not found",
@@ -438,15 +315,15 @@ export async function deleteOrganization(organizationId: string): Promise<Server
     }
 
     // Check if organization has members
-    const [memberCount] = await db
-      .select({ count: count() })
+    const memberCount = await db
+      .select({ count: sql<number>`count(*)` })
       .from(members)
       .where(eq(members.organizationId, organizationId));
 
-    if (memberCount.count > 0) {
+    if (memberCount[0]?.count > 0) {
       return {
         success: false,
-        error: `Cannot delete organization "${existingOrg[0].name}" because it has ${memberCount.count} member(s). Please remove all members before deleting the organization.`,
+        error: `Cannot delete organization because it has ${memberCount[0].count} member(s). Please remove all members first.`,
       };
     }
 
@@ -476,17 +353,6 @@ export async function deleteOrganization(organizationId: string): Promise<Server
     
   } catch (error) {
     console.error("❌ Error deleting organization:", error);
-
-    // Handle database constraint errors
-    if (error && typeof error === 'object' && 'code' in error) {
-      if (error.code === '23503') { // Foreign key constraint violation
-        return {
-          success: false,
-          error: "Cannot delete organization because it has associated data. Please remove all associated records first.",
-        };
-      }
-    }
-
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete organization",
@@ -506,171 +372,110 @@ export async function listOrganizations(params: {
   createdAfter?: string;
 }): Promise<ServerActionResponse> {
   try {
-    console.log("📋 Listing organizations with params:", params);
+    console.log("📋 Listing organizations");
 
-    // Check authentication first
-    const session = await getServerSession();
-    if (!session?.user) {
-      return {
-        success: false,
-        error: "Authentication required",
-      };
+    // Only super admins can list organizations
+    await requireSuperAdmin();
+
+    // Build query conditions
+    const conditions = [];
+    
+    if (params.search) {
+      conditions.push(
+        sql`(${organizations.name} ILIKE ${`%${params.search}%`} OR 
+            ${organizations.slug} ILIKE ${`%${params.search}%`} OR
+            ${organizations.metadata}->>'contactEmail' ILIKE ${`%${params.search}%`})`
+      );
     }
 
-    const user = session.user;
+    if (params.type) {
+      conditions.push(sql`${organizations.metadata}->>'type' = ${params.type}`);
+    }
 
-    // For system admins, query database directly to get all organizations
-    if (isSuperAdmin(user.role ?? "")) {
-      console.log("✅ System admin detected - querying all organizations directly");
-      
-      // Build where conditions
-      const whereConditions = [];
-      
-      // Search condition
-      if (params.search) {
-        whereConditions.push(
-          or(
-            like(organizations.name, `%${params.search}%`),
-            like(organizations.slug, `%${params.search}%`)
-          )
-        );
-      }
+    if (params.status === 'active') {
+      conditions.push(sql`(${organizations.metadata}->>'isActive')::boolean = true`);
+    } else if (params.status === 'inactive') {
+      conditions.push(sql`(${organizations.metadata}->>'isActive')::boolean = false`);
+    }
 
-      // FIXED: Add type filter
-      if (params.type && params.type.trim()) {
-        console.log("🎯 Applying type filter:", params.type);
-        whereConditions.push(
-          sql`${organizations.metadata}->>'type' = ${params.type.trim()}`
-        );
-      }
+    if (params.contactEmail) {
+      conditions.push(sql`${organizations.metadata}->>'contactEmail' ILIKE ${`%${params.contactEmail}%`}`);
+    }
 
-      // FIXED: Add status filter (based on isActive)
-      if (params.status && params.status.trim()) {
-        console.log("🎯 Applying status filter:", params.status);
-        const isActive = params.status.trim() === 'active';
-        whereConditions.push(
-          sql`(${organizations.metadata}->>'isActive')::boolean = ${isActive}`
-        );
-      }
+    if (params.createdAfter) {
+      conditions.push(sql`${organizations.createdAt} >= ${new Date(params.createdAfter)}`);
+    }
 
-      // FIXED: Add contact email filter
-      if (params.contactEmail && params.contactEmail.trim()) {
-        console.log("🎯 Applying contact email filter:", params.contactEmail);
-        whereConditions.push(
-          sql`${organizations.metadata}->>'contactEmail' ILIKE ${'%' + params.contactEmail.trim() + '%'}`
-        );
-      }
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-      // FIXED: Add created after filter
-      if (params.createdAfter && params.createdAfter.trim()) {
-        console.log("🎯 Applying created after filter:", params.createdAfter);
-        try {
-          const filterDate = new Date(params.createdAfter.trim());
-          if (!isNaN(filterDate.getTime())) {
-            whereConditions.push(
-              gte(organizations.createdAt, filterDate)
-            );
-          }
-        } catch (error) {
-          console.warn("Invalid createdAfter filter:", params.createdAfter);
-        }
-      }
-      
-      // Build the main query
-      const baseQuery = db.select().from(organizations);
-      const finalQuery = whereConditions.length > 0 
-        ? baseQuery.where(and(...whereConditions))
-        : baseQuery;
-      
-      // Apply sorting
-      let sortedQuery;
-      const sortDirection = params.sortDirection === 'desc' ? desc : asc;
-      
-      if (params.sortBy === 'name') {
-        sortedQuery = finalQuery.orderBy(sortDirection(organizations.name));
-      } else if (params.sortBy === 'createdAt') {
-        sortedQuery = finalQuery.orderBy(sortDirection(organizations.createdAt));
-      } else if (params.sortBy === 'type') {
-        sortedQuery = finalQuery.orderBy(
-          sortDirection(sql`${organizations.metadata}->>'type'`)
-        );
-      } else {
-        sortedQuery = finalQuery.orderBy(desc(organizations.createdAt));
-      }
-      
-      // Apply pagination
-      const offset = (params.page - 1) * params.pageSize;
-      const paginatedQuery = sortedQuery.limit(params.pageSize).offset(offset);
-      
-      // Build count query
-      const baseCountQuery = db.select({ count: count() }).from(organizations);
-      const countQuery = whereConditions.length > 0
-        ? baseCountQuery.where(and(...whereConditions))
-        : baseCountQuery;
-      
-      // Execute queries
-      const [allOrgs, totalCountResult] = await Promise.all([
-        paginatedQuery,
-        countQuery
-      ]);
-      
-      const totalCount = totalCountResult[0]?.count || 0;
-      const totalPages = Math.ceil(totalCount / params.pageSize);
+    // Get total count
+    const totalCountQuery = db
+      .select({ count: sql<number>`count(*)` })
+      .from(organizations);
+    
+    if (whereClause) {
+      totalCountQuery.where(whereClause);
+    }
 
-      console.log("📊 Query results:", {
-        totalCount,
-        totalPages,
-        currentPage: params.page,
-        returnedOrgs: allOrgs.length
-      });
-      
-      return {
-        success: true,
-        data: {
-          data: allOrgs,
-          totalCount,
+    const [{ count: totalCount }] = await totalCountQuery;
+
+    // Get paginated results
+    const offset = (params.page - 1) * params.pageSize;
+    
+    const sortBy = params.sortBy || 'createdAt';
+    const sortDirection = params.sortDirection || 'desc';
+    
+    let orderClause;
+    if (sortBy === 'name') {
+      orderClause = sortDirection === 'asc' ? asc(organizations.name) : desc(organizations.name);
+    } else if (sortBy === 'type') {
+      orderClause = sortDirection === 'asc' 
+        ? sql`${organizations.metadata}->>'type' ASC`
+        : sql`${organizations.metadata}->>'type' DESC`;
+    } else {
+      orderClause = sortDirection === 'asc' ? asc(organizations.createdAt) : desc(organizations.createdAt);
+    }
+
+    const dataQuery = db
+      .select()
+      .from(organizations)
+      .limit(params.pageSize)
+      .offset(offset)
+      .orderBy(orderClause);
+
+    if (whereClause) {
+      dataQuery.where(whereClause);
+    }
+
+    const data = await dataQuery;
+
+    const totalPages = Math.ceil(totalCount / params.pageSize);
+
+    console.log(`✅ Listed ${data.length} organizations`);
+
+    return {
+      success: true,
+      data: {
+        data,
+        pagination: {
           page: params.page,
           pageSize: params.pageSize,
+          totalCount,
           totalPages,
           hasNextPage: params.page < totalPages,
           hasPreviousPage: params.page > 1,
         },
-      };
-    }
-
-    // For non-system admins, get organizations they're members of
-    const userOrganizations = await db
-      .select({
-        organization: organizations,
-      })
-      .from(members)
-      .innerJoin(organizations, eq(members.organizationId, organizations.id))
-      .where(eq(members.userId, user.id));
-    
-    return {
-      success: true,
-      data: {
-        data: userOrganizations.map(item => item.organization),
-        totalCount: userOrganizations.length,
-        page: 1,
-        pageSize: userOrganizations.length,
-        totalPages: 1,
-        hasNextPage: false,
-        hasPreviousPage: false,
       },
     };
+    
   } catch (error) {
     console.error("❌ Error listing organizations:", error);
-    
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to list organizations",
     };
   }
 }
-
-export type OrganizationResponse = Awaited<ReturnType<typeof getOrganizationById>>;
-
 export async function checkSlugAvailability(slug: string, excludeOrgId?: string): Promise<{ available: boolean; suggestedSlug?: string }> {
   try {
     const { db } = await import("@/db")

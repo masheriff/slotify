@@ -1,4 +1,5 @@
 // lib/auth-server.ts - Fixed version with proper super admin checking
+'use server';
 import { headers } from "next/headers";
 import { auth } from "./auth";
 import { redirect } from "next/navigation";
