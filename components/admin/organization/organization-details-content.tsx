@@ -11,7 +11,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Edit,
   Users,
@@ -36,14 +35,14 @@ interface OrganizationDetailsContentProps {
   organizationId: string;
 }
 
-export function OrganizationDetailsContent({ 
-  organization, 
-  organizationId 
+export function OrganizationDetailsContent({
+  organization,
+  organizationId,
 }: OrganizationDetailsContentProps) {
   const router = useRouter();
-  
+
   const metadata = organization.metadata as any;
-  
+
   const handleEdit = () => {
     router.push(`/admin/organizations/${organizationId}/edit`);
   };
@@ -61,25 +60,40 @@ export function OrganizationDetailsContent({
       {/* Page Header - Simple design without slug */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <Avatar className="h-12 w-12">
-            <AvatarImage src={organization.logo} alt={organization.name} />
-            <AvatarFallback className="text-lg">
-              {organization.name.charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
+          {organization.logo ? (
+            <img
+              src={organization.logo}
+              alt={organization.name}
+              className="h-8 object-cover"
+            />
+          ) : (
+            <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
+              <span className="text-xs font-medium text-muted-foreground">
+                {organization.name.charAt(0).toUpperCase()}
+              </span>
+            </div>
+          )}
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">{organization.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {organization.name}
+            </h1>
             <div className="flex items-center gap-2 mt-1">
-              <Badge className={getOrganizationTypeColor(metadata?.type || "client")}>
+              <Badge
+                className={getOrganizationTypeColor(metadata?.type || "client")}
+              >
                 {getOrganizationTypeLabel(metadata?.type || "client")}
               </Badge>
-              <Badge className={getOrganizationStatusColor(metadata?.isActive !== false)}>
+              <Badge
+                className={getOrganizationStatusColor(
+                  metadata?.isActive !== false
+                )}
+              >
                 {getOrganizationStatusLabel(metadata?.isActive !== false)}
               </Badge>
             </div>
           </div>
         </div>
-        
+
         {/* Action Buttons - All three buttons are preserved */}
         <div className="flex items-center gap-2 flex-wrap">
           <Button
@@ -105,11 +119,7 @@ export function OrganizationDetailsContent({
               </Badge>
             )}
           </Button>
-          <Button
-            size="sm"
-            onClick={handleEdit}
-            className="gap-2"
-          >
+          <Button size="sm" onClick={handleEdit} className="gap-2">
             <Edit className="h-4 w-4" />
             Edit Organization
           </Button>
@@ -131,16 +141,19 @@ export function OrganizationDetailsContent({
               <div>
                 <p className="font-medium">Created</p>
                 <p className="text-muted-foreground">
-                  {formatDistanceToNow(new Date(organization.createdAt), { addSuffix: true })}
+                  {formatDistanceToNow(new Date(organization.createdAt), {
+                    addSuffix: true,
+                  })}
                 </p>
               </div>
               <div>
                 <p className="font-medium">Last Updated</p>
                 <p className="text-muted-foreground">
-                  {organization.updatedAt 
-                    ? formatDistanceToNow(new Date(organization.updatedAt), { addSuffix: true })
-                    : "Never updated"
-                  }
+                  {organization.updatedAt
+                    ? formatDistanceToNow(new Date(organization.updatedAt), {
+                        addSuffix: true,
+                      })
+                    : "Never updated"}
                 </p>
               </div>
               <div>
@@ -163,9 +176,7 @@ export function OrganizationDetailsContent({
         <Card>
           <CardHeader>
             <CardTitle>Contact Information</CardTitle>
-            <CardDescription>
-              How to reach this organization
-            </CardDescription>
+            <CardDescription>How to reach this organization</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-6">
@@ -182,7 +193,7 @@ export function OrganizationDetailsContent({
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex items-start space-x-2">
                     <Phone className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -206,9 +217,15 @@ export function OrganizationDetailsContent({
                       {metadata?.addressLine1 ? (
                         <>
                           {metadata.addressLine1}
-                          {metadata.addressLine2 && <><br />{metadata.addressLine2}</>}
+                          {metadata.addressLine2 && (
+                            <>
+                              <br />
+                              {metadata.addressLine2}
+                            </>
+                          )}
                           <br />
-                          {metadata.city}, {metadata.state} {metadata.postalCode}
+                          {metadata.city}, {metadata.state}{" "}
+                          {metadata.postalCode}
                           <br />
                           {metadata.country}
                         </>
@@ -245,7 +262,7 @@ export function OrganizationDetailsContent({
                     </div>
                   </div>
                 </div>
-                
+
                 {metadata.dataRetentionYears && (
                   <div>
                     <div className="flex items-start space-x-2">
@@ -259,14 +276,16 @@ export function OrganizationDetailsContent({
                     </div>
                   </div>
                 )}
-                
+
                 <div>
                   <div className="flex items-start space-x-2">
                     <Settings className="h-4 w-4 text-muted-foreground mt-0.5" />
                     <div>
                       <p className="font-medium">BAA Status</p>
                       <p className="text-muted-foreground">
-                        {metadata.businessAssociateAgreement ? "Signed" : "Not signed"}
+                        {metadata.businessAssociateAgreement
+                          ? "Signed"
+                          : "Not signed"}
                       </p>
                     </div>
                   </div>
@@ -292,7 +311,7 @@ export function OrganizationDetailsContent({
                   {metadata?.timezone || "Not configured"}
                 </p>
               </div>
-              
+
               {metadata?.settings?.features && (
                 <div>
                   <p className="font-medium">Enabled Features</p>
@@ -300,11 +319,16 @@ export function OrganizationDetailsContent({
                     {Object.entries(metadata.settings.features)
                       .filter(([_, enabled]) => enabled)
                       .map(([feature]) => (
-                        <Badge key={feature} variant="secondary" className="text-xs">
-                          {feature.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                        <Badge
+                          key={feature}
+                          variant="secondary"
+                          className="text-xs"
+                        >
+                          {feature
+                            .replace(/([A-Z])/g, " $1")
+                            .replace(/^./, (str) => str.toUpperCase())}
                         </Badge>
-                      ))
-                    }
+                      ))}
                   </div>
                 </div>
               )}
