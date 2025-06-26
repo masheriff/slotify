@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { useLoadingStore } from '@/stores/loading-store';
 
 // For client-side usage (in components)
-export function withLoading<T extends any[], R>(
+export function withLoading<T extends unknown[], R>(
   action: (...args: T) => Promise<R>,
   loadingKey: string,
   loadingMessage?: string
@@ -24,12 +24,8 @@ export function withLoading<T extends any[], R>(
 }
 
 // For server actions (functional approach)
-export function createLoadingAction<T extends any[], R>(
-  action: (...args: T) => Promise<R>,
-  options?: {
-    loadingKey?: string;
-    loadingMessage?: string;
-  }
+export function createLoadingAction<T extends unknown[], R>(
+  action: (...args: T) => Promise<R>
 ) {
   return async function wrappedAction(...args: T): Promise<R> {
     // This will be handled by the client-side form submission

@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Filter, X } from "lucide-react"
-import { FiltersSheetProps } from "@/types"
+import { FiltersSheetProps } from "@/stores/list-state-store"
 
 
 

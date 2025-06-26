@@ -61,8 +61,6 @@ export function DataTable<TData, TValue>({
   pagination,
   sorting,
   emptyMessage = "No results found.",
-  selectable,
-  bulkActions,
 }: DataTableProps<TData, TValue>) {
   const router = useRouter();
   const pathname = usePathname();
@@ -159,7 +157,7 @@ export function DataTable<TData, TValue>({
   const endItem = Math.min(currentPage * pageSize, (currentPage - 1) * pageSize + data.length)
   
   // Calculate total items display
-  const totalItems = totalCount || (totalPages * pageSize)
+  // const totalItems = totalCount || (totalPages * pageSize)
   const displayEndItem = totalCount ? Math.min(endItem, totalCount) : endItem
 
   return (

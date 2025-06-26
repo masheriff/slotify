@@ -53,7 +53,6 @@ export function DetailsPageHeader({
   breadcrumbItems,
   actions = [],
   onBack,
-  backLabel = "Back",
 }: DetailsPageHeaderProps) {
   return (
     <div className="space-y-4">

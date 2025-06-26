@@ -150,38 +150,38 @@ export const auth = betterAuth({
 /**
  * Helper functions for healthcare-specific permission checks
  */
-async function checkHIPAACompliance(userId: string): Promise<boolean> {
-  // Implementation would check if user has completed HIPAA training
-  // This could query a separate training/certification table
-  return true; // Placeholder
-}
+// async function checkHIPAACompliance(userId: string): Promise<boolean> {
+//   // Implementation would check if user has completed HIPAA training
+//   // This could query a separate training/certification table
+//   return true; // Placeholder
+// }
 
-async function checkBookingState(
-  bookingId: string,
-  requiredState: string
-): Promise<boolean> {
-  // Implementation would check if booking is in the correct workflow state
-  return true; // Placeholder
-}
+// async function checkBookingState(
+//   bookingId: string,
+//   requiredState: string
+// ): Promise<boolean> {
+//   // Implementation would check if booking is in the correct workflow state
+//   return true; // Placeholder
+// }
 
-async function checkInterpretationAssignment(
-  interpretationId: string,
-  userId: string
-): Promise<boolean> {
-  // Implementation would verify the interpretation is assigned to this doctor
-  return true; // Placeholder
-}
+// async function checkInterpretationAssignment(
+//   interpretationId: string,
+//   userId: string
+// ): Promise<boolean> {
+//   // Implementation would verify the interpretation is assigned to this doctor
+//   return true; // Placeholder
+// }
 
-async function createDefaultHealthcareFacilitySetup(
-  organizationId: string
-): Promise<void> {
-  // Implementation would create default procedure locations, device inventory, etc.
-  // This helps new healthcare facilities get started quickly
-}
+// async function createDefaultHealthcareFacilitySetup(
+//   organizationId: string
+// ): Promise<void> {
+//   // Implementation would create default procedure locations, device inventory, etc.
+//   // This helps new healthcare facilities get started quickly
+// }
 
-async function sendHealthcareFacilityWelcomeEmail(
-  organization: any,
-  user: any
-): Promise<void> {
-  // Implementation would send compliance and setup information
-}
+// async function sendHealthcareFacilityWelcomeEmail(
+//   organization: any,
+//   user: any
+// ): Promise<void> {
+//   // Implementation would send compliance and setup information
+// }

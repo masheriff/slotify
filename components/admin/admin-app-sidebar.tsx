@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Building,
   Users,
-  Mail,
   FileText,
   Settings2,
   Command,

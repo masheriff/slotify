@@ -1,5 +1,5 @@
 // lib/permissions/healthcare-permissions.ts - Comprehensive role-based permissions system
-import { HEALTHCARE_ROLES, HEALTHCARE_RESOURCES, HEALTHCARE_ACTIONS } from './healthcare-permissions-constants';
+import { HEALTHCARE_ROLES, HEALTHCARE_RESOURCES } from './healthcare-permissions-constants';
 
 /**
  * Define comprehensive permissions for each role based on your requirements

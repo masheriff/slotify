@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { sql } from 'drizzle-orm';
 import { auditLogs, auditCleanupLogs, organizations } from '@/db/schema';
 import { eq, lt, and } from 'drizzle-orm';
+import { OrganizationMetadata } from '@/types';
 
 interface OrganizationWithMetadata {
   id: string;
@@ -12,7 +13,7 @@ interface OrganizationWithMetadata {
     type?: "admin" | "client";
     isActive?: boolean;
     dataRetentionYears?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
 }
 
@@ -95,7 +96,7 @@ export function startAuditCleanupJob() {
             id: `cleanup_${org.id}_${Date.now()}`,
             organizationId: org.id,
             deletedRecords: deletedCount,
-            retentionYears: parseInt((org.metadata as any)?.dataRetentionYears || '7'),
+            retentionYears: parseInt((org.metadata as OrganizationMetadata)?.dataRetentionYears || '7'),
             cleanupDate: new Date(),
             jobStartTime: orgJobStart,
             jobEndTime: new Date(),

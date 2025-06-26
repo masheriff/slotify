@@ -163,9 +163,6 @@ export function OrganizationForm({
     mode: "onChange", // Enable real-time validation
   });
 
-  // DEBUG: Form state monitoring
-  const formErrors = form.formState.errors;
-  const isValid = form.formState.isValid;
 
   // Removed debug logging as requested
 
@@ -432,18 +429,39 @@ export function OrganizationForm({
       } else {
         // Handle validation errors
         if (result.validationErrors && result.validationErrors.length > 0) {
+          const fieldNames: Array<keyof FormData> = [
+            "name",
+            "slug",
+            "logo",
+            "type",
+            "contactEmail",
+            "contactPhone",
+            "addressLine1",
+            "addressLine2",
+            "city",
+            "state",
+            "postalCode",
+            "country",
+            "timezone",
+            "hipaaOfficer",
+            "businessAssociateAgreement",
+            "dataRetentionYears",
+          ];
+
           result.validationErrors.forEach((error) => {
             let fieldPath = error.path?.join(".") || "general";
-            
+
             // Map server paths to form paths
             if (fieldPath.startsWith("metadata.")) {
               fieldPath = fieldPath.replace("metadata.", "");
             }
-            
-            form.setError(fieldPath as any, {
-              type: "manual",
-              message: error.message,
-            });
+
+            if (fieldNames.includes(fieldPath as keyof FormData)) {
+              form.setError(fieldPath as keyof FormData, {
+                type: "manual",
+                message: error.message,
+              });
+            } 
           });
           
           toast.error("Please check the form for validation errors");
@@ -461,16 +479,13 @@ export function OrganizationForm({
   };
 
   // Handle form validation errors
-  const onError = (errors: any) => {
-    toast.error("Please fix the validation errors before submitting");
-  };
+  // const onError = (errors: any) => {
+  //   toast.error("Please fix the validation errors before submitting");
+  // };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit, onError)} className="space-y-6">
-        {/* Debug Panel (development only) */}
-        {/* Removed debug panel as requested */}
-
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Basic Information */}
         <Card>
           <CardHeader>

@@ -45,6 +45,7 @@ export function AdminNavUser() {
       toast.success("Signed out successfully")
       router.push("/login")
     } catch (error) {
+      console.error("Sign out error:", error)
       toast.error("Failed to sign out")
     }
   }

@@ -88,8 +88,10 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     // Determine if button should be disabled
     const isDisabled = disabled || isLoading;
     
-    // Determine text to show
-    const displayText = isLoading && loadingMessage ? loadingMessage : children;
+    // Determine text to show - use loadingMessage from store, fallback to loadingText prop, then to children
+    const displayText = isLoading 
+      ? (loadingMessage || loadingText || children)
+      : children;
     
     // Determine icon to show
     const DisplayIcon = isLoading ? LoadingIcon : Icon;
@@ -107,7 +109,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
               "h-4 w-4",
               children && "mr-2",
               isLoading && LoadingIcon === Loader2 && "animate-spin"
-            )} 
+            )}
           />
         )}
         {displayText}

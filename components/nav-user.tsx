@@ -25,7 +25,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useSession, signOut } from "@/lib/auth-client"; // Adjust the path as needed
+import { signOut } from "@/lib/auth-client"; // Adjust the path as needed
 
 export function NavUser({
   user,

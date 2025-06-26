@@ -26,6 +26,8 @@ import {
   getOrganizationTypeColor,
   getOrganizationTypeLabel,
 } from "@/lib/utils/organization-utils";
+import Image from "next/image";
+
 
 // Actions Cell Component with Navigation
 function OrganizationActionsCell({
@@ -122,7 +124,14 @@ export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
       return (
         <div className="flex items-center space-x-3">
           {logo ? (
-            <img src={logo} alt={`${name} logo`} className="h-8 object-cover" />
+            <Image
+              src={logo}
+              alt={`${name} logo`}
+              width={0}
+              height={0}
+              sizes="100vw"
+              className="h-8 w-auto object-cover"
+            />
           ) : (
             <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
               <span className="text-xs font-medium text-muted-foreground">

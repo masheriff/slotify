@@ -4,8 +4,7 @@ import { WelcomeEmail } from '../../emails/welcome';
 import { NotificationEmail } from '../../emails/notification';
 import { MagicLinkEmail } from '../../emails/magic-link';
 import { OrganizationInvitationEmail } from '../../emails/organization-invitation';
-import { WelcomeEmailProps, NotificationEmailProps, MagicLinkEmailProps, TemplateData } from '../../types/email.types';
-import { OrganizationInvitationEmailProps } from '../../emails/organization-invitation';
+import { WelcomeEmailProps, NotificationEmailProps, MagicLinkEmailProps, TemplateData, OrganizationInvitationEmailProps } from '../../types/email.types';
 
 export type EmailTemplate = 'welcome' | 'notification' | 'magic-link' | 'organization-invitation';
 

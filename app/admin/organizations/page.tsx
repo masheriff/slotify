@@ -1,7 +1,6 @@
 // app/admin/organizations/page.tsx - FIXED pagination data access
 import {
   parseListParams,
-  fetchListData,
   handleListPageRedirect,
   logListPageMetrics,
   validateListPageAccess,
@@ -14,7 +13,6 @@ import { organizationFilterConfig } from "@/components/admin/forms/organization-
 import { listOrganizations } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
 import {
-  ListParams,
   Organization,
   OrganizationListItem,
 } from "@/types";
@@ -53,9 +51,7 @@ export default async function OrganizationsPage({
     const params = await parseListParams(searchParams, LIST_CONFIG);
     const user = await getCurrentUser();
     const accessCheck = await validateListPageAccess(
-      "organizations",
-      "read",
-      user
+      user ?? undefined
     );
 
     if (!accessCheck.success) {
@@ -114,7 +110,7 @@ export default async function OrganizationsPage({
     );
 
     const tableData: OrganizationListItem[] = organizationsArray.map(
-      (org: any, index: number) => {
+      (org: Organization, index: number) => {
         console.log(`🔄 Transforming org ${index + 1}:`, {
           id: org.id,
           name: org.name,
@@ -137,7 +133,7 @@ export default async function OrganizationsPage({
           country: org.metadata?.country || "",
           isActive: org.metadata?.isActive,
           createdAt: org.createdAt,
-          status: org.metadata?.status || "active",
+          status: org.metadata?.isActive ? "active"  : "inactive",
         };
 
         console.log(`✅ Transformed result ${index + 1}:`, transformed);

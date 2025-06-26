@@ -1,4 +1,5 @@
 // lib/list-page-server.ts - FIXED: Remove double wrapping
+import { User } from "@/types";
 import { redirect } from "next/navigation";
 
 export interface ListParams {
@@ -113,9 +114,9 @@ export async function parseListParams(
  * FIXED: Don't double-wrap the data - return the action result directly
  */
 export async function fetchListData<T>(
-  dataFetcher: (params: ListParams) => Promise<any>,
+  dataFetcher: (params: ListParams) => Promise<unknown>,
   params: ListParams,
-  context: { module: string; user?: any } = { module: 'unknown' }
+  context: { module: string; user?: User } = { module: 'unknown' }
 ): Promise<ListDataResult<T>> {
   const startTime = Date.now();
   
@@ -130,7 +131,7 @@ export async function fetchListData<T>(
   });
 
   try {
-    const result = await dataFetcher(params);
+    const result = await dataFetcher(params) as ListDataResult<T>;
     
     const duration = Date.now() - startTime;
     console.log(`✅ [${context.module}] Server fetch successful:`, {
@@ -245,9 +246,7 @@ export function createEmptyListResult<T>(params: ListParams): ListDataResult<T> 
  * Validate list page permissions (to be used with Better Auth)
  */
 export async function validateListPageAccess(
-  module: string,
-  action: string = 'read',
-  user?: any
+  user?: User
 ): Promise<{ success: boolean; error?: string }> {
   // This would integrate with your Better Auth permission system
   try {
@@ -277,7 +276,7 @@ export async function validateListPageAccess(
 export function logListPageMetrics(
   module: string,
   params: ListParams,
-  result: ListDataResult<any>,
+  result: ListDataResult<unknown>,
   renderTime: number
 ) {
   if (process.env.NODE_ENV === 'development') {

@@ -33,7 +33,7 @@ export function TermsFooter() {
                 <section>
                   <h3 className="font-semibold text-base mb-2">1. Acceptance of Terms</h3>
                   <p>
-                    By accessing and using Slotify ("the Service"), you accept and agree to be bound by the terms and provision of this agreement. This healthcare scheduling platform is designed to comply with HIPAA regulations and protect patient health information.
+                    By accessing and using Slotify - the Service, you accept and agree to be bound by the terms and provision of this agreement. This healthcare scheduling platform is designed to comply with HIPAA regulations and protect patient health information.
                   </p>
                 </section>
 
@@ -75,7 +75,7 @@ export function TermsFooter() {
                 <section>
                   <h3 className="font-semibold text-base mb-2">7. Termination</h3>
                   <p>
-                    Either party may terminate this agreement with 30 days written notice. Upon termination, all data will be securely deleted or returned according to HIPAA requirements and your organization's data retention policies.
+                    Either party may terminate this agreement with 30 days written notice. Upon termination, all data will be securely deleted or returned according to HIPAA requirements and your organization&apos;s data retention policies.
                   </p>
                 </section>
 
@@ -198,7 +198,7 @@ export function TermsFooter() {
                 <section>
                   <h3 className="font-semibold text-base mb-2">7. Data Retention</h3>
                   <p>
-                    We retain PHI only as long as necessary to provide services and comply with legal requirements. Retention periods are determined by applicable laws and your organization's policies, typically 6-7 years for medical records.
+                    We retain PHI only as long as necessary to provide services and comply with legal requirements. Retention periods are determined by applicable laws and your organization&apos;s policies, typically 6-7 years for medical records.
                   </p>
                 </section>
 

@@ -5,6 +5,7 @@ import { auth } from "./auth";
 import { redirect } from "next/navigation";
 import { HEALTHCARE_ROLES } from "./permissions/healthcare-permissions-constants";
 import { isSuperAdmin, isAdmin } from "./permissions/healthcare-access-control";
+import { User } from "@/types";
 
 export async function getServerSession() {
   try {
@@ -233,8 +234,10 @@ export async function getUserRoleInOrg(organizationId: string): Promise<string |
  */
 export async function getCurrentUser() {
   try {
-    const session = await getServerSession();
-    return session?.user || null;
+    const session = await auth.api.getSession({
+      headers: await headers()
+    });;
+    return session?.user as User || null;
   } catch (error) {
     console.error("Failed to get current user:", error);
     return null;

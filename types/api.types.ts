@@ -1,6 +1,7 @@
 // types/api.types.ts
 
-import { OrganizationMetadata } from "./auth.types";
+import { OrganizationMetadata } from "./organization.types";
+
 
 export interface ApiResponse<T = any> {
   success: boolean;

@@ -29,9 +29,10 @@ import {
   getOrganizationTypeLabel,
   getOrganizationStatusLabel,
 } from "@/lib/utils/organization-utils";
-
+import { Organization, OrganizationMetadata } from "@/types";
+import Image from "next/image";
 interface OrganizationDetailsContentProps {
-  organization: any; // Type this according to your organization type
+  organization: Organization; // Type this according to your organization type
   organizationId: string;
 }
 
@@ -40,8 +41,9 @@ export function OrganizationDetailsContent({
   organizationId,
 }: OrganizationDetailsContentProps) {
   const router = useRouter();
+  console.log(organization, "organization from individual orgs");
 
-  const metadata = organization.metadata as any;
+  const metadata = organization.metadata as OrganizationMetadata;
 
   const handleEdit = () => {
     router.push(`/admin/organizations/${organizationId}/edit`);
@@ -61,10 +63,13 @@ export function OrganizationDetailsContent({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           {organization.logo ? (
-            <img
+            <Image
               src={organization.logo}
               alt={organization.name}
-              className="h-8 object-cover"
+              width={0}
+              height={0}
+              sizes="100vw"
+              className="h-8 w-auto object-cover"
             />
           ) : (
             <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
@@ -113,11 +118,11 @@ export function OrganizationDetailsContent({
           >
             <Users className="h-4 w-4" />
             Manage Members
-            {organization.memberCount > 0 && (
+            {/* {organization.memberCount > 0 && (
               <Badge variant="secondary" className="ml-1 text-xs">
                 {organization.memberCount}
               </Badge>
-            )}
+            )} */}
           </Button>
           <Button size="sm" onClick={handleEdit} className="gap-2">
             <Edit className="h-4 w-4" />
@@ -317,7 +322,6 @@ export function OrganizationDetailsContent({
                   <p className="font-medium">Enabled Features</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {Object.entries(metadata.settings.features)
-                      .filter(([_, enabled]) => enabled)
                       .map(([feature]) => (
                         <Badge
                           key={feature}

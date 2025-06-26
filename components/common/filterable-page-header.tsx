@@ -152,21 +152,43 @@ export function FilterablePageHeader({
   }, [onCreateNew, createHref, router])
 
   // Render filter input based on type
-  const renderFilterInput = useCallback((filter: any) => {
-    const currentValue = currentFilters[filter.key] || ''
+  interface FilterOption {
+    value: string;
+    label: string;
+    disabled?: boolean;
+  }
+
+  interface FilterConfigItem {
+    label: string;
+    key: string;
+    type: 'text' | 'select' | 'date' | 'number' | 'boolean';
+    options?: FilterOption[];
+    placeholder?: string;
+    validation?: {
+      required?: boolean;
+      min?: number;
+      max?: number;
+      pattern?: RegExp;
+    };
+  }
+
+  type RenderFilterInput = (filter: FilterConfigItem) => React.ReactNode;
+
+  const renderFilterInput: RenderFilterInput = useCallback((filter) => {
+    const currentValue: string = currentFilters[filter.key] || ''
 
     switch (filter.type) {
       case 'select':
         return (
           <Select
             value={currentValue}
-            onValueChange={(value) => handleFilterChange(filter.key, value)}
+            onValueChange={(value: string) => handleFilterChange(filter.key, value)}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder={filter.placeholder || `Select ${filter.label}`} />
             </SelectTrigger>
             <SelectContent>
-              {filter.options?.map((option: any) => (
+                {filter.options?.map((option: FilterOption) => (
                 <SelectItem
                   key={option.value}
                   value={option.value}
@@ -174,7 +196,7 @@ export function FilterablePageHeader({
                 >
                   {option.label}
                 </SelectItem>
-              ))}
+                ))}
             </SelectContent>
           </Select>
         )
@@ -198,7 +220,7 @@ export function FilterablePageHeader({
               <Calendar
                 mode="single"
                 selected={currentValue ? new Date(currentValue) : undefined}
-                onSelect={(date) => {
+                onSelect={(date: Date | undefined) => {
                   const value = date ? format(date, "yyyy-MM-dd") : ''
                   handleFilterChange(filter.key, value)
                 }}
@@ -214,7 +236,7 @@ export function FilterablePageHeader({
             type="number"
             placeholder={filter.placeholder || `Enter ${filter.label}`}
             value={currentValue}
-            onChange={(e) => handleFilterChange(filter.key, e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFilterChange(filter.key, e.target.value)}
             min={filter.validation?.min}
             max={filter.validation?.max}
             className="w-full"
@@ -225,7 +247,7 @@ export function FilterablePageHeader({
         return (
           <Select
             value={currentValue}
-            onValueChange={(value) => handleFilterChange(filter.key, value)}
+            onValueChange={(value: string) => handleFilterChange(filter.key, value)}
           >
             <SelectTrigger className="w-full">
               <SelectValue placeholder={filter.placeholder || `Select ${filter.label}`} />
@@ -243,7 +265,7 @@ export function FilterablePageHeader({
             type="text"
             placeholder={filter.placeholder || `Enter ${filter.label}`}
             value={currentValue}
-            onChange={(e) => handleFilterChange(filter.key, e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFilterChange(filter.key, e.target.value)}
             className="w-full"
           />
         )

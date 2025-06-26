@@ -13,7 +13,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
 import { Trash, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { deleteOrganization } from "@/actions/organization-actions";
@@ -78,7 +77,7 @@ export function DeleteOrganizationDialog({
         
         <div className="py-4">
           <p className="text-sm text-muted-foreground">
-            Are you sure you want to delete <span className="font-medium text-foreground">"{organization.name}"</span>?
+            Are you sure you want to delete <span className="font-medium text-foreground">&quot;{organization.name}&quot;</span>?
           </p>
           <p className="text-sm text-muted-foreground mt-2">
             This will permanently remove the organization and all associated data. 

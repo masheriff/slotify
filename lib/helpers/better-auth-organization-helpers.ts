@@ -5,25 +5,7 @@ import { organizations, members } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { HEALTHCARE_ROLES } from '@/lib/permissions/healthcare-permissions-constants';
 import { headers } from 'next/headers';
-
-interface OrganizationMetadata {
-  type?: "admin" | "client";
-  isActive?: boolean;
-  dataRetentionYears?: string;
-  contactEmail?: string;
-  contactPhone?: string;
-  addressLine1?: string;
-  addressLine2?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-  country?: string;
-  timezone?: string;
-  settings?: Record<string, any>;
-  hipaaOfficer?: string;
-  businessAssociateAgreement?: boolean;
-  [key: string]: any;
-}
+import { OrganizationMetadata } from '@/types';
 
 /**
  * Get organization with typed metadata
@@ -148,7 +130,7 @@ export async function isUserAdminAnywhere(userId: string): Promise<boolean> {
         HEALTHCARE_ROLES.SYSTEM_ADMIN,
         HEALTHCARE_ROLES.FIVE_AM_ADMIN,
         HEALTHCARE_ROLES.CLIENT_ADMIN
-      ].includes(membership.role as any)
+      ].includes(membership.role as typeof HEALTHCARE_ROLES.SYSTEM_ADMIN | typeof HEALTHCARE_ROLES.FIVE_AM_ADMIN | typeof HEALTHCARE_ROLES.CLIENT_ADMIN)
     );
   } catch (error) {
     console.error('Failed to check admin status:', error);
@@ -188,7 +170,11 @@ export async function getUserAccessibleOrganizations(userId: string) {
       };
 
       // System admins and 5AM admins can access all organizations
-      if ([HEALTHCARE_ROLES.SYSTEM_ADMIN, HEALTHCARE_ROLES.FIVE_AM_ADMIN].includes(membership.role as any)) {
+      if (
+        [HEALTHCARE_ROLES.SYSTEM_ADMIN, HEALTHCARE_ROLES.FIVE_AM_ADMIN].includes(
+          membership.role as typeof HEALTHCARE_ROLES.SYSTEM_ADMIN | typeof HEALTHCARE_ROLES.FIVE_AM_ADMIN
+        )
+      ) {
         // Get all active organizations for these roles
         const allActiveOrgs = await getActiveOrganizations();
         return allActiveOrgs.map(org => ({
