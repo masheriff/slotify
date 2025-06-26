@@ -23,6 +23,12 @@ import { OrganizationListItem } from "@/types";
 
 import { useState } from "react";
 import { DeleteOrganizationDialog } from "./delete-organization-dialog";
+import {
+  getOrganizationStatusColor,
+  getOrganizationStatusLabel,
+  getOrganizationTypeColor,
+  getOrganizationTypeLabel,
+} from "@/lib/utils/organization-utils";
 
 // Actions Cell Component with Navigation
 function OrganizationActionsCell({
@@ -111,8 +117,8 @@ function OrganizationActionsCell({
 export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
   // 1st Column: Organization Name
   {
-    accessorKey: "name",
-    header: "Organization",
+    accessorKey: "logo",
+    header: "Logo",
     cell: ({ row }) => {
       const name = row.getValue("name") as string;
       const logo = row.original.logo;
@@ -128,6 +134,18 @@ export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
               </span>
             </div>
           )}
+        </div>
+      );
+    },
+  },
+  {
+    accessorKey: "name",
+    header: "Organization",
+    cell: ({ row }) => {
+      const name = row.getValue("name") as string;
+
+      return (
+        <div className="flex items-center space-x-3">
           <div>
             <div className="font-medium">{name}</div>
             <div className="text-sm text-muted-foreground">
@@ -146,8 +164,8 @@ export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
     cell: ({ row }) => {
       const type = row.getValue("type") as string;
       return (
-        <Badge variant={type === "admin" ? "default" : "secondary"}>
-          {type === "admin" ? "Admin" : "Client"}
+        <Badge className={getOrganizationTypeColor(type || "client")}>
+          {getOrganizationTypeLabel(type || "client")}
         </Badge>
       );
     },
@@ -199,8 +217,8 @@ export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
     cell: ({ row }) => {
       const isActive = row.getValue("isActive") as boolean;
       return (
-        <Badge variant={isActive ? "default" : "secondary"}>
-          {isActive ? "Active" : "Inactive"}
+        <Badge className={getOrganizationStatusColor(isActive !== false)}>
+          {getOrganizationStatusLabel(isActive !== false)}
         </Badge>
       );
     },
