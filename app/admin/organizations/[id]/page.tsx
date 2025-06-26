@@ -1,9 +1,8 @@
 // app/admin/organizations/[id]/page.tsx
 import { getOrganizationById } from "@/actions/organization-actions";
-import { OrganizationNotFound } from "@/components/common/not-found";
 import { OrganizationDetailsContent } from "@/components/admin/organization/organization-details-content";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
-import { redirect } from "next/navigation";
+import { getErrorMessage } from "@/types/server-actions.types";
 
 interface OrganizationDetailsPageProps {
   params: Promise<{ id: string }>;
@@ -21,7 +20,7 @@ export default async function OrganizationDetailsPage({
   if (!result.success || !result.data) {
     return (
       <ListPageWrapper
-        error={result.error || "The organization you're looking for doesn't exist."}
+        error={getErrorMessage(result.error ?? "The organization you're looking for doesn't exist.") }
         breadcrumbs={[
           { label: 'Admin', href: '/admin' },
           { label: 'Organizations', href: '/admin/organizations' },

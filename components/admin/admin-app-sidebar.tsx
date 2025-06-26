@@ -44,17 +44,12 @@ const adminNavItems = [
     icon: Users,
     items: [
       { title: "All Users", url: "/admin/users" },
-      { title: "Invite User", url: "/admin/users/invite" },
+      { title: "Create User", url: "/admin/users/create" },
     ]
   },
   {
-    title: "Invitations",
-    url: "/admin/invitations",
-    icon: Mail,
-  },
-  {
     title: "Audit Logs",
-    url: "/admin/audit",
+    url: "/admin/audit-logs",
     icon: FileText,
   },
   {

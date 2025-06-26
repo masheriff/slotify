@@ -1,5 +1,4 @@
 // app/admin/organizations/page.tsx - FIXED data access
-import { Metadata } from "next";
 import {
   parseListParams,
   fetchListData,
@@ -15,7 +14,6 @@ import { organizationFilterConfig } from "@/components/admin/forms/organization-
 import { listOrganizations } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
 import {
-  ListDataResult,
   ListParams,
   Organization,
   OrganizationListItem,
