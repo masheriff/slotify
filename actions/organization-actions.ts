@@ -10,7 +10,7 @@ import { db } from "@/db";
 import { organizations, members } from "@/db/schema";
 import { eq, and, like, or, desc, asc, count } from "drizzle-orm";
 import { ServerActionResponse } from "@/types/server-actions.types";
-import { OrganizationMetadata, Organization } from "@/types/organization.types";
+import { OrganizationMetadata } from "@/types/organization.types";
 
 // Organization data validation schema using existing types
 const organizationDataSchema = z.object({
@@ -369,36 +369,78 @@ export async function getOrganizationById(organizationId: string): Promise<Serve
 
 export async function deleteOrganization(organizationId: string): Promise<ServerActionResponse> {
   try {
-    console.log("🗑️ Deleting organization:", organizationId);
+    console.log("🗑️ Attempting to delete organization:", organizationId);
 
+    // Check authentication and permissions
     await requireSuperAdmin();
 
-    // Check if organization exists
-    const [existingOrg] = await db
-      .select({ id: organizations.id })
+    // Validate organization exists
+    const existingOrg = await db
+      .select({ 
+        id: organizations.id, 
+        name: organizations.name 
+      })
       .from(organizations)
       .where(eq(organizations.id, organizationId))
       .limit(1);
 
-    if (!existingOrg) {
+    if (existingOrg.length === 0) {
       return {
         success: false,
         error: "Organization not found",
       };
     }
 
-    // Delete organization (this will cascade delete members due to foreign key constraints)
-    await db
-      .delete(organizations)
-      .where(eq(organizations.id, organizationId));
+    // Check if organization has members
+    const [memberCount] = await db
+      .select({ count: count() })
+      .from(members)
+      .where(eq(members.organizationId, organizationId));
 
-    console.log("✅ Organization deleted successfully");
+    if (memberCount.count > 0) {
+      return {
+        success: false,
+        error: `Cannot delete organization "${existingOrg[0].name}" because it has ${memberCount.count} member(s). Please remove all members before deleting the organization.`,
+      };
+    }
+
+    // Delete the organization
+    const [deletedOrg] = await db
+      .delete(organizations)
+      .where(eq(organizations.id, organizationId))
+      .returning({ id: organizations.id, name: organizations.name });
+
+    if (!deletedOrg) {
+      return {
+        success: false,
+        error: "Failed to delete organization",
+      };
+    }
+
+    console.log("✅ Organization deleted successfully:", deletedOrg);
+    
     return {
       success: true,
-      message: "Organization deleted successfully",
+      data: { 
+        id: deletedOrg.id,
+        organization: deletedOrg
+      },
+      message: `Organization "${deletedOrg.name}" deleted successfully`,
     };
+    
   } catch (error) {
     console.error("❌ Error deleting organization:", error);
+
+    // Handle database constraint errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      if (error.code === '23503') { // Foreign key constraint violation
+        return {
+          success: false,
+          error: "Cannot delete organization because it has associated data. Please remove all associated records first.",
+        };
+      }
+    }
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to delete organization",

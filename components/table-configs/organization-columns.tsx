@@ -21,6 +21,9 @@ import { toast } from "sonner";
 // Import your organization type - adjust the import path as needed
 import { OrganizationListItem } from "@/types";
 
+import { useState } from "react";
+import { DeleteOrganizationDialog } from "./delete-organization-dialog";
+
 // Actions Cell Component with Navigation
 function OrganizationActionsCell({
   organization,
@@ -28,6 +31,12 @@ function OrganizationActionsCell({
   organization: OrganizationListItem;
 }) {
   const router = useRouter();
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [organizationToDelete, setOrganizationToDelete] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const { withLoadingState } = useLoadingControl();
 
   const handleViewDetails = () => {
@@ -43,49 +52,59 @@ function OrganizationActionsCell({
   };
 
   const handleDelete = () => {
-    if (
-      confirm(
-        `Are you sure you want to delete "${organization.name}"? This action cannot be undone.`
-      )
-    ) {
-      toast.success("Organization deleted successfully");
-      // Optionally refresh the page or update the data
-      router.refresh();
-    }
+    setOrganizationToDelete({
+      id: organization.id,
+      name: organization.name,
+    });
+    setDeleteDialogOpen(true);
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem onClick={handleViewDetails}>
-          <Eye className="mr-2 h-4 w-4" />
-          View details
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleEdit}>
-          <Edit className="mr-2 h-4 w-4" />
-          Edit organization
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={handleManageMembers}>
-          <Users className="mr-2 h-4 w-4" />
-          Manage members
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={handleDelete}
-          className="text-destructive focus:text-destructive"
-        >
-          <Trash className="mr-2 h-4 w-4 text-destructive" />
-          Delete organization
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem onClick={handleViewDetails}>
+            <Eye className="mr-2 h-4 w-4" />
+            View details
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleEdit}>
+            <Edit className="mr-2 h-4 w-4" />
+            Edit organization
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleManageMembers}>
+            <Users className="mr-2 h-4 w-4" />
+            Manage members
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={handleDelete}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash className="mr-2 h-4 w-4 text-destructive" />
+            Delete organization
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {organizationToDelete && (
+        <DeleteOrganizationDialog
+          organization={organizationToDelete}
+          open={deleteDialogOpen}
+          onOpenChange={(open) => {
+            setDeleteDialogOpen(open);
+            if (!open) {
+              setOrganizationToDelete(null);
+            }
+          }}
+        />
+      )}
+    </>
   );
 }
 
@@ -101,11 +120,7 @@ export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
       return (
         <div className="flex items-center space-x-3">
           {logo ? (
-            <img
-              src={logo}
-              alt={`${name} logo`}
-              className="h-8 object-cover"
-            />
+            <img src={logo} alt={`${name} logo`} className="h-8 object-cover" />
           ) : (
             <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
               <span className="text-xs font-medium text-muted-foreground">

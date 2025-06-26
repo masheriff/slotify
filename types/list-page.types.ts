@@ -133,7 +133,9 @@ export interface OrganizationListItem extends BaseListItem {
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
+  city: string;
   state: string;
+  country: string;
   metadata?: {
     isActive?: boolean;
     settings?: Record<string, any>;
