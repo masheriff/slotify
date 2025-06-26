@@ -137,10 +137,6 @@ export interface OrganizationListItem extends BaseListItem {
   city: string;
   state: string;
   country: string;
-  metadata?: {
-    isActive?: boolean;
-    settings?: Record<string, any>;
-  };
 }
 
 // User List Item interface

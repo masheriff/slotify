@@ -19,14 +19,6 @@ export interface MagicLinkEmailProps {
   expiresIn?: string;
 }
 
-export interface OrganizationInvitationEmailProps {
-  email: string;
-  organizationName: string;
-  inviterName: string;
-  invitationLink: string;
-  expiresIn?: string;
-}
-
 export interface EmailSendResult {
   success: boolean;
   messageId?: string;

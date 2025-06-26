@@ -30,52 +30,6 @@ export interface SessionData {
   user: User;
   session: Session;
 }
-
-export interface Organization {
-  id: string;
-  name: string;
-  slug?: string;
-  logo?: string;
-  metadata: OrganizationMetadata;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface OrganizationMetadata {
-  type: "admin" | "client";
-  contactEmail: string;
-  contactPhone: string;
-  addressLine1: string;
-  addressLine2?: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  timezone: string;
-  isActive: boolean;
-  settings: OrganizationSettings;
-  hipaaOfficer?: string;
-  businessAssociateAgreement?: boolean;
-  dataRetentionYears?: string;
-}
-
-export interface OrganizationSettings {
-  features?: {
-    multiTenant?: boolean;
-    advancedReporting?: boolean;
-    apiAccess?: boolean;
-    customBranding?: boolean;
-  };
-  billing?: {
-    plan?: string;
-    status?: string;
-  };
-  notifications?: {
-    email?: boolean;
-    sms?: boolean;
-  };
-}
-
 export interface Member {
   id: string;
   organizationId: string;

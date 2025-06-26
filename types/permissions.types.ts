@@ -1,7 +1,8 @@
 // types/permissions.types.ts
 import { HEALTHCARE_RESOURCES, HEALTHCARE_ACTIONS, HEALTHCARE_ROLES } from '@/lib/permissions/healthcare-permissions-constants';
 import { User } from 'better-auth';
-import { Member, Organization } from 'better-auth/plugins';
+import { Organization } from '@/types/organization.types';
+import { Member } from 'better-auth/plugins';
 
 export type HealthcareResource = typeof HEALTHCARE_RESOURCES[keyof typeof HEALTHCARE_RESOURCES];
 export type HealthcareAction = typeof HEALTHCARE_ACTIONS[keyof typeof HEALTHCARE_ACTIONS];

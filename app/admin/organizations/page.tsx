@@ -136,23 +136,20 @@ export default async function OrganizationsPage({
           metadataContactEmail: org.metadata?.contactEmail,
         });
 
-        const transformed = {
+        const transformed: OrganizationListItem = {
           id: org.id,
           name: org.name,
-          slug: org.slug || "",
-          // FIXED: Ensure proper type extraction and typing
-          type: (org.metadata?.type as "admin" | "client") || "client",
+          slug: org.slug,
+          logo: org.logo,
+          type: org.metadata?.type === "admin" ? "admin" : "client",
           contactEmail: org.metadata?.contactEmail || "",
           contactPhone: org.metadata?.contactPhone || "",
           city: org.metadata?.city || "",
           state: org.metadata?.state || "",
-          // Add missing properties for OrganizationListItem
-          status: org.metadata?.status || "",
           country: org.metadata?.country || "",
-          // FIXED: Ensure proper boolean handling
-          isActive: org.metadata?.isActive ?? true,
+          isActive: org.metadata?.isActive,
           createdAt: org.createdAt,
-          updatedAt: org.updatedAt,
+          status: org.metadata?.status || "active",
         };
 
         console.log(`✅ Transformed result ${index + 1}:`, transformed);

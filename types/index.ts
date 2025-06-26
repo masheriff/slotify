@@ -11,3 +11,4 @@ export * from './store.types';
 export * from './filter-form.types';
 export * from './seed.types';
 export * from './list-page.types'; // FIXED EXPORT
+export * from './organization.types';

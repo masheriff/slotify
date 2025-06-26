@@ -54,21 +54,7 @@ export interface OrganizationTableRow {
   metadata: OrganizationMetadata;
 }
 
-// For list item display - flattened structure used in your page.tsx
-export interface OrganizationListItem {
-  id: string;
-  name: string;
-  slug?: string;
-  logo?: string;
-  type: "admin" | "client";
-  contactEmail: string;
-  contactPhone: string;
-  city: string;
-  state: string;
-  isActive: boolean;
-  createdAt: Date | string;
-  updatedAt?: Date | string;
-}
+
 
 // Form data interface
 export interface OrganizationFormData {
