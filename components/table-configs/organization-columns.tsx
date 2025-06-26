@@ -15,9 +15,6 @@ import {
 import { format } from "date-fns";
 import { MoreHorizontal, Eye, Edit, Users, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useLoadingControl } from "@/lib/with-loading";
-import { toast } from "sonner";
-
 // Import your organization type - adjust the import path as needed
 import { OrganizationListItem } from "@/types";
 
@@ -43,7 +40,6 @@ function OrganizationActionsCell({
     id: string;
     name: string;
   } | null>(null);
-  const { withLoadingState } = useLoadingControl();
 
   const handleViewDetails = () => {
     router.push(`/admin/organizations/${organization.id}`);

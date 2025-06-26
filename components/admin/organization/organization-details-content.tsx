@@ -2,7 +2,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useLoadingControl } from "@/lib/with-loading";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,38 +41,19 @@ export function OrganizationDetailsContent({
   organizationId 
 }: OrganizationDetailsContentProps) {
   const router = useRouter();
-  const { withLoadingState, isLoading } = useLoadingControl();
   
   const metadata = organization.metadata as any;
   
   const handleEdit = () => {
-    withLoadingState(
-      'organization-edit-navigation',
-      async () => {
-        router.push(`/admin/organizations/${organizationId}/edit`);
-      },
-      'Navigating to edit page...'
-    );
+    router.push(`/admin/organizations/${organizationId}/edit`);
   };
 
   const handleManageMembers = () => {
-    withLoadingState(
-      'organization-members-navigation',
-      async () => {
-        router.push(`/admin/organizations/${organizationId}/members`);
-      },
-      'Loading members page...'
-    );
+    router.push(`/admin/organizations/${organizationId}/members`);
   };
 
   const handleInviteUser = () => {
-    withLoadingState(
-      'organization-invite-navigation',
-      async () => {
-        router.push(`/admin/organizations/${organizationId}/invite`);
-      },
-      'Loading invite page...'
-    );
+    router.push(`/admin/organizations/${organizationId}/invite`);
   };
 
   return (
@@ -106,7 +86,6 @@ export function OrganizationDetailsContent({
             variant="outline"
             size="sm"
             onClick={handleInviteUser}
-            disabled={isLoading("organization-invite-navigation")}
             className="gap-2"
           >
             <UserPlus className="h-4 w-4" />
@@ -116,7 +95,6 @@ export function OrganizationDetailsContent({
             variant="outline"
             size="sm"
             onClick={handleManageMembers}
-            disabled={isLoading("organization-members-navigation")}
             className="gap-2"
           >
             <Users className="h-4 w-4" />
@@ -130,7 +108,6 @@ export function OrganizationDetailsContent({
           <Button
             size="sm"
             onClick={handleEdit}
-            disabled={isLoading("organization-edit-navigation")}
             className="gap-2"
           >
             <Edit className="h-4 w-4" />

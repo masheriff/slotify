@@ -1,4 +1,4 @@
-// app/admin/organizations/page.tsx - FIXED data access
+// app/admin/organizations/page.tsx - FIXED pagination data access
 import {
   parseListParams,
   fetchListData,
@@ -18,6 +18,7 @@ import {
   Organization,
   OrganizationListItem,
 } from "@/types";
+import { getErrorMessage } from "@/types/server-actions.types";
 
 interface OrganizationsPageProps {
   searchParams: Promise<{
@@ -69,34 +70,23 @@ export default async function OrganizationsPage({
       );
     }
 
-    const wrappedListOrganizations = async (params: ListParams) => {
-      console.log("🔄 Wrapping ListParams for listOrganizations:", params);
-
-      return await listOrganizations({
-        page: params.page,
-        pageSize: params.pageSize,
-        search: params.searchQuery || undefined,
-        sortBy: params.sortBy || undefined,
-        sortDirection: params.sortDirection || undefined,
-        // Extract filters from the filters object
-        type: params.filters.type || undefined,
-        status: params.filters.status || undefined,
-        contactEmail: params.filters.contactEmail || undefined,
-        createdAfter: params.filters.createdAfter || undefined,
-      });
-    };
-
-    // Then update your fetchListData call to use the wrapper:
-    const result = await fetchListData<Organization>(
-      wrappedListOrganizations, // Use the wrapper instead of listOrganizations directly
-      params,
-      { module: "organizations", user }
-    );
+    // Call listOrganizations directly since it returns the correct structure
+    const result = await listOrganizations({
+      page: params.page,
+      pageSize: params.pageSize,
+      search: params.searchQuery || undefined,
+      sortBy: params.sortBy || undefined,
+      sortDirection: params.sortDirection || undefined,
+      type: params.filters.type || undefined,
+      status: params.filters.status || undefined,
+      contactEmail: params.filters.contactEmail || undefined,
+      createdAfter: params.filters.createdAfter || undefined,
+    });
 
     if (!result.success || !result.data) {
       return (
         <ListPageWrapper
-          error={result.error || "Failed to load organizations"}
+          error={getErrorMessage(result.error ?? "Failed to load organizations")}
           breadcrumbs={[
             { label: "Admin", href: "/admin" },
             { label: "Organizations", current: true },
@@ -105,22 +95,22 @@ export default async function OrganizationsPage({
       );
     }
 
-    // FIXED: Now we access data directly since fetchListData no longer double-wraps
-    const paginationData = result.data;
-    const organizationsArray = paginationData.data;
+    // FIXED: Access the correct data structure
+    const organizationsArray = result.data.data;
+    const paginationInfo = result.data.pagination;
 
     console.log("🔍 Debug pagination data:", {
-      totalCount: paginationData.totalCount,
-      totalPages: paginationData.totalPages,
-      currentPage: paginationData.page,
-      pageSize: paginationData.pageSize,
+      totalCount: paginationInfo.totalCount,
+      totalPages: paginationInfo.totalPages,
+      currentPage: paginationInfo.page,
+      pageSize: paginationInfo.pageSize,
       arrayLength: organizationsArray.length,
     });
 
     handleListPageRedirect(
       "/admin/organizations",
       params,
-      paginationData.totalPages
+      paginationInfo.totalPages
     );
 
     const tableData: OrganizationListItem[] = organizationsArray.map(
@@ -168,7 +158,15 @@ export default async function OrganizationsPage({
     });
 
     const renderTime = Date.now() - startTime;
-    logListPageMetrics("organizations", params, result, renderTime);
+    logListPageMetrics(
+      "organizations",
+      params,
+      {
+        ...result,
+        error: getErrorMessage(getErrorMessage(result.error ?? "An error occurred")),
+      },
+      renderTime
+    );
 
     return (
       <ListPageWrapper
@@ -190,12 +188,13 @@ export default async function OrganizationsPage({
             columns={organizationColumns}
             data={tableData}
             pagination={{
-              currentPage: paginationData.page,
-              pageSize: paginationData.pageSize,
-              totalPages: paginationData.totalPages,
-              hasNextPage: paginationData.hasNextPage,
-              hasPreviousPage: paginationData.hasPreviousPage,
-              totalCount: paginationData.totalCount,
+              // FIXED: Use correct property names and data source
+              currentPage: paginationInfo.page,
+              pageSize: paginationInfo.pageSize,
+              totalPages: paginationInfo.totalPages,
+              hasNextPage: paginationInfo.hasNextPage,
+              hasPreviousPage: paginationInfo.hasPreviousPage,
+              totalCount: paginationInfo.totalCount, // This should fix the NaN issue
             }}
             sorting={{
               sortBy: params.sortBy,

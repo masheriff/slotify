@@ -8,7 +8,6 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -44,7 +43,6 @@ import {
   OrganizationInput,
 } from "@/actions/organization-actions";
 import {
-  uploadOrganizationLogo,
   deleteFile,
 } from "@/actions/file-upload-actions";
 import {

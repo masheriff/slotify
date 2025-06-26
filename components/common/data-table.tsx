@@ -32,7 +32,6 @@ import {
   ChevronRight, 
   ChevronsLeft, 
   ChevronsRight,
-  Loader2
 } from "lucide-react"
 
 // Updated interface to match your existing pattern

@@ -2,7 +2,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useLoadingControl } from "@/lib/with-loading";
 
 export interface NotFoundNavigationOptions {
   /** The base list route to go back to (e.g., "/admin/organizations") */
@@ -21,36 +20,17 @@ export function useNotFoundNavigation({
   onRefresh,
 }: NotFoundNavigationOptions) {
   const router = useRouter();
-  const { withLoadingState } = useLoadingControl();
 
   const goBack = () => {
-    withLoadingState(
-      'not-found-back-navigation',
-      async () => {
-        router.push(listRoute);
-      },
-      'Going back...'
-    );
+    router.push(listRoute);
   };
 
   const goHome = () => {
-    withLoadingState(
-      'not-found-home-navigation',
-      async () => {
-        router.push(homeRoute);
-      },
-      'Going home...'
-    );
+    router.push(homeRoute);
   };
 
   const refresh = onRefresh ? () => {
-    withLoadingState(
-      'not-found-refresh',
-      async () => {
-        onRefresh();
-      },
-      'Refreshing...'
-    );
+    onRefresh();
   } : undefined;
 
   return {
