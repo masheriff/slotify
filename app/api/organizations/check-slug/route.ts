@@ -1,6 +1,6 @@
 // app/api/organizations/check-slug/route.ts
+import { checkSlugAvailability } from "@/actions/organization-actions"
 import { NextRequest, NextResponse } from "next/server"
-import { checkSlugAvailability } from "@/actions/file-upload-actions"
 
 export async function GET(request: NextRequest) {
   try {

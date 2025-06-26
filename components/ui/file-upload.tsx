@@ -1,7 +1,8 @@
-// components/ui/file-upload.tsx
+// Fix for components/ui/file-upload.tsx
+
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Upload, X, File, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -31,7 +32,17 @@ export function FileUpload({
   const [isDragging, setIsDragging] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [uploadTimeout, setUploadTimeout] = useState<NodeJS.Timeout | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Clean up timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (uploadTimeout) {
+        clearTimeout(uploadTimeout)
+      }
+    }
+  }, [uploadTimeout])
 
   const handleFileUpload = useCallback(async (file: File) => {
     if (file.size > maxSize) {
@@ -39,23 +50,43 @@ export function FileUpload({
       return
     }
 
+    console.log(`Starting upload for ${file.name}, type: ${file.type}`)
     setIsUploading(true)
+    
+    // Set a timeout to prevent infinite loops
+    const timeout = setTimeout(() => {
+      if (isUploading) {
+        console.warn("Upload timeout reached - preventing infinite loop")
+        setIsUploading(false)
+        toast.error("Upload timed out. Please try again.")
+      }
+    }, 30000) // 30 second timeout
+    
+    setUploadTimeout(timeout)
+    
     try {
       const result = await onUpload(file)
+      // Clear the timeout since we got a response
+      clearTimeout(timeout)
+      setUploadTimeout(null)
+      
       if (result.success) {
-        // Don't show success toast here - let the parent handle it
-        // The parent (organization form) already shows success toast
         console.log('File uploaded successfully:', result.url)
       } else {
+        console.error('Upload failed:', result.error)
         toast.error(result.error || "Upload failed")
       }
     } catch (error) {
+      // Clear the timeout since we got an error
+      clearTimeout(timeout)
+      setUploadTimeout(null)
+      
       console.error('Upload error:', error)
       toast.error("Upload failed")
     } finally {
       setIsUploading(false)
     }
-  }, [onUpload, maxSize])
+  }, [onUpload, maxSize, isUploading])
 
   const handleFileRemove = useCallback(async () => {
     if (!value || !onRemove) return
@@ -64,7 +95,6 @@ export function FileUpload({
     try {
       const result = await onRemove(value)
       if (result.success) {
-        // Don't show success toast here - let the parent handle it
         console.log('File removed successfully')
       } else {
         toast.error(result.error || "Remove failed")
@@ -101,6 +131,9 @@ export function FileUpload({
     const files = e.target.files
     if (files && files.length > 0 && !disabled && !isUploading) {
       handleFileUpload(files[0])
+      
+      // Reset the input value so the same file can be selected again if needed
+      e.target.value = ''
     }
   }, [disabled, isUploading, handleFileUpload])
 
@@ -122,6 +155,12 @@ export function FileUpload({
             src={value} 
             alt={fileName}
             className="h-8 w-auto object-contain shrink-0 rounded"
+            onError={(e) => {
+              // Handle image load errors
+              console.error('Image failed to load:', value)
+              const target = e.target as HTMLImageElement
+              target.src = '/placeholder-image.png' // Fallback image
+            }}
           />
         ) : (
           <File className="h-4 w-4 text-muted-foreground shrink-0" />

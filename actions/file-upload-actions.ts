@@ -1,4 +1,5 @@
-// actions/file-upload-actions.ts
+// Fix for file-upload-actions.ts
+
 "use server"
 
 import { writeFile, unlink, mkdir } from "fs/promises"
@@ -6,8 +7,17 @@ import { join } from "path"
 import { generateId } from "better-auth"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-// Added webp to allowed types
+// Added webp to allowed types with correct handling
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]
+
+// Map MIME types to extensions to ensure consistency
+const MIME_TO_EXTENSION = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/svg+xml": "svg"
+}
 
 interface UploadResult {
   success: boolean
@@ -22,6 +32,15 @@ interface DeleteResult {
 
 // Validate file type and size
 function validateFile(file: File, allowedTypes: string[] = ALLOWED_IMAGE_TYPES): { valid: boolean; error?: string } {
+  if (!file) {
+    return {
+      valid: false,
+      error: "No file provided"
+    }
+  }
+  
+  console.log(`Validating file: ${file.name}, type: ${file.type}, size: ${file.size}`)
+  
   if (file.size > MAX_FILE_SIZE) {
     return {
       valid: false,
@@ -40,14 +59,15 @@ function validateFile(file: File, allowedTypes: string[] = ALLOWED_IMAGE_TYPES):
 }
 
 // Generate file path based on upload type
-function generateFilePath(uploadType: "organizations" | "general", filename: string): string {
+function generateFilePath(uploadType: "organizations" | "general", file: File): string {
   const now = new Date()
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
   const day = String(now.getDate()).padStart(2, '0')
   const time = now.getTime()
   
-  const extension = filename.split('.').pop()
+  // Use reliable method to get extension from MIME type
+  let extension = MIME_TO_EXTENSION[file.type as keyof typeof MIME_TO_EXTENSION] || file.name.split('.').pop() || 'bin'
   const fileId = generateId()
   
   if (uploadType === "organizations") {
@@ -64,6 +84,7 @@ async function ensureDirectoryExists(filePath: string): Promise<void> {
     await mkdir(dir, { recursive: true })
   } catch (error) {
     // Directory might already exist, which is fine
+    console.log("Directory creation result:", error)
   }
 }
 
@@ -75,26 +96,41 @@ export async function uploadOrganizationLogo(formData: FormData): Promise<Upload
       return { success: false, error: "No file provided" }
     }
 
+    console.log(`Processing upload: ${file.name}, type: ${file.type}, size: ${file.size}`)
+
     // Validate file
     const validation = validateFile(file)
     if (!validation.valid) {
+      console.log("Validation failed:", validation.error)
       return { success: false, error: validation.error }
     }
 
     // Generate file path
-    const filePath = generateFilePath("organizations", file.name)
+    const filePath = generateFilePath("organizations", file)
     const fullPath = join(process.cwd(), "public", filePath)
+
+    console.log(`Saving to path: ${fullPath}`)
 
     // Ensure directory exists
     await ensureDirectoryExists(filePath)
 
-    // Convert file to buffer and save
-    const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    await writeFile(fullPath, buffer)
+    // Convert file to buffer and save with explicit error handling
+    try {
+      const bytes = await file.arrayBuffer()
+      const buffer = Buffer.from(bytes)
+      await writeFile(fullPath, buffer)
+      console.log("File written successfully")
+    } catch (writeError) {
+      console.error("Error writing file:", writeError)
+      return {
+        success: false,
+        error: writeError instanceof Error ? writeError.message : "Failed to save file"
+      }
+    }
 
     // Return public URL
     const publicUrl = `/${filePath.replace(/\\/g, '/')}`
+    console.log("Upload successful, URL:", publicUrl)
     
     return {
       success: true,
@@ -131,7 +167,7 @@ export async function uploadGeneralFile(formData: FormData): Promise<UploadResul
     }
 
     // Generate file path
-    const filePath = generateFilePath("general", file.name)
+    const filePath = generateFilePath("general", file)
     const fullPath = join(process.cwd(), "public", filePath)
 
     // Ensure directory exists
@@ -176,67 +212,5 @@ export async function deleteFile(fileUrl: string): Promise<DeleteResult> {
       success: false,
       error: error instanceof Error ? error.message : "Delete failed"
     }
-  }
-}
-
-// Helper function to validate organization slug uniqueness
-export async function checkSlugAvailability(slug: string, excludeOrgId?: string): Promise<{ available: boolean; suggestedSlug?: string }> {
-  try {
-    const { db } = await import("@/db")
-    const { organizations } = await import("@/db/schema")
-    const { eq, and, ne, SQL } = await import("drizzle-orm")
-
-    // Build query with proper typing
-    let query
-    if (excludeOrgId) {
-      const condition = and(eq(organizations.slug, slug), ne(organizations.id, excludeOrgId))
-      if (!condition) {
-        throw new Error("Failed to build query condition")
-      }
-      query = condition
-    } else {
-      query = eq(organizations.slug, slug)
-    }
-
-    const existing = await db.select().from(organizations).where(query).limit(1)
-
-    if (existing.length === 0) {
-      return { available: true }
-    }
-
-    // Generate suggested slug
-    let counter = 1
-    let suggestedSlug = `${slug}-${counter}`
-    
-    while (true) {
-      let suggestedQuery
-      if (excludeOrgId) {
-        const condition = and(eq(organizations.slug, suggestedSlug), ne(organizations.id, excludeOrgId))
-        if (!condition) {
-          throw new Error("Failed to build suggested query condition")
-        }
-        suggestedQuery = condition
-      } else {
-        suggestedQuery = eq(organizations.slug, suggestedSlug)
-      }
-
-      const suggestedExists = await db.select().from(organizations).where(suggestedQuery).limit(1)
-      
-      if (suggestedExists.length === 0) {
-        break
-      }
-      
-      counter++
-      suggestedSlug = `${slug}-${counter}`
-    }
-
-    return { 
-      available: false, 
-      suggestedSlug 
-    }
-
-  } catch (error) {
-    console.error("Slug check error:", error)
-    return { available: false }
   }
 }

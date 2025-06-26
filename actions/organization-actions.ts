@@ -160,6 +160,7 @@ export async function updateOrganization(
 ): Promise<ServerActionResponse> {
   try {
     console.log("✏️ Updating organization:", organizationId);
+    console.log("📝 Update data:", JSON.stringify(data));
 
     // Check authentication first
     const session = await getServerSession();
@@ -181,56 +182,99 @@ export async function updateOrganization(
     }
 
     // Validate the data
-    const validatedData = organizationDataSchema.parse(data);
-    console.log("✅ Validation passed, updating organization:", validatedData);
+    try {
+      const validatedData = organizationDataSchema.parse(data);
+      console.log("✅ Validation passed, updating organization:", validatedData);
+    } catch (validationError) {
+      console.error("❌ Validation error:", validationError);
+      // Return more detailed validation errors
+      if (validationError instanceof z.ZodError) {
+        return {
+          success: false,
+          error: "Validation failed",
+          validationErrors: validationError.errors.map(err => ({
+            message: err.message,
+            path: err.path,
+            code: err.code
+          })),
+        };
+      }
+      throw validationError; // Re-throw if not a Zod error
+    }
 
     // Check if slug already exists for other organizations
-    const existingOrg = await db
-      .select({ id: organizations.id })
-      .from(organizations)
-      .where(and(
-        eq(organizations.slug, validatedData.slug),
-        eq(organizations.id, organizationId)
-      ))
-      .limit(1);
-
-    if (existingOrg.length === 0) {
-      // Check if another org has this slug
+    if (data.slug) {
       const duplicateOrg = await db
         .select({ id: organizations.id })
         .from(organizations)
-        .where(eq(organizations.slug, validatedData.slug))
+        .where(and(
+          eq(organizations.slug, data.slug),
+          sql`${organizations.id} != ${organizationId}`
+        ))
         .limit(1);
 
       if (duplicateOrg.length > 0) {
         return {
           success: false,
-          error: `Organization with slug "${validatedData.slug}" already exists`,
+          error: `Organization with slug "${data.slug}" already exists`,
         };
       }
     }
 
+    // Get current organization to ensure we don't lose data
+    const [existingOrg] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+
+    if (!existingOrg) {
+      return {
+        success: false,
+        error: "Organization not found",
+      };
+    }
+
+    // Merge existing metadata with updates
+    const updatedMetadata = {
+      ...(existingOrg.metadata ?? {}),
+      ...data.metadata,
+    };
+
+    // Prepare update data
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    // Only include fields that are provided in the update
+    if (data.name) updateData.name = data.name;
+    if (data.slug) updateData.slug = data.slug;
+    
+    // Handle logo field - empty string means remove logo
+    if (data.logo !== undefined) {
+      updateData.logo = data.logo;
+    }
+    
+    // Always update metadata with merged data
+    updateData.metadata = updatedMetadata;
+
+    console.log("📝 Final update data:", updateData);
+
     // Update organization in database
     const [updatedOrg] = await db
       .update(organizations)
-      .set({
-        name: validatedData.name,
-        slug: validatedData.slug,
-        logo: validatedData.logo,
-        metadata: validatedData.metadata,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(eq(organizations.id, organizationId))
       .returning();
 
     if (!updatedOrg) {
       return {
         success: false,
-        error: "Organization not found or update failed",
+        error: "Update failed - no rows affected",
       };
     }
 
-    console.log("✅ Organization updated successfully:", updatedOrg);
+    console.log("✅ Organization updated successfully:", updatedOrg.id);
     return {
       success: true,
       data: { 
@@ -269,7 +313,9 @@ export async function updateOrganization(
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update organization",
+      error: error instanceof Error
+        ? error.message
+        : "Failed to update organization",
     };
   }
 }
@@ -624,3 +670,64 @@ export async function listOrganizations(params: {
 }
 
 export type OrganizationResponse = Awaited<ReturnType<typeof getOrganizationById>>;
+
+export async function checkSlugAvailability(slug: string, excludeOrgId?: string): Promise<{ available: boolean; suggestedSlug?: string }> {
+  try {
+    const { db } = await import("@/db")
+    const { organizations } = await import("@/db/schema")
+    const { eq, and, ne, SQL } = await import("drizzle-orm")
+
+    // Build query with proper typing
+    let query
+    if (excludeOrgId) {
+      const condition = and(eq(organizations.slug, slug), ne(organizations.id, excludeOrgId))
+      if (!condition) {
+        throw new Error("Failed to build query condition")
+      }
+      query = condition
+    } else {
+      query = eq(organizations.slug, slug)
+    }
+
+    const existing = await db.select().from(organizations).where(query).limit(1)
+
+    if (existing.length === 0) {
+      return { available: true }
+    }
+
+    // Generate suggested slug
+    let counter = 1
+    let suggestedSlug = `${slug}-${counter}`
+    
+    while (true) {
+      let suggestedQuery
+      if (excludeOrgId) {
+        const condition = and(eq(organizations.slug, suggestedSlug), ne(organizations.id, excludeOrgId))
+        if (!condition) {
+          throw new Error("Failed to build suggested query condition")
+        }
+        suggestedQuery = condition
+      } else {
+        suggestedQuery = eq(organizations.slug, suggestedSlug)
+      }
+
+      const suggestedExists = await db.select().from(organizations).where(suggestedQuery).limit(1)
+      
+      if (suggestedExists.length === 0) {
+        break
+      }
+      
+      counter++
+      suggestedSlug = `${slug}-${counter}`
+    }
+
+    return { 
+      available: false, 
+      suggestedSlug 
+    }
+
+  } catch (error) {
+    console.error("Slug check error:", error)
+    return { available: false }
+  }
+}
