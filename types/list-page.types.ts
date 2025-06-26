@@ -123,6 +123,7 @@ export interface BaseListItem {
 
 // Organization List Item interface
 export interface OrganizationListItem extends BaseListItem {
+  isActive: any;
   name: string;
   slug?: string;
   logo?: string;

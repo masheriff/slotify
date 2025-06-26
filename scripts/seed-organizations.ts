@@ -16,7 +16,7 @@ import {
 import { HEALTHCARE_ROLES } from "@/lib/permissions/healthcare-permissions-constants";
 import { eq, and } from "drizzle-orm";
 import { generateId } from "better-auth";
-import { SeedOrganization } from "@/types";
+import { SeedOrganization, SeedUser } from "@/types";
 
 /**
  * Enhanced seed script using direct database operations
