@@ -98,7 +98,7 @@ export default async function OrganizationsPage({
       id: org.id,
       name: org.name,
       slug: org.slug || '',
-      type: org.metadata?.type || 'client',
+    type: (org.metadata?.type as "admin" | "client") || 'client',
       contactEmail: org.metadata?.contactEmail || '',
       contactPhone: org.metadata?.contactPhone || '',
       country: org.metadata?.country || '',

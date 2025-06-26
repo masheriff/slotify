@@ -8,7 +8,7 @@ import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
 import { isSuperAdmin } from "@/lib/permissions/healthcare-access-control";
 import { db } from "@/db";
 import { organizations, members } from "@/db/schema";
-import { eq, and, like, or, desc, asc, count } from "drizzle-orm";
+import { eq, and, like, or, desc, asc, count, sql, gte } from "drizzle-orm";
 import { ServerActionResponse } from "@/types/server-actions.types";
 import { OrganizationMetadata } from "@/types/organization.types";
 
@@ -456,6 +456,8 @@ export async function listOrganizations(params: {
   sortDirection?: 'asc' | 'desc';
   type?: string;
   status?: string;
+  contactEmail?: string;
+  createdAfter?: string;
 }): Promise<ServerActionResponse> {
   try {
     console.log("📋 Listing organizations with params:", params);
@@ -478,6 +480,7 @@ export async function listOrganizations(params: {
       // Build where conditions
       const whereConditions = [];
       
+      // Search condition
       if (params.search) {
         whereConditions.push(
           or(
@@ -485,6 +488,46 @@ export async function listOrganizations(params: {
             like(organizations.slug, `%${params.search}%`)
           )
         );
+      }
+
+      // FIXED: Add type filter
+      if (params.type && params.type.trim()) {
+        console.log("🎯 Applying type filter:", params.type);
+        whereConditions.push(
+          sql`${organizations.metadata}->>'type' = ${params.type.trim()}`
+        );
+      }
+
+      // FIXED: Add status filter (based on isActive)
+      if (params.status && params.status.trim()) {
+        console.log("🎯 Applying status filter:", params.status);
+        const isActive = params.status.trim() === 'active';
+        whereConditions.push(
+          sql`(${organizations.metadata}->>'isActive')::boolean = ${isActive}`
+        );
+      }
+
+      // FIXED: Add contact email filter
+      if (params.contactEmail && params.contactEmail.trim()) {
+        console.log("🎯 Applying contact email filter:", params.contactEmail);
+        whereConditions.push(
+          sql`${organizations.metadata}->>'contactEmail' ILIKE ${'%' + params.contactEmail.trim() + '%'}`
+        );
+      }
+
+      // FIXED: Add created after filter
+      if (params.createdAfter && params.createdAfter.trim()) {
+        console.log("🎯 Applying created after filter:", params.createdAfter);
+        try {
+          const filterDate = new Date(params.createdAfter.trim());
+          if (!isNaN(filterDate.getTime())) {
+            whereConditions.push(
+              gte(organizations.createdAt, filterDate)
+            );
+          }
+        } catch (error) {
+          console.warn("Invalid createdAfter filter:", params.createdAfter);
+        }
       }
       
       // Build the main query
@@ -501,6 +544,10 @@ export async function listOrganizations(params: {
         sortedQuery = finalQuery.orderBy(sortDirection(organizations.name));
       } else if (params.sortBy === 'createdAt') {
         sortedQuery = finalQuery.orderBy(sortDirection(organizations.createdAt));
+      } else if (params.sortBy === 'type') {
+        sortedQuery = finalQuery.orderBy(
+          sortDirection(sql`${organizations.metadata}->>'type'`)
+        );
       } else {
         sortedQuery = finalQuery.orderBy(desc(organizations.createdAt));
       }
@@ -523,6 +570,13 @@ export async function listOrganizations(params: {
       
       const totalCount = totalCountResult[0]?.count || 0;
       const totalPages = Math.ceil(totalCount / params.pageSize);
+
+      console.log("📊 Query results:", {
+        totalCount,
+        totalPages,
+        currentPage: params.page,
+        returnedOrgs: allOrgs.length
+      });
       
       return {
         success: true,

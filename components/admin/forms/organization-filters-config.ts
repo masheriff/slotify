@@ -1,5 +1,7 @@
 // components/admin/forms/organization-filters-config.ts
-import { FilterConfig } from "@/lib/types/list-page"
+
+import { FilterConfig } from "@/types";
+
 
 export const organizationFilterConfig: FilterConfig[] = [
   {
@@ -23,12 +25,12 @@ export const organizationFilterConfig: FilterConfig[] = [
     options: [
       { value: "active", label: "Active" },
       { value: "inactive", label: "Inactive" },
-      { value: "suspended", label: "Suspended" },
     ],
   },
   {
     label: "Contact Email",
     key: "contactEmail",
     type: "text",
+    placeholder: "Search by email...",
   },
 ]
