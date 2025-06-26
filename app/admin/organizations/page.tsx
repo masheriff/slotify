@@ -12,9 +12,9 @@ import { FilterablePageHeader } from "@/components/common/filterable-page-header
 import { DataTable } from "@/components/common/data-table";
 import { organizationColumns } from "@/components/table-configs/organization-columns";
 import { organizationFilterConfig } from "@/components/admin/forms/organization-filters-config";
-import { listOrganizations, OrganizationData, OrganizationResponse } from "@/actions/organization-actions";
+import { listOrganizations } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
-import { ListDataResult, OrganizationListItem } from "@/types";
+import { ListDataResult, Organization, OrganizationListItem } from "@/types";
 
 interface OrganizationsPageProps {
   searchParams: Promise<{
@@ -62,7 +62,7 @@ export default async function OrganizationsPage({
       );
     }
 
-    const result = await fetchListData<OrganizationData>(
+    const result = await fetchListData<Organization>(
       listOrganizations,
       params,
       { module: 'organizations', user }
@@ -101,6 +101,7 @@ export default async function OrganizationsPage({
       type: org.metadata?.type || 'client',
       contactEmail: org.metadata?.contactEmail || '',
       contactPhone: org.metadata?.contactPhone || '',
+      country: org.metadata?.country || '',
       city: org.metadata?.city || '',
       state: org.metadata?.state || '',
       isActive: org.metadata?.isActive ?? true,

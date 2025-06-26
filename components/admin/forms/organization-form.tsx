@@ -138,20 +138,18 @@ export function OrganizationForm({
 }: OrganizationFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(mode === "edit");
   const [slugStatus, setSlugStatus] = useState<SlugStatus>(null);
+  const [slugCheckTimeout, setSlugCheckTimeout] = useState<NodeJS.Timeout>();
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Refs for managing debounced operations
-  const slugCheckTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const lastCheckedSlugRef = useRef<string>("");
-
+  // Form setup with default values
   const form = useForm<OrganizationFormData>({
     resolver: zodResolver(organizationFormSchema),
     defaultValues: {
       name: "",
       slug: "",
-      logo: undefined,
-      type: "client",
+      logo: "",
+      type: "client", // Default to client
       contactEmail: "",
       contactPhone: "",
       addressLine1: "",
@@ -159,187 +157,159 @@ export function OrganizationForm({
       city: "",
       state: "",
       postalCode: "",
-      country: "",
-      timezone: "",
+      country: "United States",
+      timezone: "America/New_York",
       hipaaOfficer: "",
       businessAssociateAgreement: false,
       dataRetentionYears: "",
     },
-    mode: "onChange",
   });
 
-  // Memoized slug generation function
-  const generateSlugFromName = useCallback((name: string): string => {
+  // Load existing organization data in edit mode
+  useEffect(() => {
+    const loadOrganizationData = async () => {
+      if (mode === "edit" && organizationId) {
+        setIsLoading(true);
+        try {
+          const result = await getOrganizationById(organizationId);
+          if (result.success && result.data) {
+            const org = result.data;
+            const metadata = org.metadata || {};
+
+            // Populate form with existing data
+            form.reset({
+              name: org.name || "",
+              slug: org.slug || "",
+              logo: org.logo || "",
+              type: metadata.type || "client",
+              contactEmail: metadata.contactEmail || "",
+              contactPhone: metadata.contactPhone || "",
+              addressLine1: metadata.addressLine1 || "",
+              addressLine2: metadata.addressLine2 || "",
+              city: metadata.city || "",
+              state: metadata.state || "",
+              postalCode: metadata.postalCode || "",
+              country: metadata.country || "United States",
+              timezone: metadata.timezone || "America/New_York",
+              hipaaOfficer: metadata.hipaaOfficer || "",
+              businessAssociateAgreement:
+                metadata.businessAssociateAgreement || false,
+              dataRetentionYears: metadata.dataRetentionYears || "",
+            });
+          }
+        } catch (error) {
+          console.error("Failed to load organization data:", error);
+          toast.error("Failed to load organization data");
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadOrganizationData();
+  }, [mode, organizationId, form]);
+
+  // Slug generation from name
+  const generateSlug = useCallback((name: string): string => {
     return name
       .toLowerCase()
       .replace(/[^a-z0-9\s-]/g, "")
       .replace(/\s+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "");
+      .replace(/--+/g, "-")
+      .trim();
   }, []);
 
-  // Debounced slug availability checker
-  const checkSlugAvailabilityFunc = useCallback(
-    async (slug: string) => {
-      if (!slug || slug.length < 2 || slug === lastCheckedSlugRef.current) {
+  // Auto-generate slug when name changes (only in create mode)
+  const name = form.watch("name");
+  const slug = form.watch("slug");
+
+  useEffect(() => {
+    if (mode === "create" && name && (!slug || slug === generateSlug(name))) {
+      const newSlug = generateSlug(name);
+      form.setValue("slug", newSlug);
+    }
+  }, [name, slug, mode, form, generateSlug]);
+
+  // Debounced slug availability check
+  const checkSlugAvailability = useCallback(
+    async (slugToCheck: string) => {
+      if (!slugToCheck || slugToCheck.length < 2) {
+        setSlugStatus(null);
         return;
       }
 
-      lastCheckedSlugRef.current = slug;
-      setSlugStatus("checking");
+      // Clear existing timeout
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
 
-      try {
-        const result = await checkSlugAvailabilityAPI(
-          slug,
-          mode === "edit" ? organizationId : undefined
-        );
+      // Set new timeout
+      debounceTimeoutRef.current = setTimeout(async () => {
+        setSlugStatus("checking");
+        try {
+          const result = await checkSlugAvailabilityAPI(
+            slugToCheck,
+            organizationId
+          );
+          setSlugStatus(result.available ? "available" : "taken");
 
-        // Handle case where result might be undefined or malformed
-        if (!result) {
-          console.error("checkSlugAvailability returned undefined");
-          setSlugStatus(null);
-          return;
-        }
-
-        if (result.available) {
-          setSlugStatus("available");
-        } else {
-          setSlugStatus("taken");
-          if (result.suggestedSlug && mode === "create") {
-            // Set the suggested slug but don't immediately check it
-            // Reset the lastCheckedSlugRef so the suggested slug can be checked
-            lastCheckedSlugRef.current = "";
-            form.setValue("slug", result.suggestedSlug);
-            toast.info(
-              `Slug "${slug}" is taken. Suggested: "${result.suggestedSlug}"`
-            );
-
-            // Check the suggested slug after a brief delay
-            setTimeout(() => {
-              checkSlugAvailabilityFunc(result.suggestedSlug!);
-            }, 100);
+          if (!result.available && result.suggestedSlug) {
+            toast.info(`Slug "${slugToCheck}" is taken. Try "${result.suggestedSlug}"`);
           }
-        }
-      } catch (error) {
-        console.error("Slug check failed:", error);
-        setSlugStatus(null);
-      }
-    },
-    [mode, organizationId, form]
-  );
-
-  // Handle name change with auto-slug generation
-  const handleNameChange = useCallback(
-    (name: string) => {
-      form.setValue("name", name);
-
-      // Only auto-generate slug in create mode
-      if (mode === "create" && name.trim()) {
-        const newSlug = generateSlugFromName(name);
-        const currentSlug = form.getValues("slug");
-
-        if (newSlug !== currentSlug) {
-          form.setValue("slug", newSlug);
-          // Trigger slug check after setting new slug
-          if (slugCheckTimeoutRef.current) {
-            clearTimeout(slugCheckTimeoutRef.current);
-          }
-
-          // Reset slug status and last checked ref for new auto-generated slug
+        } catch (error) {
+          console.error("Slug check failed:", error);
           setSlugStatus(null);
-          lastCheckedSlugRef.current = "";
-
-          slugCheckTimeoutRef.current = setTimeout(() => {
-            checkSlugAvailabilityFunc(newSlug);
-          }, 300);
         }
-      }
+      }, 500);
     },
-    [form, mode, generateSlugFromName, checkSlugAvailabilityFunc]
+    [organizationId]
   );
 
-  // Handle slug change with debounced availability check
-  const handleSlugChange = useCallback(
-    (slug: string) => {
-      form.setValue("slug", slug);
-
-      // Reset the slug status immediately when user types
-      setSlugStatus(null);
-
-      // Cancel previous timeout
-      if (slugCheckTimeoutRef.current) {
-        clearTimeout(slugCheckTimeoutRef.current);
-      }
-
-      if (slug && slug.length >= 2) {
-        slugCheckTimeoutRef.current = setTimeout(() => {
-          checkSlugAvailabilityFunc(slug);
-        }, 500);
-      } else {
-        setSlugStatus(null);
-      }
-    },
-    [form, checkSlugAvailabilityFunc]
-  );
-
-  // Load organization data (only runs once in edit mode)
-const loadOrganizationData = useCallback(async () => {
-  if (!organizationId) return;
-  
-  try {
-    const result = await getOrganizationById(organizationId);
-    
-    if (result.success && result.data) {
-      const { name, slug, logo, metadata } = result.data;
-      
-      form.reset({
-        name: name || "",
-        slug: slug || "",
-        logo: logo === null || logo === undefined || logo === "null" 
-          ? undefined 
-          : logo,
-        type: "client",
-        contactEmail: metadata?.contactEmail || "",
-        contactPhone: metadata?.contactPhone || "",
-        addressLine1: metadata?.addressLine1 || "",
-        addressLine2: metadata?.addressLine2 || "",
-        city: metadata?.city || "",
-        state: metadata?.state || "",
-        postalCode: metadata?.postalCode || "",
-        country: metadata?.country || "",
-        timezone: metadata?.timezone || "",
-        hipaaOfficer: metadata?.hipaaOfficer || "",
-        businessAssociateAgreement: metadata?.businessAssociateAgreement || false,
-        dataRetentionYears: metadata?.dataRetentionYears || "",
-      });
-    } else {
-      toast.error("Failed to load organization data");
-      router.back();
-    }
-  } catch (error) {
-    console.error("Failed to load organization:", error);
-    toast.error("Failed to load organization data");
-    router.back();
-  } finally {
-    setInitialLoading(false);
-  }
-}, [organizationId, form, router]); // Remove mode from dependencies if it doesn't change
-
-  // Initialize data on mount
+  // Watch slug changes and trigger availability check
   useEffect(() => {
-    if (mode === "edit" && organizationId && initialLoading) {
-      loadOrganizationData();
-    } else if (mode === "create") {
-      setInitialLoading(false);
+    if (slug && slug.length >= 2) {
+      checkSlugAvailability(slug);
+    } else {
+      setSlugStatus(null);
     }
-  }, [mode, organizationId, initialLoading, loadOrganizationData]);
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [slug, checkSlugAvailability]);
+
+  // Slug status icon
+  const slugStatusIcon = useMemo(() => {
+    switch (slugStatus) {
+      case "checking":
+        return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
+      case "available":
+        return <Check className="h-4 w-4 text-green-600" />;
+      case "taken":
+        return <AlertCircle className="h-4 w-4 text-red-600" />;
+      default:
+        return null;
+    }
+  }, [slugStatus]);
 
   // Form submission handler
   const onSubmit: SubmitHandler<OrganizationFormData> = async (data) => {
+    if (slugStatus === "taken") {
+      toast.error("Please choose a different slug");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const cleanedLogo = data.logo?.trim() === "" ? undefined : data.logo;
+      console.log("Form data:", data);
+
+      // Clean up empty logo field
+      const cleanedLogo =
+        data.logo && data.logo.trim() !== "" ? data.logo.trim() : undefined;
 
       // Structure the data to match OrganizationInput interface
       const organizationData: OrganizationInput = {
@@ -424,7 +394,9 @@ const loadOrganizationData = useCallback(async () => {
 
       // Handle network or other unexpected errors
       const errorMessage =
-        error instanceof Error ? error.message : "An unexpected error occurred";
+        error instanceof Error
+          ? error.message
+          : "An unexpected error occurred";
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -467,12 +439,13 @@ const loadOrganizationData = useCallback(async () => {
         if (result.success) {
           form.setValue("logo", undefined);
           toast.success("Logo removed successfully!");
+          return result;
         } else {
           toast.error(result.error || "Failed to remove logo");
+          return result;
         }
-        return result;
       } catch (error) {
-        console.error("Logo removal error:", error);
+        console.error("Logo remove error:", error);
         const errorMessage = "Failed to remove logo";
         toast.error(errorMessage);
         return { success: false, error: errorMessage };
@@ -481,27 +454,9 @@ const loadOrganizationData = useCallback(async () => {
     [form]
   );
 
-  // Cleanup timeouts on unmount
-  useMemo(() => {
-    return () => {
-      if (slugCheckTimeoutRef.current) {
-        clearTimeout(slugCheckTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  if (initialLoading) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin" />
-        <span className="ml-2">Loading organization data...</span>
-      </div>
-    );
-  }
-
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         {/* Basic Information */}
         <Card>
           <CardHeader>
@@ -522,9 +477,11 @@ const loadOrganizationData = useCallback(async () => {
                       <Input
                         placeholder="Enter organization name"
                         {...field}
-                        onChange={(e) => handleNameChange(e.target.value)}
                       />
                     </FormControl>
+                    <FormDescription>
+                      The official name of your organization
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -535,38 +492,26 @@ const loadOrganizationData = useCallback(async () => {
                 name="slug"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>URL Slug</FormLabel>
+                    <FormLabel>Organization Slug</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
                           placeholder="organization-slug"
                           {...field}
-                          onChange={(e) => handleSlugChange(e.target.value)}
                           className={cn(
-                            slugStatus === "taken"
-                              ? "border-destructive focus:border-destructive"
-                              : slugStatus === "available"
-                                ? "border-green-500 focus:border-green-500"
-                                : slugStatus === "checking"
-                                  ? "border-blue-500 focus:border-blue-500"
-                                  : ""
+                            slugStatus === "taken" && "border-red-500",
+                            slugStatus === "available" && "border-green-500"
                           )}
                         />
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                          {slugStatus === "checking" && (
-                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                          )}
-                          {slugStatus === "available" && (
-                            <Check className="h-4 w-4 text-green-500" />
-                          )}
-                          {slugStatus === "taken" && (
-                            <AlertCircle className="h-4 w-4 text-destructive" />
-                          )}
-                        </div>
+                        {slugStatusIcon && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            {slugStatusIcon}
+                          </div>
+                        )}
                       </div>
                     </FormControl>
                     <FormDescription>
-                      This will be used in the organization's URL
+                      Unique identifier for URLs (auto-generated from name)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -582,28 +527,29 @@ const loadOrganizationData = useCallback(async () => {
                   <FormLabel>Organization Logo</FormLabel>
                   <FormControl>
                     <FileUpload
-                      accept="image/*"
-                      maxSize={2 * 1024 * 1024} // 2MB
                       onUpload={handleLogoUpload}
                       onRemove={handleLogoRemove}
+                      accept="image/*"
+                      maxSize={5 * 1024 * 1024} // 5MB
                       value={field.value}
-                      className="w-full"
-                      placeholder="Upload organization logo"
+                      disabled={isLoading}
+                      placeholder="Upload organization logo (optional)"
                     />
                   </FormControl>
                   <FormDescription>
-                    Upload a logo for the organization (max 2MB)
+                    Upload a logo for your organization (PNG, JPG, or SVG)
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Hidden organization type field */}
             <FormField
               control={form.control}
               name="type"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="hidden">
                   <FormLabel>Organization Type</FormLabel>
                   <Select
                     onValueChange={field.onChange}
@@ -625,16 +571,17 @@ const loadOrganizationData = useCallback(async () => {
           </CardContent>
         </Card>
 
-        {/* Contact Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
-            <CardDescription>
-              Primary contact details for the organization
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Contact Information and Address Information - Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+          {/* Contact Information */}
+          <Card className="col-span-3">
+            <CardHeader>
+              <CardTitle>Contact Information</CardTitle>
+              <CardDescription>
+                Primary contact details for the organization
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <FormField
                 control={form.control}
                 name="contactEmail"
@@ -665,49 +612,50 @@ const loadOrganizationData = useCallback(async () => {
                   </FormItem>
                 )}
               />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Address Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Address Information</CardTitle>
-            <CardDescription>
-              Physical address of the organization
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
-              <FormField
-                control={form.control}
-                name="addressLine1"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address Line 1</FormLabel>
-                    <FormControl>
-                      <Input placeholder="123 Main Street" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+          {/* Address Information */}
+          <Card className="col-span-7">
+            <CardHeader>
+              <CardTitle>Address Information</CardTitle>
+              <CardDescription>
+                Physical address of the organization
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Address Line 1 and 2 on same row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="addressLine1"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address Line 1</FormLabel>
+                      <FormControl>
+                        <Input placeholder="123 Main Street" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="addressLine2"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Address Line 2 (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Suite 100" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <FormField
+                  control={form.control}
+                  name="addressLine2"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address Line 2</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Suite 100" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FormField
                   control={form.control}
                   name="city"
@@ -751,16 +699,30 @@ const loadOrganizationData = useCallback(async () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="country"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Country</FormLabel>
-                      <FormControl>
-                        <Input placeholder="United States" {...field} />
-                      </FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="United States">United States</SelectItem>
+                          <SelectItem value="Canada">Canada</SelectItem>
+                          <SelectItem value="United Kingdom">United Kingdom</SelectItem>
+                          <SelectItem value="Australia">Australia</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -782,19 +744,15 @@ const loadOrganizationData = useCallback(async () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="America/New_York">
-                            Eastern Time (ET)
-                          </SelectItem>
-                          <SelectItem value="America/Chicago">
-                            Central Time (CT)
-                          </SelectItem>
-                          <SelectItem value="America/Denver">
-                            Mountain Time (MT)
-                          </SelectItem>
-                          <SelectItem value="America/Los_Angeles">
-                            Pacific Time (PT)
-                          </SelectItem>
-                          <SelectItem value="UTC">UTC</SelectItem>
+                          <SelectItem value="America/New_York">Eastern Time</SelectItem>
+                          <SelectItem value="America/Chicago">Central Time</SelectItem>
+                          <SelectItem value="America/Denver">Mountain Time</SelectItem>
+                          <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
+                          <SelectItem value="America/Toronto">Toronto</SelectItem>
+                          <SelectItem value="Europe/London">London</SelectItem>
+                          <SelectItem value="Europe/Paris">Paris</SelectItem>
+                          <SelectItem value="Asia/Tokyo">Tokyo</SelectItem>
+                          <SelectItem value="Australia/Sydney">Sydney</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -802,16 +760,16 @@ const loadOrganizationData = useCallback(async () => {
                   )}
                 />
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* HIPAA Compliance */}
         <Card>
           <CardHeader>
             <CardTitle>HIPAA Compliance</CardTitle>
             <CardDescription>
-              HIPAA compliance information and requirements
+              Required compliance information for healthcare organizations
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
