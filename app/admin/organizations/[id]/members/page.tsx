@@ -1,191 +1,333 @@
-// app/admin/organizations/[id]/members/page.tsx
-import { use } from "react";
-import {
-  parseListParams,
-  handleListPageRedirect,
-  logListPageMetrics,
-  validateListPageAccess,
-} from "@/lib/list-page-server";
-import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
-import { FilterablePageHeader } from "@/components/common/filterable-page-header";
-import { DataTable } from "@/components/common/data-table";
-import { memberColumns } from "@/components/table-configs/member-columns";
-import { memberFilterConfig } from "@/components/admin/forms/member-filters-config";
-import { listOrganizationMembers } from "@/actions/member-actions";
-import { getOrganizationById } from "@/actions/organization-actions";
-import { getCurrentUser } from "@/lib/auth-server";
-import { getErrorMessage } from "@/types/server-actions.types";
-import { MemberListItem } from "@/types";
+// actions/member-actions.ts - FIXED: Return ListDataResult structure and fix drizzle query
+"use server";
 
-interface OrganizationMembersPageProps {
-  params: Promise<{
-    id: string;
-  }>;
-  searchParams: Promise<{
-    page?: string;
-    pageSize?: string;
-    search?: string;
-    sortBy?: string;
-    sortDirection?: "asc" | "desc";
-    role?: string;
-    status?: string;
-    joinedAfter?: string;
-  }>;
+import { requireSuperAdmin } from "@/lib/auth-server";
+import { db } from "@/db";
+import { members, users, organizations } from "@/db/schema";
+import { eq, and, ilike, or, sql, gte, desc, asc } from "drizzle-orm";
+import { ListDataResult } from "@/lib/list-page-server";
+import { MemberListItem } from "@/types/member.types";
+import { ServerActionResponse } from "@/types/server-actions.types";
+
+/**
+ * List members for a specific organization
+ * Returns ListDataResult structure to match logListPageMetrics expected format
+ */
+export async function listOrganizationMembers(params: {
+  organizationId: string;
+  page: number;
+  pageSize: number;
+  search?: string;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+  role?: string;
+  status?: string;
+  joinedAfter?: string;
+}): Promise<ListDataResult<MemberListItem>> {
+  try {
+    console.log("📋 Starting listOrganizationMembers with params:", params);
+
+    // Only super admins can list members
+    // await requireSuperAdmin();
+
+    // Build query conditions - Following the exact pattern from organization-actions.ts
+    const conditions = [];
+    
+    // Always filter by organization
+    conditions.push(eq(members.organizationId, params.organizationId));
+    
+    if (params.search) {
+      conditions.push(
+        or(
+          ilike(users.name, `%${params.search}%`),
+          ilike(users.email, `%${params.search}%`)
+        )
+      );
+    }
+
+    if (params.role) {
+      conditions.push(eq(members.role, params.role));
+    }
+
+    if (params.status === 'active') {
+      // Active means user is not banned
+      conditions.push(sql`(${users.banned} IS NULL OR ${users.banned} = false)`);
+    } else if (params.status === 'inactive') {
+      // Inactive means user is banned
+      conditions.push(sql`${users.banned} = true`);
+    }
+
+    if (params.joinedAfter) {
+      conditions.push(gte(members.createdAt, new Date(params.joinedAfter)));
+    }
+
+    // FIXED: Build whereClause properly for Drizzle
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Get total count - FIXED: Write complete separate queries
+    const [{ count: totalCount }] = whereClause
+      ? await db
+          .select({ count: sql<number>`count(*)` })
+          .from(members)
+          .leftJoin(users, eq(members.userId, users.id))
+          .where(whereClause)
+      : await db
+          .select({ count: sql<number>`count(*)` })
+          .from(members)
+          .leftJoin(users, eq(members.userId, users.id));
+
+    // Get paginated results - FIXED: Write complete separate queries
+    const offset = (params.page - 1) * params.pageSize;
+    
+    const sortBy = params.sortBy || 'createdAt';
+    const sortDirection = params.sortDirection || 'desc';
+    
+    let orderClause;
+    if (sortBy === 'user.name') {
+      orderClause = sortDirection === 'asc' ? asc(users.name) : desc(users.name);
+    } else if (sortBy === 'user.email') {
+      orderClause = sortDirection === 'asc' ? asc(users.email) : desc(users.email);
+    } else if (sortBy === 'role') {
+      orderClause = sortDirection === 'asc' ? asc(members.role) : desc(members.role);
+    } else {
+      orderClause = sortDirection === 'asc' ? asc(members.createdAt) : desc(members.createdAt);
+    }
+
+    const data = whereClause
+      ? await db
+          .select({
+            id: members.id,
+            userId: members.userId,
+            organizationId: members.organizationId,
+            role: members.role,
+            createdAt: members.createdAt,
+            // updatedAt: null, // Members table doesn't have updatedAt
+            user: {
+              id: users.id,
+              name: users.name,
+              email: users.email,
+              image: users.image,
+              emailVerified: users.emailVerified,
+              createdAt: users.createdAt,
+              // deletedAt: null, // Users table doesn't have deletedAt - using null for type compliance
+            },
+          })
+          .from(members)
+          .leftJoin(users, eq(members.userId, users.id))
+          .where(whereClause)
+          .limit(params.pageSize)
+          .offset(offset)
+          .orderBy(orderClause)
+      : await db
+          .select({
+            id: members.id,
+            userId: members.userId,
+            organizationId: members.organizationId,
+            role: members.role,
+            createdAt: members.createdAt,
+            // updatedAt: null, // Members table doesn't have updatedAt
+            user: {
+              id: users.id,
+              name: users.name,
+              email: users.email,
+              image: users.image,
+              emailVerified: users.emailVerified,
+              createdAt: users.createdAt,
+              // deletedAt: null, // Users table doesn't have deletedAt - using null for type compliance
+            },
+          })
+          .from(members)
+          .leftJoin(users, eq(members.userId, users.id))
+          .limit(params.pageSize)
+          .offset(offset)
+          .orderBy(orderClause);
+
+    const totalPages = Math.ceil(totalCount / params.pageSize);
+
+    console.log(`✅ Listed ${data.length} members for organization ${params.organizationId}`);
+
+    // Ensure user is not null for MemberListItem[]
+    const filteredData = data.filter(item => item.user !== null) as MemberListItem[];
+
+    // FIXED: Return in ListDataResult format that matches logListPageMetrics expectations
+    return {
+      success: true,
+      data: {
+        data: filteredData,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalCount,
+        totalPages,
+        hasNextPage: params.page < totalPages,
+        hasPreviousPage: params.page > 1,
+      },
+    };
+    
+  } catch (error) {
+    console.error("❌ Error listing organization members:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to list organization members",
+    };
+  }
 }
 
-const LIST_CONFIG = {
-  defaultPageSize: 10,
-  defaultSort: "createdAt",
-  defaultSortDirection: "desc" as const,
-  maxPageSize: 100,
-  allowedSortColumns: ["user.name", "user.email", "role", "createdAt"],
-  searchable: true,
-  exportable: true,
-};
-
-export default async function OrganizationMembersPage({
-  params,
-  searchParams,
-}: OrganizationMembersPageProps) {
-  const startTime = Date.now();
-
-  // Unwrap params promise OUTSIDE of try/catch
-  const { id: organizationId } = use(params);
-
+/**
+ * Get member details with user information
+ */
+export async function getMemberById(memberId: string): Promise<ServerActionResponse> {
   try {
-    const parsedParams = await parseListParams(searchParams, LIST_CONFIG);
-    const user = await getCurrentUser();
-    const accessCheck = await validateListPageAccess(
-      user ?? undefined
-    );
+    console.log("🔍 Getting member by ID:", memberId);
 
-    if (!accessCheck.success) {
-      return (
-        <ListPageWrapper
-          error={accessCheck.error || "Access denied"}
-          breadcrumbs={[
-            { label: "Admin", href: "/admin" },
-            { label: "Organizations", href: "/admin/organizations" },
-            { label: "Members", current: true },
-          ]}
-        />
-      );
+    // Only super admins can get member details
+    await requireSuperAdmin();
+
+    const result = await db
+      .select({
+        id: members.id,
+        userId: members.userId,
+        organizationId: members.organizationId,
+        role: members.role,
+        createdAt: members.createdAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          image: users.image,
+          emailVerified: users.emailVerified,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+          banned: users.banned,
+          banReason: users.banReason,
+          banExpires: users.banExpires,
+        },
+        organization: {
+          id: organizations.id,
+          name: organizations.name,
+          slug: organizations.slug,
+        },
+      })
+      .from(members)
+      .leftJoin(users, eq(members.userId, users.id))
+      .leftJoin(organizations, eq(members.organizationId, organizations.id))
+      .where(eq(members.id, memberId))
+      .limit(1);
+
+    if (!result[0]) {
+      return {
+        success: false,
+        error: "Member not found",
+      };
     }
 
-    // Get organization details first
-    const orgResult = await getOrganizationById(organizationId);
-    if (!orgResult.success || !orgResult.data) {
-      return (
-        <ListPageWrapper
-          error="Organization not found"
-          breadcrumbs={[
-            { label: "Admin", href: "/admin" },
-            { label: "Organizations", href: "/admin/organizations" },
-            { label: "Members", current: true },
-          ]}
-        />
-      );
-    }
+    console.log("✅ Member found:", result[0]);
 
-    const organization = orgResult.data;
-
-    // Call listOrganizationMembers action
-    const result = await listOrganizationMembers({
-      organizationId,
-      page: parsedParams.page,
-      pageSize: parsedParams.pageSize,
-      search: parsedParams.searchQuery || undefined,
-      sortBy: parsedParams.sortBy || undefined,
-      sortDirection: parsedParams.sortDirection || undefined,
-      role: parsedParams.filters.role || undefined,
-      status: parsedParams.filters.status || undefined,
-      joinedAfter: parsedParams.filters.joinedAfter || undefined,
-    });
-
-    if (!result.success || !result.data) {
-      return (
-        <ListPageWrapper
-          error={getErrorMessage(result.error ?? "Failed to load members")}
-          breadcrumbs={[
-            { label: "Admin", href: "/admin" },
-            { label: "Organizations", href: "/admin/organizations" },
-            { label: organization.name, href: `/admin/organizations/${organizationId}` },
-            { label: "Members", current: true },
-          ]}
-        />
-      );
-    }
-
-    // Access the correct data structure (matching organizations page pattern)
-    const members = result.data.data;
-    const paginationInfo = result.data.pagination;
-
-    // Handle page redirects if page is beyond total pages
-    handleListPageRedirect(
-      `/admin/organizations/${organizationId}/members`,
-      parsedParams,
-      paginationInfo.totalPages
-    );
-
-    // Log metrics with correct structure
-    const renderTime = Date.now() - startTime;
-    // logListPageMetrics(
-    //   "organization-members",
-    //   parsedParams,
-    //   result,
-    //   renderTime
-    // );
-
-    return (
-      <ListPageWrapper
-        breadcrumbs={[
-          { label: "Admin", href: "/admin" },
-          { label: "Organizations", href: "/admin/organizations" },
-          { label: organization.name, href: `/admin/organizations/${organizationId}` },
-          { label: "Members", current: true },
-        ]}
-      >
-        <div className="space-y-6">
-          <FilterablePageHeader
-            title="Organization Members"
-            description={`Manage members for ${organization.name}`}
-            createButtonText="Invite Member"
-            createHref={`/admin/organizations/${organizationId}/invite`}
-            filterConfig={memberFilterConfig}
-          />
-
-          <DataTable
-            columns={memberColumns}
-            data={members}
-            pagination={{
-              currentPage: paginationInfo.page,
-              pageSize: paginationInfo.pageSize,
-              totalPages: paginationInfo.totalPages,
-              hasNextPage: paginationInfo.hasNextPage,
-              hasPreviousPage: paginationInfo.hasPreviousPage,
-              totalCount: paginationInfo.totalCount,
-            }}
-            sorting={{
-              sortBy: parsedParams.sortBy,
-              sortDirection: parsedParams.sortDirection,
-            }}
-            emptyMessage="No members found. Invite the first member to get started."
-          />
-        </div>
-      </ListPageWrapper>
-    );
-  } catch (error) {
-    console.error("❌ Error loading organization members page:", error);
+    return {
+      success: true,
+      data: result[0],
+    };
     
-    return (
-      <ListPageWrapper
-        error="Failed to load organization members"
-        breadcrumbs={[
-          { label: "Admin", href: "/admin" },
-          { label: "Organizations", href: "/admin/organizations" },
-          { label: "Members", current: true },
-        ]}
-      />
-    );
+  } catch (error) {
+    console.error("❌ Error getting member by ID:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get member",
+    };
+  }
+}
+
+/**
+ * Update member role
+ */
+export async function updateMemberRole(
+  memberId: string,
+  role: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("🔄 Updating member role:", { memberId, role });
+
+    // Only super admins can update member roles
+    await requireSuperAdmin();
+
+    const [updatedMember] = await db
+      .update(members)
+      .set({ 
+        role,
+        // Note: No updatedAt field in members schema
+      })
+      .where(eq(members.id, memberId))
+      .returning({ id: members.id, role: members.role });
+
+    if (!updatedMember) {
+      return {
+        success: false,
+        error: "Failed to update member role",
+      };
+    }
+
+    console.log("✅ Member role updated successfully:", updatedMember);
+    
+    return {
+      success: true,
+      data: updatedMember,
+      message: "Member role updated successfully",
+    };
+    
+  } catch (error) {
+    console.error("❌ Error updating member role:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update member role",
+    };
+  }
+}
+
+/**
+ * Remove member from organization
+ */
+export async function removeMemberFromOrganization(
+  memberId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("🗑️ Removing member from organization:", memberId);
+
+    // Only super admins can remove members
+    await requireSuperAdmin();
+
+    // Get member details first for logging
+    const memberResult = await getMemberById(memberId);
+    if (!memberResult.success) {
+      return {
+        success: false,
+        error: "Member not found",
+      };
+    }
+
+    const [deletedMember] = await db
+      .delete(members)
+      .where(eq(members.id, memberId))
+      .returning({ id: members.id });
+
+    if (!deletedMember) {
+      return {
+        success: false,
+        error: "Failed to remove member from organization",
+      };
+    }
+
+    console.log("✅ Member removed from organization successfully:", deletedMember);
+    
+    return {
+      success: true,
+      data: deletedMember,
+      message: "Member removed from organization successfully",
+    };
+    
+  } catch (error) {
+    console.error("❌ Error removing member from organization:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to remove member from organization",
+    };
   }
 }

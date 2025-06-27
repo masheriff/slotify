@@ -1,16 +1,17 @@
-// actions/member-actions.ts - Matching ServerActionResponse type structure
+// actions/member-actions.ts - FIXED: Return ListDataResult structure and fix drizzle query
 "use server";
 
 import { requireSuperAdmin } from "@/lib/auth-server";
 import { db } from "@/db";
 import { members, users, organizations } from "@/db/schema";
 import { eq, and, ilike, or, sql, gte, desc, asc } from "drizzle-orm";
-import { ServerActionResponse } from "@/types/server-actions.types";
-import { MemberListItem, MemberWithUser } from "@/types";
+import { ListDataResult } from "@/lib/list-page-server";
+import { MemberListItem } from "@/types/member.types";
+import { ServerActionResponse } from "@/types";
 
 /**
  * List members for a specific organization
- * Returns ServerActionResponse with data structure matching organizations pattern
+ * Returns ListDataResult structure to match logListPageMetrics expected format
  */
 export async function listOrganizationMembers(params: {
   organizationId: string;
@@ -22,7 +23,7 @@ export async function listOrganizationMembers(params: {
   role?: string;
   status?: string;
   joinedAfter?: string;
-}): Promise<ServerActionResponse> {
+}): Promise<ListDataResult<MemberListItem>> {
   try {
     console.log("📋 Starting listOrganizationMembers with params:", params);
 
@@ -60,21 +61,22 @@ export async function listOrganizationMembers(params: {
       conditions.push(gte(members.createdAt, new Date(params.joinedAfter)));
     }
 
+    // FIXED: Build whereClause properly for Drizzle
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Get total count
-    const totalCountQuery = db
-      .select({ count: sql<number>`count(*)` })
-      .from(members)
-      .leftJoin(users, eq(members.userId, users.id));
-    
-    if (whereClause) {
-      totalCountQuery.where(whereClause);
-    }
+    // Get total count - FIXED: Write complete separate queries
+    const [{ count: totalCount }] = whereClause
+      ? await db
+          .select({ count: sql<number>`count(*)` })
+          .from(members)
+          .leftJoin(users, eq(members.userId, users.id))
+          .where(whereClause)
+      : await db
+          .select({ count: sql<number>`count(*)` })
+          .from(members)
+          .leftJoin(users, eq(members.userId, users.id));
 
-    const [{ count: totalCount }] = await totalCountQuery;
-
-    // Get paginated results
+    // Get paginated results - FIXED: Write complete separate queries
     const offset = (params.page - 1) * params.pageSize;
     
     const sortBy = params.sortBy || 'createdAt';
@@ -91,56 +93,70 @@ export async function listOrganizationMembers(params: {
       orderClause = sortDirection === 'asc' ? asc(members.createdAt) : desc(members.createdAt);
     }
 
-    const dataQuery = db
-      .select({
-        id: members.id,
-        userId: members.userId,
-        organizationId: members.organizationId,
-        role: members.role,
-        createdAt: members.createdAt,
-        // Note: No updatedAt in members schema
-        user: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          image: users.image,
-          emailVerified: users.emailVerified,
-          createdAt: users.createdAt,
-          updatedAt: users.updatedAt,
-          banned: users.banned,
-          banReason: users.banReason,
-          banExpires: users.banExpires,
-        },
-      })
-      .from(members)
-      .leftJoin(users, eq(members.userId, users.id))
-      .limit(params.pageSize)
-      .offset(offset)
-      .orderBy(orderClause);
-
-    if (whereClause) {
-      dataQuery.where(whereClause);
-    }
-
-    const data = await dataQuery;
+    const data = whereClause
+      ? await db
+          .select({
+            id: members.id,
+            userId: members.userId,
+            organizationId: members.organizationId,
+            role: members.role,
+            createdAt: members.createdAt,
+            // updatedAt: null, // Members table doesn't have updatedAt
+            user: {
+              id: users.id,
+              name: users.name,
+              email: users.email,
+              image: users.image,
+              emailVerified: users.emailVerified,
+              createdAt: users.createdAt,
+              // deletedAt: null, // Users table doesn't have deletedAt - using null for type compliance
+            },
+          })
+          .from(members)
+          .leftJoin(users, eq(members.userId, users.id))
+          .where(whereClause)
+          .limit(params.pageSize)
+          .offset(offset)
+          .orderBy(orderClause)
+      : await db
+          .select({
+            id: members.id,
+            userId: members.userId,
+            organizationId: members.organizationId,
+            role: members.role,
+            createdAt: members.createdAt,
+            // updatedAt: null, // Members table doesn't have updatedAt
+            user: {
+              id: users.id,
+              name: users.name,
+              email: users.email,
+              image: users.image,
+              emailVerified: users.emailVerified,
+              createdAt: users.createdAt,
+              // deletedAt: null, // Users table doesn't have deletedAt - using null for type compliance
+            },
+          })
+          .from(members)
+          .leftJoin(users, eq(members.userId, users.id))
+          .limit(params.pageSize)
+          .offset(offset)
+          .orderBy(orderClause);
 
     const totalPages = Math.ceil(totalCount / params.pageSize);
 
     console.log(`✅ Listed ${data.length} members for organization ${params.organizationId}`);
 
-    // Return in the EXACT same format as listOrganizations
+    // FIXED: Return in ListDataResult format that matches logListPageMetrics expectations
     return {
       success: true,
       data: {
-        data,
-        pagination: {
-          page: params.page,
-          pageSize: params.pageSize,
-          totalCount,
-          totalPages,
-          hasNextPage: params.page < totalPages,
-          hasPreviousPage: params.page > 1,
-        },
+        data: (data as MemberListItem[]),
+        page: params.page,
+        pageSize: params.pageSize,
+        totalCount,
+        totalPages,
+        hasNextPage: params.page < totalPages,
+        hasPreviousPage: params.page > 1,
       },
     };
     
@@ -170,7 +186,6 @@ export async function getMemberById(memberId: string): Promise<ServerActionRespo
         organizationId: members.organizationId,
         role: members.role,
         createdAt: members.createdAt,
-        // Note: No updatedAt in members schema
         user: {
           id: users.id,
           name: users.name,

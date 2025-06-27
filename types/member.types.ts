@@ -22,7 +22,7 @@ export interface Member {
   organizationId: string;
   role: string;
   createdAt: Date | string;
-  updatedAt: Date | string | null;
+  updatedAt?: Date | string | null;
 }
 
 // Member with user details for list display
