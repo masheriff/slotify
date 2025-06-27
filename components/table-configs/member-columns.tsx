@@ -27,7 +27,7 @@ function MemberActionsCell({
   organizationId,
 }: {
   member: MemberListItem;
-  organizationId?: string;
+  organizationId: string;
 }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
@@ -102,20 +102,20 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
     cell: ({ row }) => {
       const user = row.getValue("user") as MemberListItem["user"];
       const initials = user.name 
-        ? user.name.split(" ").map(n => n[0]).join("").toUpperCase()
-        : user.email.charAt(0).toUpperCase();
+        ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+        : user.email.slice(0, 2).toUpperCase();
 
       return (
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
             <AvatarImage src={user.image || undefined} alt={user.name || user.email} />
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <div>
-            <div className="font-medium">
+          <div className="min-w-0 flex-1">
+            <div className="font-medium text-sm truncate">
               {user.name || "No name"}
             </div>
-            <div className="text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground truncate">
               {user.email}
             </div>
           </div>
@@ -131,104 +131,84 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
     cell: ({ row }) => {
       const role = row.getValue("role") as string;
       return (
-        <Badge variant="outline">
+        <Badge variant="secondary" className="text-xs">
           {getMemberRoleLabel(role)}
         </Badge>
       );
     },
   },
 
-  // 3rd Column: Status
+  // 3rd Column: Status (based on user.banned)
   {
-    accessorKey: "user.deletedAt",
+    id: "status",
     header: "Status",
     cell: ({ row }) => {
-      const deletedAt = row.original.user.deletedAt;
-      const isActive = !deletedAt;
+      const member = row.original;
+      // const isActive = !member.user.banned;
+      const isActive = true;
       
       return (
-        <Badge className={getMemberStatusColor(isActive)}>
+        <Badge 
+          variant={isActive ? "default" : "destructive"}
+          className="text-xs"
+        >
           {getMemberStatusLabel(isActive)}
         </Badge>
       );
     },
   },
 
-  // 4th Column: Email Verified
-  {
-    accessorKey: "user.emailVerified",
-    header: "Email Status",
-    cell: ({ row }) => {
-      const isVerified = row.original.user.emailVerified;
-      
-      return (
-        <Badge 
-          variant={isVerified ? "default" : "secondary"}
-          className={isVerified 
-            ? "bg-blue-100 text-blue-800 hover:bg-blue-200" 
-            : "bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
-          }
-        >
-          {isVerified ? "Verified" : "Unverified"}
-        </Badge>
-      );
-    },
-  },
-
-  // 5th Column: Joined Date
+  // 4th Column: Joined Date
   {
     accessorKey: "createdAt",
     header: "Joined",
     cell: ({ row }) => {
-      const date = row.getValue("createdAt") as Date | string;
-      const formattedDate = typeof date === "string" 
-        ? new Date(date) 
-        : date;
-      
+      const date = row.getValue("createdAt") as Date;
       return (
         <div className="text-sm">
-          <div>{format(formattedDate, "MMM d, yyyy")}</div>
-          <div className="text-muted-foreground">
-            {formatDistanceToNow(formattedDate, { addSuffix: true })}
+          <div>{format(date, "MMM dd, yyyy")}</div>
+          <div className="text-xs text-muted-foreground">
+            {formatDistanceToNow(date, { addSuffix: true })}
           </div>
         </div>
       );
     },
   },
 
-  // 6th Column: Last Active (using user.createdAt as proxy)
+  // 5th Column: Email Verified
   {
-    accessorKey: "user.createdAt",
-    header: "Last Active",
+    id: "emailVerified",
+    header: "Verified",
     cell: ({ row }) => {
-      const date = row.original.user.createdAt;
-      const formattedDate = typeof date === "string" 
-        ? new Date(date) 
-        : date;
+      const user = row.original.user;
+      const isVerified = !!user.emailVerified;
       
       return (
-        <div className="text-sm text-muted-foreground">
-          {formatDistanceToNow(formattedDate, { addSuffix: true })}
-        </div>
+        <Badge 
+          variant={isVerified ? "default" : "secondary"}
+          className="text-xs"
+        >
+          {isVerified ? "Verified" : "Pending"}
+        </Badge>
       );
     },
   },
 
-  // 7th Column: Actions
+  // 6th Column: Actions
   {
     id: "actions",
     header: "Actions",
     cell: ({ row, table }) => {
       const member = row.original;
-      // Try to get organizationId from table meta or URL
-      const organizationId = member.organizationId;
+      // Get organizationId from table meta
+      const organizationId = (table.options.meta as any)?.organizationId;
       
-      return (
-        <MemberActionsCell 
-          member={member} 
-          organizationId={organizationId}
-        />
-      );
+      if (!organizationId) {
+        console.warn("Organization ID not found in table meta");
+        return null;
+      }
+
+      return <MemberActionsCell member={member} organizationId={organizationId} />;
     },
   },
 ];

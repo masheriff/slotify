@@ -1,4 +1,4 @@
-// actions/member-actions.ts - FIXED: Return ListDataResult structure and fix drizzle query
+// actions/member-actions.ts
 "use server";
 
 import { requireSuperAdmin } from "@/lib/auth-server";
@@ -7,13 +7,13 @@ import { members, users, organizations } from "@/db/schema";
 import { eq, and, ilike, or, sql, gte, desc, asc } from "drizzle-orm";
 import { ListDataResult } from "@/lib/list-page-server";
 import { MemberListItem } from "@/types/member.types";
-import { ServerActionResponse } from "@/types";
+import { ServerActionResponse } from "@/types/server-actions.types";
 
 /**
  * List members for a specific organization
  * Returns ListDataResult structure to match logListPageMetrics expected format
  */
-export async function listOrganizationMembers(params: {
+export async function getMembersList(params: {
   organizationId: string;
   page: number;
   pageSize: number;
@@ -25,12 +25,12 @@ export async function listOrganizationMembers(params: {
   joinedAfter?: string;
 }): Promise<ListDataResult<MemberListItem>> {
   try {
-    console.log("📋 Starting listOrganizationMembers with params:", params);
+    console.log("📋 Starting getMembersList with params:", params);
 
     // Only super admins can list members
-    // await requireSuperAdmin();
+    await requireSuperAdmin();
 
-    // Build query conditions - Following the exact pattern from organization-actions.ts
+    // Build query conditions
     const conditions = [];
     
     // Always filter by organization
@@ -61,10 +61,10 @@ export async function listOrganizationMembers(params: {
       conditions.push(gte(members.createdAt, new Date(params.joinedAfter)));
     }
 
-    // FIXED: Build whereClause properly for Drizzle
+    // Build whereClause properly for Drizzle
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // Get total count - FIXED: Write complete separate queries
+    // Get total count
     const [{ count: totalCount }] = whereClause
       ? await db
           .select({ count: sql<number>`count(*)` })
@@ -76,7 +76,7 @@ export async function listOrganizationMembers(params: {
           .from(members)
           .leftJoin(users, eq(members.userId, users.id));
 
-    // Get paginated results - FIXED: Write complete separate queries
+    // Get paginated results
     const offset = (params.page - 1) * params.pageSize;
     
     const sortBy = params.sortBy || 'createdAt';
@@ -101,7 +101,6 @@ export async function listOrganizationMembers(params: {
             organizationId: members.organizationId,
             role: members.role,
             createdAt: members.createdAt,
-            // updatedAt: null, // Members table doesn't have updatedAt
             user: {
               id: users.id,
               name: users.name,
@@ -109,7 +108,6 @@ export async function listOrganizationMembers(params: {
               image: users.image,
               emailVerified: users.emailVerified,
               createdAt: users.createdAt,
-              // deletedAt: null, // Users table doesn't have deletedAt - using null for type compliance
             },
           })
           .from(members)
@@ -125,7 +123,6 @@ export async function listOrganizationMembers(params: {
             organizationId: members.organizationId,
             role: members.role,
             createdAt: members.createdAt,
-            // updatedAt: null, // Members table doesn't have updatedAt
             user: {
               id: users.id,
               name: users.name,
@@ -133,7 +130,6 @@ export async function listOrganizationMembers(params: {
               image: users.image,
               emailVerified: users.emailVerified,
               createdAt: users.createdAt,
-              // deletedAt: null, // Users table doesn't have deletedAt - using null for type compliance
             },
           })
           .from(members)
@@ -146,11 +142,13 @@ export async function listOrganizationMembers(params: {
 
     console.log(`✅ Listed ${data.length} members for organization ${params.organizationId}`);
 
-    // FIXED: Return in ListDataResult format that matches logListPageMetrics expectations
+    // Ensure user is not null for MemberListItem[]
+    const filteredData = data.filter(item => item.user !== null) as MemberListItem[];
+
     return {
       success: true,
       data: {
-        data: (data as MemberListItem[]),
+        data: filteredData,
         page: params.page,
         pageSize: params.pageSize,
         totalCount,
@@ -248,10 +246,7 @@ export async function updateMemberRole(
 
     const [updatedMember] = await db
       .update(members)
-      .set({ 
-        role,
-        // Note: No updatedAt field in members schema
-      })
+      .set({ role })
       .where(eq(members.id, memberId))
       .returning({ id: members.id, role: members.role });
 
@@ -291,40 +286,31 @@ export async function removeMemberFromOrganization(
     // Only super admins can remove members
     await requireSuperAdmin();
 
-    // Get member details first for logging
-    const memberResult = await getMemberById(memberId);
-    if (!memberResult.success) {
-      return {
-        success: false,
-        error: "Member not found",
-      };
-    }
-
     const [deletedMember] = await db
       .delete(members)
       .where(eq(members.id, memberId))
-      .returning({ id: members.id });
+      .returning({ id: members.id, userId: members.userId, organizationId: members.organizationId });
 
     if (!deletedMember) {
       return {
         success: false,
-        error: "Failed to remove member from organization",
+        error: "Member not found or already removed",
       };
     }
 
-    console.log("✅ Member removed from organization successfully:", deletedMember);
+    console.log("✅ Member removed successfully:", deletedMember);
     
     return {
       success: true,
       data: deletedMember,
-      message: "Member removed from organization successfully",
+      message: "Member removed successfully",
     };
     
   } catch (error) {
-    console.error("❌ Error removing member from organization:", error);
+    console.error("❌ Error removing member:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to remove member from organization",
+      error: error instanceof Error ? error.message : "Failed to remove member",
     };
   }
 }

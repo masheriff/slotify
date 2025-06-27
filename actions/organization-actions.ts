@@ -8,6 +8,7 @@ import { z } from "zod";
 import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
 import { ServerActionResponse } from "@/types/server-actions.types";
 import { isSuperAdmin } from "@/lib/permissions/healthcare-access-control";
+import { Organization } from "better-auth/plugins";
 
 // FIXED: Server schema matches form schema exactly
 const organizationDataSchema = z.object({
@@ -304,7 +305,7 @@ export async function updateOrganization(
   }
 }
 
-export async function getOrganizationById(organizationId: string): Promise<ServerActionResponse> {
+export async function getOrganizationById(organizationId: string): Promise<ServerActionResponse<Organization>> {
   try {
     console.log("🔍 Getting organization by ID:", organizationId);
 
@@ -335,7 +336,10 @@ export async function getOrganizationById(organizationId: string): Promise<Serve
     console.log("✅ Organization found:", organization.name);
     return {
       success: true,
-      data: organization,
+      data: {
+        ...organization,
+        slug: organization.slug ?? "",
+      },
     };
     
   } catch (error) {
