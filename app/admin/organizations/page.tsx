@@ -16,7 +16,7 @@ import {
   Organization,
   OrganizationListItem,
 } from "@/types";
-import { getErrorMessage } from "@/types/server-actions.types";
+import { getErrorMessage } from "@/types";
 
 interface OrganizationsPageProps {
   searchParams: Promise<{

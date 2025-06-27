@@ -16,7 +16,7 @@ import {
 import { Trash, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { deleteOrganization } from "@/actions/organization-actions";
-import { getErrorMessage } from "@/types/server-actions.types";
+import { getErrorMessage } from "@/types";
 interface DeleteOrganizationDialogProps {
   organization: {
     id: string;

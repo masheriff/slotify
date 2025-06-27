@@ -2,7 +2,7 @@
 import { getOrganizationById } from "@/actions/organization-actions";
 import { OrganizationDetailsContent } from "@/components/admin/organization/organization-details-content";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
-import { getErrorMessage } from "@/types/server-actions.types";
+import { getErrorMessage } from "@/types";
 
 interface OrganizationDetailsPageProps {
   params: Promise<{ id: string }>;

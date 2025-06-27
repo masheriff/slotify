@@ -30,14 +30,6 @@ export interface SessionData {
   user: User;
   session: Session;
 }
-export interface Member {
-  id: string;
-  organizationId: string;
-  userId: string;
-  role: string;
-  createdAt: Date;
-}
-
 export interface Invitation {
   id: string;
   organizationId: string;
