@@ -198,17 +198,8 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row, table }) => {
-      const member = row.original;
-      // Get organizationId from table meta
-      const organizationId = (table.options.meta as any)?.organizationId;
-      
-      if (!organizationId) {
-        console.warn("Organization ID not found in table meta");
-        return null;
-      }
-
-      return <MemberActionsCell member={member} organizationId={organizationId} />;
+    cell: ({ row }) => {
+      return <MemberActionsCell member={row.original} organizationId={row.original.organizationId} />;
     },
   },
 ];

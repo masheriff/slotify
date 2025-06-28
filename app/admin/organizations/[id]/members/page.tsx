@@ -3,7 +3,10 @@ import { getMembersList } from "@/actions/member-actions";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
 import { getOrganizationById } from "@/actions/organization-actions";
 import { getErrorMessage } from "@/types";
-import { MembersListContent } from "@/components/admin/members/members-list-content";
+import { FilterablePageHeader } from "@/components/common/filterable-page-header";
+import { DataTable } from "@/components/common/data-table";
+import { memberColumns } from "@/components/table-configs/member-columns";
+import { memberFilterConfig } from "@/components/admin/forms/member-filters-config";
 
 interface MembersPageProps {
   params: Promise<{ id: string }>;
@@ -52,6 +55,8 @@ export default async function MembersPage({ params, searchParams }: MembersPageP
     joinedAfter,
   });
 
+  console.log(membersResult)
+
   if (!membersResult.success) {
     return (
       <ListPageWrapper
@@ -66,6 +71,9 @@ export default async function MembersPage({ params, searchParams }: MembersPageP
     );
   }
 
+  // The memberColumns already handles organizationId through table meta
+  // We just need to pass the organizationId in the DataTable meta prop
+
   return (
     <ListPageWrapper
       breadcrumbs={[
@@ -75,11 +83,33 @@ export default async function MembersPage({ params, searchParams }: MembersPageP
         { label: 'Members', current: true },
       ]}
     >
-      <MembersListContent 
-        members={membersResult.data}
-        organization={orgResult.data}
-        organizationId={organizationId}
-      />
+      <div className="space-y-6">
+        <FilterablePageHeader
+          title={`Members - ${orgResult.data.name}`}
+          description={`Manage members and their roles for ${orgResult.data.name}`}
+          createButtonText="Invite Member"
+          createHref={`/admin/organizations/${organizationId}/members/invite`}
+          filterConfig={memberFilterConfig}
+        />
+
+        <DataTable
+          columns={memberColumns}
+          data={membersResult.data?.data ?? []}
+          pagination={{
+            currentPage: membersResult.data?.page ?? 1,
+            pageSize: membersResult.data?.pageSize ?? 10,
+            totalPages: membersResult.data?.totalPages ?? 1,
+            hasNextPage: membersResult.data?.hasNextPage ?? false,
+            hasPreviousPage: membersResult.data?.hasPreviousPage ?? false,
+            totalCount: membersResult.data?.totalCount ?? 0,
+          }}
+          sorting={{
+            sortBy: undefined, // Will be read from URL params
+            sortDirection: 'desc',
+          }}
+          emptyMessage="No members found. Invite your first member to get started."
+        />
+      </div>
     </ListPageWrapper>
   );
 }

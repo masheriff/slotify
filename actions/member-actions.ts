@@ -30,53 +30,54 @@ export async function getMembersList(params: {
     // Only super admins can list members
     await requireSuperAdmin();
 
-    // Build query conditions
-    const conditions = [];
-    
-    // Always filter by organization
-    conditions.push(eq(members.organizationId, params.organizationId));
-    
-    if (params.search) {
-      conditions.push(
-        or(
-          ilike(users.name, `%${params.search}%`),
-          ilike(users.email, `%${params.search}%`)
-        )
-      );
-    }
+    // Build query conditions - Create fresh conditions array each time
+    const buildConditions = () => {
+      const conditions = [];
+      
+      // Always filter by organization
+      conditions.push(eq(members.organizationId, params.organizationId));
+      
+      if (params.search) {
+        conditions.push(
+          or(
+            ilike(users.name, `%${params.search}%`),
+            ilike(users.email, `%${params.search}%`)
+          )
+        );
+      }
 
-    if (params.role) {
-      conditions.push(eq(members.role, params.role));
-    }
+      if (params.role) {
+        conditions.push(eq(members.role, params.role));
+      }
 
-    if (params.status === 'active') {
-      // Active means user is not banned
-      conditions.push(sql`(${users.banned} IS NULL OR ${users.banned} = false)`);
-    } else if (params.status === 'inactive') {
-      // Inactive means user is banned
-      conditions.push(sql`${users.banned} = true`);
-    }
+      if (params.status === 'active') {
+        // Active means user is not banned
+        conditions.push(sql`(${users.banned} IS NULL OR ${users.banned} = false)`);
+      } else if (params.status === 'inactive') {
+        // Inactive means user is banned
+        conditions.push(sql`${users.banned} = true`);
+      }
 
-    if (params.joinedAfter) {
-      conditions.push(gte(members.createdAt, new Date(params.joinedAfter)));
-    }
+      if (params.joinedAfter) {
+        conditions.push(gte(members.createdAt, new Date(params.joinedAfter)));
+      }
 
-    // Build whereClause properly for Drizzle
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+      return conditions.length > 0 ? and(...conditions) : undefined;
+    };
 
-    // Get total count
-    const [{ count: totalCount }] = whereClause
-      ? await db
-          .select({ count: sql<number>`count(*)` })
-          .from(members)
-          .leftJoin(users, eq(members.userId, users.id))
-          .where(whereClause)
-      : await db
-          .select({ count: sql<number>`count(*)` })
-          .from(members)
-          .leftJoin(users, eq(members.userId, users.id));
+    // Get total count with fresh query conditions
+    const countWhereClause = buildConditions();
+    const totalCountQuery = db
+      .select({ count: sql<number>`count(*)` })
+      .from(members)
+      .leftJoin(users, eq(members.userId, users.id));
 
-    // Get paginated results
+    const [{ count: totalCount }] = countWhereClause
+      ? await totalCountQuery.where(countWhereClause)
+      : await totalCountQuery;
+
+    // Get paginated results with fresh query conditions
+    const dataWhereClause = buildConditions();
     const offset = (params.page - 1) * params.pageSize;
     
     const sortBy = params.sortBy || 'createdAt';
@@ -93,50 +94,33 @@ export async function getMembersList(params: {
       orderClause = sortDirection === 'asc' ? asc(members.createdAt) : desc(members.createdAt);
     }
 
-    const data = whereClause
-      ? await db
-          .select({
-            id: members.id,
-            userId: members.userId,
-            organizationId: members.organizationId,
-            role: members.role,
-            createdAt: members.createdAt,
-            user: {
-              id: users.id,
-              name: users.name,
-              email: users.email,
-              image: users.image,
-              emailVerified: users.emailVerified,
-              createdAt: users.createdAt,
-            },
-          })
-          .from(members)
-          .leftJoin(users, eq(members.userId, users.id))
-          .where(whereClause)
-          .limit(params.pageSize)
-          .offset(offset)
-          .orderBy(orderClause)
-      : await db
-          .select({
-            id: members.id,
-            userId: members.userId,
-            organizationId: members.organizationId,
-            role: members.role,
-            createdAt: members.createdAt,
-            user: {
-              id: users.id,
-              name: users.name,
-              email: users.email,
-              image: users.image,
-              emailVerified: users.emailVerified,
-              createdAt: users.createdAt,
-            },
-          })
-          .from(members)
-          .leftJoin(users, eq(members.userId, users.id))
-          .limit(params.pageSize)
-          .offset(offset)
-          .orderBy(orderClause);
+    // Build main query
+    const mainQuery = db
+      .select({
+        id: members.id,
+        userId: members.userId,
+        organizationId: members.organizationId,
+        role: members.role,
+        createdAt: members.createdAt,
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          image: users.image,
+          emailVerified: users.emailVerified,
+          createdAt: users.createdAt,
+        },
+      })
+      .from(members)
+      .leftJoin(users, eq(members.userId, users.id))
+      .limit(params.pageSize)
+      .offset(offset)
+      .orderBy(orderClause);
+
+    // Execute query with or without where clause
+    const data = dataWhereClause
+      ? await mainQuery.where(dataWhereClause)
+      : await mainQuery;
 
     const totalPages = Math.ceil(totalCount / params.pageSize);
 
@@ -163,6 +147,47 @@ export async function getMembersList(params: {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to list organization members",
+    };
+  }
+}
+
+/**
+ * Remove member from organization
+ */
+export async function removeMemberFromOrganization(
+  memberId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("🗑️ Removing member from organization:", memberId);
+
+    // Only super admins can remove members
+    await requireSuperAdmin();
+
+    const [deletedMember] = await db
+      .delete(members)
+      .where(eq(members.id, memberId))
+      .returning({ id: members.id, userId: members.userId, organizationId: members.organizationId });
+
+    if (!deletedMember) {
+      return {
+        success: false,
+        error: "Member not found or already removed",
+      };
+    }
+
+    console.log("✅ Member removed successfully:", deletedMember);
+    
+    return {
+      success: true,
+      data: deletedMember,
+      message: "Member removed successfully",
+    };
+    
+  } catch (error) {
+    console.error("❌ Error removing member:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to remove member",
     };
   }
 }
@@ -275,42 +300,142 @@ export async function updateMemberRole(
 }
 
 /**
- * Remove member from organization
+ * Alternative implementation using a query builder pattern
+ * This avoids the Drizzle query reuse issue completely
  */
-export async function removeMemberFromOrganization(
-  memberId: string
-): Promise<ServerActionResponse> {
+export async function getMembersListAlternative(params: {
+  organizationId: string;
+  page: number;
+  pageSize: number;
+  search?: string;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+  role?: string;
+  status?: string;
+  joinedAfter?: string;
+}): Promise<ListDataResult<MemberListItem>> {
   try {
-    console.log("🗑️ Removing member from organization:", memberId);
+    console.log("📋 Starting getMembersListAlternative with params:", params);
 
-    // Only super admins can remove members
     await requireSuperAdmin();
 
-    const [deletedMember] = await db
-      .delete(members)
-      .where(eq(members.id, memberId))
-      .returning({ id: members.id, userId: members.userId, organizationId: members.organizationId });
+    // Helper function to build base query
+    const buildBaseQuery = () => {
+      return db
+        .select({
+          id: members.id,
+          userId: members.userId,
+          organizationId: members.organizationId,
+          role: members.role,
+          createdAt: members.createdAt,
+          user: {
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            image: users.image,
+            emailVerified: users.emailVerified,
+            createdAt: users.createdAt,
+          },
+        })
+        .from(members)
+        .leftJoin(users, eq(members.userId, users.id));
+    };
 
-    if (!deletedMember) {
-      return {
-        success: false,
-        error: "Member not found or already removed",
-      };
+    // Helper function to build count query
+    const buildCountQuery = () => {
+      return db
+        .select({ count: sql<number>`count(*)` })
+        .from(members)
+        .leftJoin(users, eq(members.userId, users.id));
+    };
+
+    // Helper function to apply filters
+    const applyFilters = (query: any) => {
+      let filteredQuery = query.where(eq(members.organizationId, params.organizationId));
+
+      if (params.search) {
+        filteredQuery = filteredQuery.where(
+          or(
+            ilike(users.name, `%${params.search}%`),
+            ilike(users.email, `%${params.search}%`)
+          )
+        );
+      }
+
+      if (params.role) {
+        filteredQuery = filteredQuery.where(eq(members.role, params.role));
+      }
+
+      if (params.status === 'active') {
+        filteredQuery = filteredQuery.where(
+          sql`(${users.banned} IS NULL OR ${users.banned} = false)`
+        );
+      } else if (params.status === 'inactive') {
+        filteredQuery = filteredQuery.where(sql`${users.banned} = true`);
+      }
+
+      if (params.joinedAfter) {
+        filteredQuery = filteredQuery.where(
+          gte(members.createdAt, new Date(params.joinedAfter))
+        );
+      }
+
+      return filteredQuery;
+    };
+
+    // Get total count
+    const countQuery = buildCountQuery();
+    const filteredCountQuery = applyFilters(countQuery);
+    const [{ count: totalCount }] = await filteredCountQuery;
+
+    // Get paginated results
+    const offset = (params.page - 1) * params.pageSize;
+    const sortBy = params.sortBy || 'createdAt';
+    const sortDirection = params.sortDirection || 'desc';
+    
+    let orderClause;
+    if (sortBy === 'user.name') {
+      orderClause = sortDirection === 'asc' ? asc(users.name) : desc(users.name);
+    } else if (sortBy === 'user.email') {
+      orderClause = sortDirection === 'asc' ? asc(users.email) : desc(users.email);
+    } else if (sortBy === 'role') {
+      orderClause = sortDirection === 'asc' ? asc(members.role) : desc(members.role);
+    } else {
+      orderClause = sortDirection === 'asc' ? asc(members.createdAt) : desc(members.createdAt);
     }
 
-    console.log("✅ Member removed successfully:", deletedMember);
-    
+    const dataQuery = buildBaseQuery();
+    const filteredDataQuery = applyFilters(dataQuery);
+    const data = await filteredDataQuery
+      .limit(params.pageSize)
+      .offset(offset)
+      .orderBy(orderClause);
+
+    const totalPages = Math.ceil(totalCount / params.pageSize);
+
+    console.log(`✅ Listed ${data.length} members for organization ${params.organizationId}`);
+
+    // Ensure user is not null for MemberListItem[]
+    const filteredData = data.filter((item: { user: null; }) => item.user !== null) as MemberListItem[];
+
     return {
       success: true,
-      data: deletedMember,
-      message: "Member removed successfully",
+      data: {
+        data: filteredData,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalCount,
+        totalPages,
+        hasNextPage: params.page < totalPages,
+        hasPreviousPage: params.page > 1,
+      },
     };
     
   } catch (error) {
-    console.error("❌ Error removing member:", error);
+    console.error("❌ Error listing organization members:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to remove member",
+      error: error instanceof Error ? error.message : "Failed to list organization members",
     };
   }
 }
