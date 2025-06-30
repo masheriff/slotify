@@ -1,4 +1,4 @@
-// components/common/data-table.tsx
+// components/common/data-table.tsx - Simplified server-side version
 "use client"
 
 import {
@@ -6,10 +6,7 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
-  getSortedRowModel,
-  SortingState,
 } from "@tanstack/react-table"
-import { useState, useEffect } from "react"
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Table,
@@ -32,8 +29,34 @@ import {
   ChevronRight, 
   ChevronsLeft, 
   ChevronsRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react"
-import { DataTableProps } from "@/types/list-page.types" // ✅ Import from types
+
+interface PaginationData {
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  totalCount: number;
+}
+
+interface SortingData {
+  sortBy?: string;
+  sortDirection?: "asc" | "desc";
+}
+
+interface DataTableProps<TData, TValue> {
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  pagination: PaginationData;
+  sorting?: SortingData;
+  emptyMessage?: string;
+  selectable?: boolean;
+  bulkActions?: React.ReactNode;
+}
 
 export function DataTable<TData, TValue>({
   columns,
@@ -48,9 +71,8 @@ export function DataTable<TData, TValue>({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // ✅ USE CONSISTENT PAGINATION PROPERTY NAMES
   const { 
-    page,           // ✅ Not currentPage
+    page, 
     pageSize, 
     totalPages, 
     hasNextPage, 
@@ -58,14 +80,7 @@ export function DataTable<TData, TValue>({
     totalCount 
   } = pagination;
 
-  const [sorting_state, setSorting] = useState<SortingState>(() => {
-    if (sorting?.sortBy && sorting?.sortDirection) {
-      return [{ id: sorting.sortBy, desc: sorting.sortDirection === 'desc' }]
-    }
-    return []
-  })
-
-  // URL update helper
+  // Helper to update URL with new params
   const updateURL = (newParams: Record<string, string | number | undefined>) => {
     const params = new URLSearchParams(searchParams.toString());
     
@@ -80,84 +95,120 @@ export function DataTable<TData, TValue>({
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  // Event handlers
-  const handlePageChange = (page: number) => {
-    updateURL({ page });
+  // Navigation handlers
+  const handlePageChange = (newPage: number) => {
+    updateURL({ page: newPage });
   };
 
-  const handlePageSizeChange = (newPageSize: number) => {
+  const handlePageSizeChange = (newPageSize: string) => {
     updateURL({ 
       pageSize: newPageSize,
-      page: 1 // Reset to first page
+      page: 1 // Reset to first page when changing page size
     });
+  };
+
+  const handleSort = (columnId: string) => {
+    const currentSortBy = sorting?.sortBy;
+    const currentDirection = sorting?.sortDirection;
+    
+    let newDirection: "asc" | "desc" = "asc";
+    
+    // If clicking the same column, toggle direction
+    if (currentSortBy === columnId) {
+      newDirection = currentDirection === "asc" ? "desc" : "asc";
+    }
+    
+    updateURL({
+      sortBy: columnId,
+      sortDirection: newDirection,
+      page: 1 // Reset to first page when sorting
+    });
+  };
+
+  // Helper to get column ID from different column types
+  const getColumnId = (column: ColumnDef<TData, TValue>): string | undefined => {
+    // Handle different column definition types
+    if ('accessorKey' in column && column.accessorKey) {
+      return column.accessorKey as string;
+    }
+    if ('id' in column && column.id) {
+      return column.id;
+    }
+    return undefined;
+  };
+
+  // Helper to check if column is sortable
+  const isColumnSortable = (column: ColumnDef<TData, TValue>): boolean => {
+    return column.enableSorting !== false && getColumnId(column) !== undefined;
+  };
+
+  // Helper to render sort button for header
+  const renderSortableHeader = (originalHeader: React.ReactNode, columnId: string) => {
+    const isSorted = sorting?.sortBy === columnId;
+    const sortDirection = sorting?.sortDirection;
+
+    return (
+      <Button
+        variant="ghost"
+        onClick={() => handleSort(columnId)}
+        className="h-auto p-0 font-medium hover:bg-transparent justify-start"
+      >
+        <span>{originalHeader}</span>
+        {isSorted ? (
+          sortDirection === "asc" ? (
+            <ArrowUp className="ml-2 h-4 w-4" />
+          ) : (
+            <ArrowDown className="ml-2 h-4 w-4" />
+          )
+        ) : (
+          <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
+        )}
+      </Button>
+    );
   };
 
   const table = useReactTable({
     data,
-    columns,
+    columns, // Use original columns without modification
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    onSortingChange: (updater) => {
-      const newSorting = typeof updater === 'function' 
-        ? updater(sorting_state) : updater
-      setSorting(newSorting)
-      
-      // Update URL with new sorting
-      if (newSorting.length > 0) {
-        const sort = newSorting[0]
-        updateURL({
-          sortBy: sort.id,
-          sortDirection: sort.desc ? 'desc' : 'asc',
-          page: 1 // Reset to first page
-        });
-      } else {
-        updateURL({
-          sortBy: undefined,
-          sortDirection: undefined,
-          page: 1
-        });
-      }
-    },
-    state: {
-      sorting: sorting_state,
-    },
-    manualPagination: true,
-    manualSorting: true,
-    pageCount: totalPages,
-  })
-
-  // Update sorting state when props change
-  useEffect(() => {
-    if (sorting?.sortBy && sorting?.sortDirection) {
-      setSorting([{ id: sorting.sortBy, desc: sorting.sortDirection === 'desc' }])
-    } else {
-      setSorting([])
-    }
-  }, [sorting?.sortBy, sorting?.sortDirection])
-
-  // ✅ CALCULATE DISPLAY VALUES WITH CONSISTENT PROPERTY NAMES
-  const startItem = data.length > 0 ? (page - 1) * pageSize + 1 : 0
-  const endItem = Math.min(page * pageSize, (page - 1) * pageSize + data.length)
-  const displayEndItem = totalCount ? Math.min(endItem, totalCount) : endItem
+    manualPagination: true, // We handle pagination server-side
+    manualSorting: true,    // We handle sorting server-side
+  });
 
   return (
     <div className="space-y-4">
+      {/* Bulk actions */}
+      {selectable && bulkActions && (
+        <div className="flex items-center gap-2">
+          {bulkActions}
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const columnDef = header.column.columnDef;
+                  const columnId = getColumnId(columnDef);
+                  const isSortable = isColumnSortable(columnDef);
+
+                  // Get the original header content
+                  const originalHeader = header.isPlaceholder
+                    ? null
+                    : flexRender(header.column.columnDef.header, header.getContext());
+
+                  return (
+                    <TableHead key={header.id} className="font-medium">
+                      {isSortable && columnId ? 
+                        renderSortableHeader(originalHeader, columnId) : 
+                        originalHeader
+                      }
+                    </TableHead>
+                  );
+                })}
               </TableRow>
             ))}
           </TableHeader>
@@ -170,20 +221,14 @@ export function DataTable<TData, TValue>({
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   {emptyMessage}
                 </TableCell>
               </TableRow>
@@ -192,45 +237,41 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-between px-2">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {totalCount > 0 ? (
-            <>
-              Showing {startItem} to {displayEndItem} of {totalCount} results
-            </>
-          ) : (
-            "No results"
-          )}
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <p className="text-sm font-medium">Rows per page</p>
+          <Select
+            value={pageSize.toString()}
+            onValueChange={handlePageSizeChange}
+          >
+            <SelectTrigger className="h-8 w-[70px]">
+              <SelectValue placeholder={pageSize.toString()} />
+            </SelectTrigger>
+            <SelectContent side="top">
+              {[10, 20, 30, 40, 50].map((size) => (
+                <SelectItem key={size} value={size.toString()}>
+                  {size}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        
-        <div className="flex items-center space-x-6 lg:space-x-8">
-          {/* Page Size Selector */}
-          <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium">Rows per page</p>
-            <Select
-              value={pageSize.toString()}
-              onValueChange={(value) => handlePageSizeChange(Number(value))}
-            >
-              <SelectTrigger className="h-8 w-[70px]">
-                <SelectValue placeholder={pageSize} />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[10, 20, 30, 40, 50].map((size) => (
-                  <SelectItem key={size} value={size.toString()}>
-                    {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
-          {/* Page Info */}
+        <div className="flex items-center space-x-6 lg:space-x-8">
           <div className="flex w-[100px] items-center justify-center text-sm font-medium">
             Page {page} of {totalPages}
           </div>
-
-          {/* Navigation Buttons */}
+          <div className="text-sm text-muted-foreground">
+            {totalCount > 0 ? (
+              <>
+                Showing {((page - 1) * pageSize) + 1} to{" "}
+                {Math.min(page * pageSize, totalCount)} of {totalCount} results
+              </>
+            ) : (
+              "No results"
+            )}
+          </div>
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"

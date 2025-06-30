@@ -1,13 +1,10 @@
-// components/common/filterable-page-header.tsx - Fresh implementation with proper search handling
+// components/common/filterable-page-header.tsx - Simplified server-side version
 "use client"
 
-import { useCallback, useTransition, useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetDescription } from "@/components/ui/sheet"
 import { 
@@ -15,12 +12,23 @@ import {
   Plus, 
   RefreshCw, 
   Filter, 
-  X, 
-  Calendar as CalendarIcon
+  X
 } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
-import { useDebouncedCallback } from "use-debounce"
+import { useState } from "react"
+
+interface FilterOption {
+  value: string;
+  label: string;
+  disabled?: boolean;
+}
+
+interface FilterConfig {
+  label: string;
+  key: string;
+  type: 'text' | 'select' | 'date' | 'number' | 'boolean';
+  options?: FilterOption[];
+  placeholder?: string;
+}
 
 interface FilterablePageHeaderProps {
   title: string;
@@ -28,19 +36,7 @@ interface FilterablePageHeaderProps {
   createButtonText?: string;
   createHref?: string;
   onCreateNew?: () => void;
-  filterConfig: Array<{
-    label: string;
-    key: string;
-    type: 'text' | 'select' | 'date' | 'number' | 'boolean';
-    options?: Array<{ value: string; label: string; disabled?: boolean }>;
-    placeholder?: string;
-    validation?: {
-      required?: boolean;
-      min?: number;
-      max?: number;
-      pattern?: RegExp;
-    };
-  }>;
+  filterConfig: FilterConfig[];
   error?: string;
   customActions?: React.ReactNode;
 }
@@ -57,255 +53,194 @@ export function FilterablePageHeader({
 }: FilterablePageHeaderProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
   const [filtersOpen, setFiltersOpen] = useState(false)
   
-  // Local search state for immediate UI response
-  const [searchValue, setSearchValue] = useState('')
-
-  // Read current URL parameters
+  // Read current values from URL
   const currentSearch = searchParams.get('search') || ''
   const currentFilters = filterConfig.reduce((acc, filter) => {
     acc[filter.key] = searchParams.get(filter.key) || ''
     return acc
   }, {} as Record<string, string>)
 
-  // Sync local search state with URL
-  useEffect(() => {
-    setSearchValue(currentSearch)
-  }, [currentSearch])
-
-  // Count active filters
+  // Count active filters (excluding search)
   const activeFilterCount = Object.values(currentFilters).filter(value => value.trim()).length
 
-  // URL update utility
-  const updateURL = useCallback((newParams: Record<string, string>) => {
-    const newSearchParams = new URLSearchParams(searchParams.toString())
+  // Handle search form submission
+  const handleSearchSubmit = (formData: FormData) => {
+    const searchValue = formData.get('search')?.toString().trim() || ''
+    const params = new URLSearchParams(searchParams.toString())
     
-    Object.entries(newParams).forEach(([key, value]) => {
-      if (value && value.trim()) {
-        newSearchParams.set(key, value.trim())
+    if (searchValue) {
+      params.set('search', searchValue)
+    } else {
+      params.delete('search')
+    }
+    
+    // Reset to page 1 when searching
+    params.set('page', '1')
+    
+    router.push(`${window.location.pathname}?${params.toString()}`)
+  }
+
+  // Handle filter form submission
+  const handleFilterSubmit = (formData: FormData) => {
+    const params = new URLSearchParams(searchParams.toString())
+    
+    // Update all filter values from form
+    filterConfig.forEach(filter => {
+      const value = formData.get(filter.key)?.toString().trim() || ''
+      if (value) {
+        params.set(filter.key, value)
       } else {
-        newSearchParams.delete(key)
+        params.delete(filter.key)
       }
     })
-
-    // Reset page to 1 when search or filters change
-    if ('search' in newParams || filterConfig.some(f => f.key in newParams)) {
-      newSearchParams.set('page', '1')
-    }
-
-    const newURL = `${window.location.pathname}?${newSearchParams.toString()}`
-    const currentURL = `${window.location.pathname}?${searchParams.toString()}`
     
-    if (newURL !== currentURL) {
-      startTransition(() => {
-        router.push(newURL, { scroll: false })
-      })
-    }
-  }, [router, searchParams, filterConfig])
-
-  // Debounced search update to URL
-  const debouncedSearchUpdate = useDebouncedCallback((query: string) => {
-    updateURL({ search: query })
-  }, 300)
-
-  // Search handlers
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    setSearchValue(value)
-    debouncedSearchUpdate(value)
-  }, [debouncedSearchUpdate])
-
-  const clearSearch = useCallback(() => {
-    setSearchValue('')
-    updateURL({ search: '' })
-  }, [updateURL])
-
-  // Filter handlers
-  const handleFilterChange = useCallback((key: string, value: string) => {
-    updateURL({ [key]: value })
-  }, [updateURL])
-
-  const handleClearFilters = useCallback(() => {
-    const clearParams: Record<string, string> = { search: '' }
-    filterConfig.forEach(filter => {
-      clearParams[filter.key] = ''
-    })
-    setSearchValue('')
-    updateURL(clearParams)
+    // Reset to page 1 when filtering
+    params.set('page', '1')
+    
+    router.push(`${window.location.pathname}?${params.toString()}`)
     setFiltersOpen(false)
-  }, [updateURL, filterConfig])
+  }
 
-  const handleRefresh = useCallback(() => {
-    startTransition(() => {
-      router.refresh()
-    })
-  }, [router])
+  // Clear all filters and search
+  const handleClearAll = () => {
+    const params = new URLSearchParams()
+    // Keep non-filter params like page, pageSize if you want
+    router.push(`${window.location.pathname}`)
+    setFiltersOpen(false)
+  }
 
-  const handleCreateNew = useCallback(() => {
+  // Handle refresh
+  const handleRefresh = () => {
+    router.refresh()
+  }
+
+  // Handle create new
+  const handleCreateNew = () => {
     if (onCreateNew) {
       onCreateNew()
     } else if (createHref) {
       router.push(createHref)
     }
-  }, [onCreateNew, createHref, router])
-
-  // Render filter input based on type
-  interface FilterOption {
-    value: string;
-    label: string;
-    disabled?: boolean;
   }
 
-  interface FilterConfigItem {
-    label: string;
-    key: string;
-    type: 'text' | 'select' | 'date' | 'number' | 'boolean';
-    options?: FilterOption[];
-    placeholder?: string;
-    validation?: {
-      required?: boolean;
-      min?: number;
-      max?: number;
-      pattern?: RegExp;
-    };
-  }
-
-  type RenderFilterInput = (filter: FilterConfigItem) => React.ReactNode;
-
-  const renderFilterInput: RenderFilterInput = useCallback((filter) => {
-    const currentValue: string = currentFilters[filter.key] || ''
-
+  // Render individual filter input
+  const renderFilterInput = (filter: FilterConfig, currentValue: string) => {
     switch (filter.type) {
       case 'select':
         return (
-          <Select
-            value={currentValue}
-            onValueChange={(value: string) => handleFilterChange(filter.key, value)}
-          >
+          <Select name={filter.key} defaultValue={currentValue}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder={filter.placeholder || `Select ${filter.label}`} />
+              <SelectValue placeholder={filter.placeholder || `Select ${filter.label.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
-                {filter.options?.map((option: FilterOption) => (
-                <SelectItem
-                  key={option.value}
+              <SelectItem value="">All {filter.label}</SelectItem>
+              {filter.options?.map((option) => (
+                <SelectItem 
+                  key={option.value} 
                   value={option.value}
                   disabled={option.disabled}
                 >
                   {option.label}
                 </SelectItem>
-                ))}
+              ))}
             </SelectContent>
           </Select>
         )
 
       case 'date':
         return (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !currentValue && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {currentValue ? format(new Date(currentValue), "PPP") : filter.placeholder || "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={currentValue ? new Date(currentValue) : undefined}
-                onSelect={(date: Date | undefined) => {
-                  const value = date ? format(date, "yyyy-MM-dd") : ''
-                  handleFilterChange(filter.key, value)
-                }}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
+          <Input
+            type="date"
+            name={filter.key}
+            defaultValue={currentValue}
+            className="w-full"
+          />
         )
 
       case 'number':
         return (
           <Input
             type="number"
-            placeholder={filter.placeholder || `Enter ${filter.label}`}
-            value={currentValue}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFilterChange(filter.key, e.target.value)}
-            min={filter.validation?.min}
-            max={filter.validation?.max}
+            name={filter.key}
+            defaultValue={currentValue}
+            placeholder={filter.placeholder || `Enter ${filter.label.toLowerCase()}`}
             className="w-full"
           />
         )
 
       case 'boolean':
         return (
-          <Select
-            value={currentValue}
-            onValueChange={(value: string) => handleFilterChange(filter.key, value)}
-          >
+          <Select name={filter.key} defaultValue={currentValue}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder={filter.placeholder || `Select ${filter.label}`} />
+              <SelectValue placeholder={filter.placeholder || `Select ${filter.label.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="">All</SelectItem>
               <SelectItem value="true">Yes</SelectItem>
               <SelectItem value="false">No</SelectItem>
             </SelectContent>
           </Select>
         )
 
-      default:
+      default: // 'text'
         return (
           <Input
             type="text"
-            placeholder={filter.placeholder || `Enter ${filter.label}`}
-            value={currentValue}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFilterChange(filter.key, e.target.value)}
+            name={filter.key}
+            defaultValue={currentValue}
+            placeholder={filter.placeholder || `Enter ${filter.label.toLowerCase()}`}
             className="w-full"
           />
         )
     }
-  }, [currentFilters, handleFilterChange])
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Header with title and description */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-          {description && (
-            <p className="text-muted-foreground">{description}</p>
+    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      {/* Title and description */}
+      <div className="space-y-1">
+        <h1 className="text-2xl font-semibold leading-tight">{title}</h1>
+        {description && (
+          <p className="text-muted-foreground">{description}</p>
+        )}
+        {error && (
+          <p className="text-sm text-destructive">{error}</p>
+        )}
+      </div>
+      
+      {/* Action buttons */}
+      <div className="flex items-center gap-2">
+        {/* Search form */}
+        <form action={handleSearchSubmit} className="relative w-64">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            name="search"
+            placeholder="Search..."
+            defaultValue={currentSearch}
+            className="pl-10 pr-8"
+          />
+          {currentSearch && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                const params = new URLSearchParams(searchParams.toString())
+                params.delete('search')
+                params.set('page', '1')
+                router.push(`${window.location.pathname}?${params.toString()}`)
+              }}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted rounded-sm"
+            >
+              <X className="h-3 w-3" />
+            </Button>
           )}
-        </div>
-        
-        {/* Action buttons - ordered as requested: search, filters, refresh, add */}
-        <div className="flex items-center gap-2">
-          {/* Search bar */}
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              value={searchValue}
-              onChange={handleSearchChange}
-              className="pl-10 pr-8"
-            />
-            {searchValue && (
-              <button
-                type="button"
-                onClick={clearSearch}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 p-1 hover:bg-muted rounded-sm"
-              >
-                <X className="h-3 w-3 text-muted-foreground" />
-              </button>
-            )}
-          </div>
+        </form>
 
-          {/* Filters button */}
+        {/* Filters sheet */}
+        {filterConfig.length > 0 && (
           <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="sm" className="relative">
@@ -325,104 +260,54 @@ export function FilterablePageHeader({
               <SheetHeader>
                 <SheetTitle>Filters</SheetTitle>
                 <SheetDescription>
-                  Apply filters to narrow down your results
+                  Filter the results by the criteria below
                 </SheetDescription>
               </SheetHeader>
               
-              <div className="space-y-6 p-4">
-                {/* Filter Controls */}
-                <div className="space-y-4">
-                  {filterConfig.map((filter) => (
-                    <div key={filter.key} className="space-y-2">
-                      <label className="text-sm font-medium">
-                        {filter.label}
-                        {filter.validation?.required && (
-                          <span className="text-destructive ml-1">*</span>
-                        )}
-                      </label>
-                      {renderFilterInput(filter)}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Active Filters Display */}
-                {activeFilterCount > 0 && (
-                  <div className="space-y-3 pt-4 border-t">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Active Filters ({activeFilterCount})</span>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleClearFilters}
-                        className="h-8 px-3"
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Clear All
-                      </Button>
-                    </div>
-                    
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(currentFilters).map(([key, value]) => {
-                        if (!value.trim()) return null
-                        const filter = filterConfig.find(f => f.key === key)
-                        return (
-                          <Badge key={key} variant="secondary" className="gap-1">
-                            {filter?.label}: {value}
-                            <button
-                              type="button"
-                              className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                handleFilterChange(key, '')
-                              }}
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        )
-                      })}
-                    </div>
+              <form action={handleFilterSubmit} className="space-y-6 mt-6">
+                {filterConfig.map((filter) => (
+                  <div key={filter.key} className="space-y-2">
+                    <label htmlFor={filter.key} className="text-sm font-medium">
+                      {filter.label}
+                    </label>
+                    {renderFilterInput(filter, currentFilters[filter.key])}
                   </div>
-                )}
-              </div>
+                ))}
+                
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button type="submit" className="flex-1">
+                    Apply Filters
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={handleClearAll}
+                    className="flex-1"
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              </form>
             </SheetContent>
           </Sheet>
+        )}
 
-          {/* Refresh button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isPending}
-          >
-            <RefreshCw className={cn("h-4 w-4", isPending && "animate-spin")} />
-            <span className="sr-only">Refresh</span>
+        {/* Refresh button */}
+        <Button variant="outline" size="sm" onClick={handleRefresh}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+
+        {/* Custom actions */}
+        {customActions}
+
+        {/* Create button */}
+        {(createButtonText || createHref || onCreateNew) && (
+          <Button size="sm" onClick={handleCreateNew}>
+            <Plus className="h-4 w-4 mr-2" />
+            {createButtonText || "Create"}
           </Button>
-          
-          {/* Create button */}
-          {(createButtonText || createHref) && (
-            <Button 
-              onClick={handleCreateNew} 
-              disabled={isPending}
-              size="sm"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              {createButtonText || "Create New"}
-            </Button>
-          )}
-
-          {/* Custom actions */}
-          {customActions}
-        </div>
+        )}
       </div>
-
-      {/* Error display */}
-      {error && (
-        <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md">
-          {error}
-        </div>
-      )}
     </div>
   )
 }
