@@ -5,7 +5,7 @@ import { FilterablePageHeader } from "@/components/common/filterable-page-header
 import { DataTable } from "@/components/common/data-table";
 import { memberColumns } from "@/components/table-configs/member-columns";
 import { memberFilterConfig } from "@/components/admin/forms/member-filters-config";
-import { MemberListItem, OrganizationListItem } from "@/types";
+import { MemberListItem, Organization } from "@/types";
 
 interface PaginationData {
   data: MemberListItem[];
@@ -19,7 +19,7 @@ interface PaginationData {
 
 interface MembersListContentProps {
   members: PaginationData;
-  organization: OrganizationListItem;
+  organization: Organization;
   organizationId: string;
 }
 
@@ -65,7 +65,7 @@ export function MembersListContent({
         columns={columnsWithOrgId}
         data={members.data}
         pagination={{
-          currentPage: members.page,
+          page: members.page,
           pageSize: members.pageSize,
           totalPages: members.totalPages,
           hasNextPage: members.hasNextPage,

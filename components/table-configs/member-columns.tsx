@@ -14,66 +14,60 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format, formatDistanceToNow } from "date-fns";
-import { MoreHorizontal, Eye, Edit, UserMinus, Shield } from "lucide-react";
+import {
+  MoreHorizontal,
+  Eye,
+  UserMinus,
+  Shield,
+  CheckCircle,
+  XCircle,
+} from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
-import { MemberListItem } from "@/types/member.types";
+import { getMemberRoleLabel, MemberListItem } from "@/types/member.types";
 import { removeMemberFromOrganization } from "@/actions/member-actions";
 import { toast } from "sonner";
-import { getErrorMessage, ServerActionError } from "@/types";
-
-// Helper functions for member display
-function getMemberRoleLabel(role: string): string {
-  const roleLabels: Record<string, string> = {
-    system_admin: "System Admin",
-    five_am_admin: "5AM Admin", 
-    five_am_agent: "5AM Agent",
-    client_admin: "Client Admin",
-    front_desk: "Front Desk",
-    technician: "Technician",
-    interpreting_doctor: "Interpreting Doctor",
-  };
-  return roleLabels[role] || role;
-}
-
-function getMemberStatusColor(isActive: boolean): string {
-  return isActive ? "default" : "destructive";
-}
-
-function getMemberStatusLabel(isActive: boolean): string {
-  return isActive ? "Active" : "Inactive";
-}
+import { getErrorMessage } from "@/types";
+import {
+  getMemberEmailVerifiedColor,
+  getMemberEmailVerifiedLabel,
+  getMemberRoleColor,
+  getMemberStatusColor,
+  getMemberStatusLabel,
+} from "@/lib/utils/member-utils";
 
 // Actions Cell Component with Navigation
-function MemberActionsCell({
-  member,
-}: {
-  member: MemberListItem;
-}) {
+function MemberActionsCell({ member }: { member: MemberListItem }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(false);
 
   // ✅ EXTRACT ORGANIZATION ID FROM PATHNAME
-  const organizationId = pathname.split('/')[3]; // /admin/organizations/{id}/members
+  const organizationId = pathname.split("/")[3]; // /admin/organizations/{id}/members
 
   const handleViewDetails = () => {
     router.push(`/admin/organizations/${organizationId}/members/${member.id}`);
   };
 
   const handleEditRole = () => {
-    router.push(`/admin/organizations/${organizationId}/members/${member.id}/edit`);
+    router.push(
+      `/admin/organizations/${organizationId}/members/${member.id}/edit`
+    );
   };
 
   const handleRemoveMember = async () => {
-    if (!confirm(`Are you sure you want to remove ${member.user.name || member.user.email} from this organization?`)) {
+    if (
+      !confirm(
+        `Are you sure you want to remove ${member.user.name || member.user.email} from this organization?`
+      )
+    ) {
       return;
     }
 
     setIsLoading(true);
     try {
       const result = await removeMemberFromOrganization(member.id);
-      
+
       if (result.success) {
         toast.success("Member removed successfully");
         router.refresh();
@@ -107,7 +101,7 @@ function MemberActionsCell({
           Edit role
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={handleRemoveMember}
           className="text-destructive focus:text-destructive"
         >
@@ -128,14 +122,22 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
     cell: ({ row }) => {
       const member = row.original;
       const user = member.user;
-      const initials = user.name 
-        ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+      const initials = user.name
+        ? user.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase()
         : user.email.slice(0, 2).toUpperCase();
 
       return (
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
-            <AvatarImage src={user.image || undefined} alt={user.name || user.email} />
+            <AvatarImage
+              src={user.image || undefined}
+              alt={user.name || user.email}
+            />
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
@@ -158,7 +160,7 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
     cell: ({ row }) => {
       const role = row.getValue("role") as string;
       return (
-        <Badge variant="secondary" className="text-xs">
+        <Badge className={getMemberRoleColor(role)}>
           {getMemberRoleLabel(role)}
         </Badge>
       );
@@ -174,9 +176,9 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
       // For now, assuming all members are active unless user is banned
       // You can extend this logic based on your requirements
       const isActive = true; // !member.user.banned - if you have banned field
-      
+
       return (
-        <Badge variant={isActive ? "default" : "destructive"}>
+        <Badge className={getMemberStatusColor(isActive)}>
           {getMemberStatusLabel(isActive)}
         </Badge>
       );
@@ -190,10 +192,10 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
     cell: ({ row }) => {
       const member = row.original;
       const isVerified = member.user.emailVerified;
-      
+
       return (
-        <Badge variant={isVerified ? "default" : "secondary"}>
-          {isVerified ? "Verified" : "Pending"}
+        <Badge className={getMemberEmailVerifiedColor(isVerified)}>
+          {getMemberEmailVerifiedLabel(isVerified)}
         </Badge>
       );
     },
@@ -206,7 +208,7 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
     cell: ({ row }) => {
       const date = row.getValue("createdAt") as Date | string;
       const joinedDate = typeof date === "string" ? new Date(date) : date;
-      
+
       return (
         <div className="text-sm">
           <div className="font-medium">
