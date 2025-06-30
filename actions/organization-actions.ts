@@ -1,5 +1,5 @@
 /// actions/organization-actions.ts - COMPLETE FIX
-'use server';
+"use server";
 import { db } from "@/db";
 import { organizations, members } from "@/db/schema";
 import { eq, sql, and, desc, asc } from "drizzle-orm";
@@ -8,7 +8,7 @@ import { z } from "zod";
 import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
 import { ServerActionResponse } from "@/types/server-actions.types";
 import { isSuperAdmin } from "@/lib/permissions/healthcare-access-control";
-import { Organization } from "better-auth/plugins";
+import { ListDataResult, Organization } from "@/types";
 
 // FIXED: Server schema matches form schema exactly
 const organizationDataSchema = z.object({
@@ -27,7 +27,7 @@ const organizationDataSchema = z.object({
       if (!val || val.trim() === "") return true;
       return val.startsWith("/") || val.startsWith("http");
     }, "Logo must be a valid URL or path"),
-  
+
   metadata: z.object({
     type: z.enum(["admin", "client"]),
     // FIXED: Match form validation requirements exactly
@@ -50,29 +50,39 @@ const organizationDataSchema = z.object({
       ),
     dataRetentionYears: z.string().min(1, "Data retention period is required"),
     isActive: z.boolean().default(true),
-    settings: z.object({
-      features: z.object({
-        multiTenant: z.boolean().optional(),
-        advancedReporting: z.boolean().optional(),
-        apiAccess: z.boolean().optional(),
-        customBranding: z.boolean().optional(),
-      }).optional(),
-      billing: z.object({
-        plan: z.string().optional(),
-        status: z.string().optional(),
-      }).optional(),
-      notifications: z.object({
-        email: z.boolean().optional(),
-        sms: z.boolean().optional(),
-      }).optional(),
-    }).optional(),
+    settings: z
+      .object({
+        features: z
+          .object({
+            multiTenant: z.boolean().optional(),
+            advancedReporting: z.boolean().optional(),
+            apiAccess: z.boolean().optional(),
+            customBranding: z.boolean().optional(),
+          })
+          .optional(),
+        billing: z
+          .object({
+            plan: z.string().optional(),
+            status: z.string().optional(),
+          })
+          .optional(),
+        notifications: z
+          .object({
+            email: z.boolean().optional(),
+            sms: z.boolean().optional(),
+          })
+          .optional(),
+      })
+      .optional(),
   }),
   createdAt: z.string().optional(),
 });
 
 export type OrganizationInput = z.infer<typeof organizationDataSchema>;
 
-export async function createOrganization(data: OrganizationInput): Promise<ServerActionResponse> {
+export async function createOrganization(
+  data: OrganizationInput
+): Promise<ServerActionResponse> {
   try {
     console.log("🏢 Creating organization:", data.name);
 
@@ -123,16 +133,15 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
       .returning();
 
     console.log("✅ Organization created successfully:", createdOrg.id);
-    
+
     return {
       success: true,
-      data: { 
+      data: {
         id: createdOrg.id,
-        organization: createdOrg
+        organization: createdOrg,
       },
       message: "Organization created successfully",
     };
-    
   } catch (error) {
     console.error("❌ Error creating organization:", error);
 
@@ -141,17 +150,17 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
       return {
         success: false,
         error: error.errors[0].message,
-        validationErrors: error.errors.map(err => ({
+        validationErrors: error.errors.map((err) => ({
           message: err.message,
           path: err.path,
-          code: err.code
+          code: err.code,
         })),
       };
     }
 
     // Handle database constraint errors
-    if (error && typeof error === 'object' && 'code' in error) {
-      if (error.code === '23505') {
+    if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "23505") {
         return {
           success: false,
           error: "An organization with this slug already exists",
@@ -161,7 +170,10 @@ export async function createOrganization(data: OrganizationInput): Promise<Serve
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to create organization",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create organization",
     };
   }
 }
@@ -193,10 +205,12 @@ export async function updateOrganization(
       const duplicateOrg = await db
         .select({ id: organizations.id })
         .from(organizations)
-        .where(and(
-          eq(organizations.slug, data.slug),
-          sql`${organizations.id} != ${organizationId}`
-        ))
+        .where(
+          and(
+            eq(organizations.slug, data.slug),
+            sql`${organizations.id} != ${organizationId}`
+          )
+        )
         .limit(1);
 
       if (duplicateOrg.length > 0) {
@@ -226,13 +240,15 @@ export async function updateOrganization(
       isActive?: boolean;
       [key: string]: any;
     }
-    
-    const existingMetadata: ExistingMetadata = (existingOrg.metadata as ExistingMetadata) || {};
+
+    const existingMetadata: ExistingMetadata =
+      (existingOrg.metadata as ExistingMetadata) || {};
     const updatedMetadata = {
       ...existingMetadata,
       ...validatedData.metadata,
       // IMPORTANT: Preserve isActive flag from existing metadata unless explicitly changed
-      isActive: existingMetadata.isActive !== false ? true : existingMetadata.isActive,
+      isActive:
+        existingMetadata.isActive !== false ? true : existingMetadata.isActive,
     };
 
     // Prepare update data
@@ -245,7 +261,10 @@ export async function updateOrganization(
     if (validatedData.logo !== undefined) updateData.logo = validatedData.logo;
     updateData.metadata = updatedMetadata;
 
-    console.log("📝 Database update data:", JSON.stringify(updateData, null, 2));
+    console.log(
+      "📝 Database update data:",
+      JSON.stringify(updateData, null, 2)
+    );
 
     // Update organization directly in database (bypassing Better Auth organization middleware)
     const [updatedOrg] = await db
@@ -264,13 +283,12 @@ export async function updateOrganization(
     console.log("✅ Organization updated successfully:", updatedOrg.id);
     return {
       success: true,
-      data: { 
+      data: {
         id: updatedOrg.id,
-        organization: updatedOrg
+        organization: updatedOrg,
       },
       message: "Organization updated successfully",
     };
-    
   } catch (error) {
     console.error("❌ Error updating organization:", error);
 
@@ -280,17 +298,17 @@ export async function updateOrganization(
       return {
         success: false,
         error: error.errors[0].message,
-        validationErrors: error.errors.map(err => ({
+        validationErrors: error.errors.map((err) => ({
           message: err.message,
           path: err.path,
-          code: err.code
+          code: err.code,
         })),
       };
     }
 
     // Handle database constraint errors
-    if (error && typeof error === 'object' && 'code' in error) {
-      if (error.code === '23505') {
+    if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "23505") {
         return {
           success: false,
           error: "An organization with this slug already exists",
@@ -300,12 +318,17 @@ export async function updateOrganization(
 
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to update organization",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to update organization",
     };
   }
 }
 
-export async function getOrganizationById(organizationId: string): Promise<ServerActionResponse<Organization>> {
+export async function getOrganizationById(
+  organizationId: string
+): Promise<ServerActionResponse<Organization>> {
   try {
     console.log("🔍 Getting organization by ID:", organizationId);
 
@@ -339,14 +362,16 @@ export async function getOrganizationById(organizationId: string): Promise<Serve
       data: {
         ...organization,
         slug: organization.slug ?? "",
+        logo: organization.logo ?? undefined,
+        metadata: organization.metadata as import("@/types").Organization["metadata"],
       },
     };
-    
   } catch (error) {
     console.error("❌ Error getting organization:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to get organization",
+      error:
+        error instanceof Error ? error.message : "Failed to get organization",
     };
   }
 }
@@ -355,7 +380,9 @@ export async function getOrganizationById(organizationId: string): Promise<Serve
 
 // ... rest of your existing functions remain unchanged
 
-export async function deleteOrganization(organizationId: string): Promise<ServerActionResponse> {
+export async function deleteOrganization(
+  organizationId: string
+): Promise<ServerActionResponse> {
   try {
     console.log("🗑️ Deleting organization:", organizationId);
 
@@ -403,198 +430,243 @@ export async function deleteOrganization(organizationId: string): Promise<Server
     }
 
     console.log("✅ Organization deleted successfully:", deletedOrg);
-    
+
     return {
       success: true,
-      data: { 
+      data: {
         id: deletedOrg.id,
-        organization: deletedOrg
+        organization: deletedOrg,
       },
       message: `Organization "${deletedOrg.name}" deleted successfully`,
     };
-    
   } catch (error) {
     console.error("❌ Error deleting organization:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to delete organization",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to delete organization",
     };
   }
 }
 
 export async function listOrganizations(params: {
-  page: number;
-  pageSize: number;
-  search?: string;
-  sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
-  type?: string;
-  status?: string;
-  contactEmail?: string;
-  createdAfter?: string;
-}): Promise<ServerActionResponse> {
-  try {
-    console.log("📋 Listing organizations");
+ page: number;
+ pageSize: number;
+ search?: string;
+ sortBy?: string;
+ sortDirection?: "asc" | "desc";
+ type?: string;
+ status?: string;
+ contactEmail?: string;
+ createdAfter?: string;
+}): Promise<ListDataResult<Organization>> {
+ try {
+   console.log("📋 Listing organizations");
 
-    // Only super admins can list organizations
-    await requireSuperAdmin();
+   // Only super admins can list organizations
+   await requireSuperAdmin();
 
-    // Build query conditions
-    const conditions = [];
-    
-    if (params.search) {
-      conditions.push(
-        sql`(${organizations.name} ILIKE ${`%${params.search}%`} OR 
-            ${organizations.slug} ILIKE ${`%${params.search}%`} OR
-            ${organizations.metadata}->>'contactEmail' ILIKE ${`%${params.search}%`})`
-      );
-    }
+   // Build query conditions
+   const conditions = [];
 
-    if (params.type) {
-      conditions.push(sql`${organizations.metadata}->>'type' = ${params.type}`);
-    }
+   if (params.search) {
+     conditions.push(
+       sql`(${organizations.name} ILIKE ${`%${params.search}%`} OR 
+           ${organizations.slug} ILIKE ${`%${params.search}%`} OR
+           ${organizations.metadata}->>'contactEmail' ILIKE ${`%${params.search}%`})`
+     );
+   }
 
-    if (params.status === 'active') {
-      conditions.push(sql`(${organizations.metadata}->>'isActive')::boolean = true`);
-    } else if (params.status === 'inactive') {
-      conditions.push(sql`(${organizations.metadata}->>'isActive')::boolean = false`);
-    }
+   if (params.type) {
+     conditions.push(sql`${organizations.metadata}->>'type' = ${params.type}`);
+   }
 
-    if (params.contactEmail) {
-      conditions.push(sql`${organizations.metadata}->>'contactEmail' ILIKE ${`%${params.contactEmail}%`}`);
-    }
+   if (params.status === "active") {
+     conditions.push(
+       sql`(${organizations.metadata}->>'isActive')::boolean = true`
+     );
+   } else if (params.status === "inactive") {
+     conditions.push(
+       sql`(${organizations.metadata}->>'isActive')::boolean = false`
+     );
+   }
 
-    if (params.createdAfter) {
-      conditions.push(sql`${organizations.createdAt} >= ${new Date(params.createdAfter)}`);
-    }
+   if (params.contactEmail) {
+     conditions.push(
+       sql`${organizations.metadata}->>'contactEmail' ILIKE ${`%${params.contactEmail}%`}`
+     );
+   }
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+   if (params.createdAfter) {
+     conditions.push(
+       sql`${organizations.createdAt} >= ${new Date(params.createdAfter)}`
+     );
+   }
 
-    // Get total count
-    const totalCountQuery = db
-      .select({ count: sql<number>`count(*)` })
-      .from(organizations);
-    
-    if (whereClause) {
-      totalCountQuery.where(whereClause);
-    }
+   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    const [{ count: totalCount }] = await totalCountQuery;
+   // Get total count
+   const totalCountQuery = db
+     .select({ count: sql<number>`count(*)` })
+     .from(organizations);
 
-    // Get paginated results
-    const offset = (params.page - 1) * params.pageSize;
-    
-    const sortBy = params.sortBy || 'createdAt';
-    const sortDirection = params.sortDirection || 'desc';
-    
-    let orderClause;
-    if (sortBy === 'name') {
-      orderClause = sortDirection === 'asc' ? asc(organizations.name) : desc(organizations.name);
-    } else if (sortBy === 'type') {
-      orderClause = sortDirection === 'asc' 
-        ? sql`${organizations.metadata}->>'type' ASC`
-        : sql`${organizations.metadata}->>'type' DESC`;
-    } else {
-      orderClause = sortDirection === 'asc' ? asc(organizations.createdAt) : desc(organizations.createdAt);
-    }
+   if (whereClause) {
+     totalCountQuery.where(whereClause);
+   }
 
-    const dataQuery = db
-      .select()
-      .from(organizations)
-      .limit(params.pageSize)
-      .offset(offset)
-      .orderBy(orderClause);
+   const [{ count: totalCount }] = await totalCountQuery;
 
-    if (whereClause) {
-      dataQuery.where(whereClause);
-    }
+   // Get paginated results
+   const offset = (params.page - 1) * params.pageSize;
 
-    const data = await dataQuery;
+   const sortBy = params.sortBy || "createdAt";
+   const sortDirection = params.sortDirection || "desc";
 
-    const totalPages = Math.ceil(totalCount / params.pageSize);
+   let orderClause;
+   if (sortBy === "name") {
+     orderClause =
+       sortDirection === "asc"
+         ? asc(organizations.name)
+         : desc(organizations.name);
+   } else if (sortBy === "type") {
+     orderClause =
+       sortDirection === "asc"
+         ? sql`${organizations.metadata}->>'type' ASC`
+         : sql`${organizations.metadata}->>'type' DESC`;
+   } else {
+     orderClause =
+       sortDirection === "asc"
+         ? asc(organizations.createdAt)
+         : desc(organizations.createdAt);
+   }
 
-    console.log(`✅ Listed ${data.length} organizations`);
+   const dataQuery = db
+     .select()
+     .from(organizations)
+     .limit(params.pageSize)
+     .offset(offset)
+     .orderBy(orderClause);
 
-    return {
-      success: true,
-      data: {
-        data,
-        pagination: {
-          page: params.page,
-          pageSize: params.pageSize,
-          totalCount,
-          totalPages,
-          hasNextPage: params.page < totalPages,
-          hasPreviousPage: params.page > 1,
-        },
-      },
-    };
-    
-  } catch (error) {
-    console.error("❌ Error listing organizations:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to list organizations",
-    };
-  }
+   if (whereClause) {
+     dataQuery.where(whereClause);
+   }
+
+   const data = await dataQuery;
+
+   const totalPages = Math.ceil(totalCount / params.pageSize);
+
+   console.log(`✅ Listed ${data.length} organizations`);
+
+   return {
+     success: true,
+     data: data.map(org => ({
+       ...org,
+       slug: org.slug ?? "",
+       logo: org.logo ?? undefined,
+       metadata: org.metadata as import("@/types").OrganizationMetadata,
+     })),
+     pagination: {
+       page: params.page,
+       pageSize: params.pageSize,
+       totalCount,
+       totalPages,
+       hasNextPage: params.page < totalPages,
+       hasPreviousPage: params.page > 1,
+     },
+   };
+ } catch (error) {
+   console.error("❌ Error listing organizations:", error);
+   return {
+     success: false,
+     data: [],
+     pagination: {
+       page: params.page,
+       pageSize: params.pageSize,
+       totalCount: 0,
+       totalPages: 0,
+       hasNextPage: false,
+       hasPreviousPage: false,
+     },
+     error:
+       error instanceof Error ? error.message : "Failed to list organizations",
+   };
+ }
 }
-export async function checkSlugAvailability(slug: string, excludeOrgId?: string): Promise<{ available: boolean; suggestedSlug?: string }> {
+export async function checkSlugAvailability(
+  slug: string,
+  excludeOrgId?: string
+): Promise<{ available: boolean; suggestedSlug?: string }> {
   try {
-    const { db } = await import("@/db")
-    const { organizations } = await import("@/db/schema")
-    const { eq, and, ne, SQL } = await import("drizzle-orm")
+    const { db } = await import("@/db");
+    const { organizations } = await import("@/db/schema");
+    const { eq, and, ne, SQL } = await import("drizzle-orm");
 
     // Build query with proper typing
-    let query
+    let query;
     if (excludeOrgId) {
-      const condition = and(eq(organizations.slug, slug), ne(organizations.id, excludeOrgId))
+      const condition = and(
+        eq(organizations.slug, slug),
+        ne(organizations.id, excludeOrgId)
+      );
       if (!condition) {
-        throw new Error("Failed to build query condition")
+        throw new Error("Failed to build query condition");
       }
-      query = condition
+      query = condition;
     } else {
-      query = eq(organizations.slug, slug)
+      query = eq(organizations.slug, slug);
     }
 
-    const existing = await db.select().from(organizations).where(query).limit(1)
+    const existing = await db
+      .select()
+      .from(organizations)
+      .where(query)
+      .limit(1);
 
     if (existing.length === 0) {
-      return { available: true }
+      return { available: true };
     }
 
     // Generate suggested slug
-    let counter = 1
-    let suggestedSlug = `${slug}-${counter}`
-    
+    let counter = 1;
+    let suggestedSlug = `${slug}-${counter}`;
+
     while (true) {
-      let suggestedQuery
+      let suggestedQuery;
       if (excludeOrgId) {
-        const condition = and(eq(organizations.slug, suggestedSlug), ne(organizations.id, excludeOrgId))
+        const condition = and(
+          eq(organizations.slug, suggestedSlug),
+          ne(organizations.id, excludeOrgId)
+        );
         if (!condition) {
-          throw new Error("Failed to build suggested query condition")
+          throw new Error("Failed to build suggested query condition");
         }
-        suggestedQuery = condition
+        suggestedQuery = condition;
       } else {
-        suggestedQuery = eq(organizations.slug, suggestedSlug)
+        suggestedQuery = eq(organizations.slug, suggestedSlug);
       }
 
-      const suggestedExists = await db.select().from(organizations).where(suggestedQuery).limit(1)
-      
+      const suggestedExists = await db
+        .select()
+        .from(organizations)
+        .where(suggestedQuery)
+        .limit(1);
+
       if (suggestedExists.length === 0) {
-        break
+        break;
       }
-      
-      counter++
-      suggestedSlug = `${slug}-${counter}`
+
+      counter++;
+      suggestedSlug = `${slug}-${counter}`;
     }
 
-    return { 
-      available: false, 
-      suggestedSlug 
-    }
-
+    return {
+      available: false,
+      suggestedSlug,
+    };
   } catch (error) {
-    console.error("Slug check error:", error)
-    return { available: false }
+    console.error("Slug check error:", error);
+    return { available: false };
   }
 }

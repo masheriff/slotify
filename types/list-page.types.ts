@@ -11,7 +11,7 @@ export interface FilterOption {
 export interface FilterConfig {
   label: string;
   key: string;
-  type: 'text' | 'select' | 'date' | 'number' | 'boolean';
+  type: "text" | "select" | "date" | "number" | "boolean";
   options?: FilterOption[];
   placeholder?: string;
   validation?: {
@@ -27,7 +27,7 @@ export interface ListParams {
   pageSize: number;
   searchQuery: string;
   sortBy: string;
-  sortDirection: 'asc' | 'desc';
+  sortDirection: "asc" | "desc";
   filters: Record<string, string>;
 }
 
@@ -42,13 +42,13 @@ export interface PaginationData {
 
 export interface SortingData {
   sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
+  sortDirection?: "asc" | "desc";
 }
 
 export interface ListPageConfig {
   defaultPageSize?: number;
   defaultSort?: string;
-  defaultSortDirection?: 'asc' | 'desc';
+  defaultSortDirection?: "asc" | "desc";
   maxPageSize?: number;
   allowedSortColumns?: string[];
   requiredFilters?: string[];
@@ -57,8 +57,8 @@ export interface ListPageConfig {
 
 export interface ListDataResult<T> {
   success: boolean;
-  data?: {
-    data: T[];
+  data?: T[];
+  pagination?: {
     page: number;
     pageSize: number;
     totalPages: number;
@@ -128,9 +128,9 @@ export interface OrganizationListItem extends BaseListItem {
   slug?: string;
   logo?: string;
   description?: string;
-  type: 'admin' | 'client';
+  type: "admin" | "client";
   memberCount?: number;
-  status: 'active' | 'inactive' | 'suspended';
+  status: "active" | "inactive" | "suspended";
   contactEmail?: string;
   contactPhone?: string;
   address?: string;
@@ -144,7 +144,7 @@ export interface UserListItem extends BaseListItem {
   name: string;
   email: string;
   role: string;
-  status: 'active' | 'inactive' | 'banned';
+  status: "active" | "inactive" | "banned";
   emailVerified: boolean;
   lastLogin?: Date | string;
   organizationId?: string;
@@ -156,11 +156,11 @@ export interface PatientListItem extends BaseListItem {
   firstName: string;
   lastName: string;
   dateOfBirth: Date | string;
-  gender: 'male' | 'female' | 'other';
+  gender: "male" | "female" | "other";
   email?: string;
   phone?: string;
   mrn: string; // Medical Record Number
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   lastVisit?: Date | string;
   organizationId: string;
 }
@@ -173,7 +173,13 @@ export interface AppointmentListItem extends BaseListItem {
   procedureType: string;
   scheduledDate: Date | string;
   scheduledTime: string;
-  status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'no_show';
+  status:
+    | "scheduled"
+    | "confirmed"
+    | "in_progress"
+    | "completed"
+    | "cancelled"
+    | "no_show";
   referringDoctor?: string;
   location?: string;
   notes?: string;
@@ -188,7 +194,12 @@ export interface BookingListItem extends BaseListItem {
   patientMrn: string;
   procedureType: string;
   scheduledDate: Date | string;
-  status: 'scheduled' | 'checked_in' | 'in_progress' | 'completed' | 'cancelled';
+  status:
+    | "scheduled"
+    | "checked_in"
+    | "in_progress"
+    | "completed"
+    | "cancelled";
   technicianId?: string;
   technicianName?: string;
   deviceAssigned?: boolean;
@@ -201,7 +212,7 @@ export interface HolterDeviceListItem extends BaseListItem {
   serialNumber: string;
   model: string;
   manufacturer: string;
-  status: 'available' | 'assigned' | 'in_use' | 'maintenance' | 'retired';
+  status: "available" | "assigned" | "in_use" | "maintenance" | "retired";
   lastMaintenance?: Date | string;
   nextMaintenance?: Date | string;
   currentPatientId?: string;
@@ -217,8 +228,8 @@ export interface DoctorListItem extends BaseListItem {
   phone?: string;
   specialization: string;
   licenseNumber: string;
-  status: 'active' | 'inactive';
-  type: 'interpreting' | 'referring';
+  status: "active" | "inactive";
+  type: "interpreting" | "referring";
   organizationId?: string;
 }
 
@@ -229,7 +240,7 @@ export interface TechnicianListItem extends BaseListItem {
   email: string;
   phone?: string;
   certifications: string[];
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   currentAssignments: number;
   organizationId: string;
 }

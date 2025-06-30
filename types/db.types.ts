@@ -40,12 +40,6 @@ export type UserWithOrganizations = SelectUser & {
   })[];
 };
 
-// export type OrganizationWithMembers = SelectOrganization & {
-//   members: (SelectMember & {
-//     user: SelectUser;
-//   })[];
-// };
-
 export type MemberWithUserAndOrganization = SelectMember & {
   user: SelectUser;
   organization: SelectOrganization;

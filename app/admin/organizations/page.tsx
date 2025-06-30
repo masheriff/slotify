@@ -14,9 +14,7 @@ import { listOrganizations } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
 import {
   Organization,
-  OrganizationListItem,
 } from "@/types";
-import { getErrorMessage } from "@/types";
 
 interface OrganizationsPageProps {
   searchParams: Promise<{
@@ -82,7 +80,7 @@ export default async function OrganizationsPage({
     if (!result.success || !result.data) {
       return (
         <ListPageWrapper
-          error={getErrorMessage(result.error ?? "Failed to load organizations")}
+          error={result.error ?? "Failed to load organizations"}
           breadcrumbs={[
             { label: "Admin", href: "/admin" },
             { label: "Organizations", current: true },
@@ -92,75 +90,29 @@ export default async function OrganizationsPage({
     }
 
     // FIXED: Access the correct data structure
-    const organizationsArray = result.data.data;
-    const paginationInfo = result.data.pagination;
+    const organizationsArray = result.data;
+    const paginationInfo = result.pagination;
 
     console.log("🔍 Debug pagination data:", {
-      totalCount: paginationInfo.totalCount,
-      totalPages: paginationInfo.totalPages,
-      currentPage: paginationInfo.page,
-      pageSize: paginationInfo.pageSize,
+      totalCount: paginationInfo?.totalCount,
+      totalPages: paginationInfo?.totalPages,
+      currentPage: paginationInfo?.page,
+      pageSize: paginationInfo?.pageSize,
       arrayLength: organizationsArray.length,
     });
 
     handleListPageRedirect(
       "/admin/organizations",
       params,
-      paginationInfo.totalPages
+      paginationInfo?.totalPages ?? 0
     );
 
-    const tableData: OrganizationListItem[] = organizationsArray.map(
-      (org: Organization, index: number) => {
-        console.log(`🔄 Transforming org ${index + 1}:`, {
-          id: org.id,
-          name: org.name,
-          fullMetadata: org.metadata,
-          metadataType: org.metadata?.type,
-          metadataIsActive: org.metadata?.isActive,
-          metadataContactEmail: org.metadata?.contactEmail,
-        });
-
-        const transformed: OrganizationListItem = {
-          id: org.id,
-          name: org.name,
-          slug: org.slug,
-          logo: org.logo,
-          type: org.metadata?.type === "admin" ? "admin" : "client",
-          contactEmail: org.metadata?.contactEmail || "",
-          contactPhone: org.metadata?.contactPhone || "",
-          city: org.metadata?.city || "",
-          state: org.metadata?.state || "",
-          country: org.metadata?.country || "",
-          isActive: org.metadata?.isActive,
-          createdAt: org.createdAt,
-          status: org.metadata?.isActive ? "active"  : "inactive",
-        };
-
-        console.log(`✅ Transformed result ${index + 1}:`, transformed);
-        return transformed;
-      }
-    );
-
-    console.log("📊 Final table data summary:", {
-      totalCount: tableData.length,
-      typeDistribution: tableData.reduce(
-        (acc, item) => {
-          acc[item.type] = (acc[item.type] || 0) + 1;
-          return acc;
-        },
-        {} as Record<string, number>
-      ),
-      sampleData: tableData.slice(0, 2),
-    });
 
     const renderTime = Date.now() - startTime;
-    logListPageMetrics(
+    logListPageMetrics<Organization>(
       "organizations",
       params,
-      {
-        ...result,
-        error: getErrorMessage(getErrorMessage(result.error ?? "An error occurred")),
-      },
+      result,
       renderTime
     );
 
@@ -182,7 +134,7 @@ export default async function OrganizationsPage({
 
           <DataTable
             columns={organizationColumns}
-            data={tableData}
+            data={organizationsArray}
             pagination={{
               // FIXED: Use correct property names and data source
               currentPage: paginationInfo.page,
@@ -190,7 +142,7 @@ export default async function OrganizationsPage({
               totalPages: paginationInfo.totalPages,
               hasNextPage: paginationInfo.hasNextPage,
               hasPreviousPage: paginationInfo.hasPreviousPage,
-              totalCount: paginationInfo.totalCount, // This should fix the NaN issue
+              totalCount: paginationInfo?.totalCount ?? 0, // This should fix the NaN issue
             }}
             sorting={{
               sortBy: params.sortBy,

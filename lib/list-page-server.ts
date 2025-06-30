@@ -13,9 +13,9 @@ export interface ListParams {
 
 export interface ListDataResult<T> {
   success: boolean;
-  data?: {
+  data?: T[];
+  pagination?: {
     totalCount: number | undefined;
-    data: T[];
     page: number;
     pageSize: number;
     totalPages: number;
@@ -135,9 +135,9 @@ export async function fetchListData<T>(
     
     const duration = Date.now() - startTime;
     console.log(`✅ [${context.module}] Server fetch successful:`, {
-      count: result.data?.data?.length || 0,
-      page: result.data?.page,
-      totalPages: result.data?.totalPages,
+      count: result.data?.length || 0,
+      page: result.pagination?.page,
+      totalPages: result.pagination?.totalPages,
       duration: `${duration}ms`,
     });
 
@@ -230,8 +230,8 @@ export function buildCanonicalListURL(
 export function createEmptyListResult<T>(params: ListParams): ListDataResult<T> {
   return {
     success: true,
-    data: {
-      data: [],
+    data: [],
+    pagination: {
       page: params.page,
       pageSize: params.pageSize,
       totalPages: 0,
@@ -273,10 +273,10 @@ export async function validateListPageAccess(
 /**
  * Log list page performance metrics
  */
-export function logListPageMetrics(
+export function logListPageMetrics<T>(
   module: string,
   params: ListParams,
-  result: ListDataResult<unknown>,
+  result: ListDataResult<T>,
   renderTime: number
 ) {
   if (process.env.NODE_ENV === 'development') {
@@ -290,8 +290,8 @@ export function logListPageMetrics(
       },
       result: {
         success: result.success,
-        dataCount: result.data?.data?.length || 0,
-        totalPages: result.data?.totalPages || 0,
+        dataCount: result.data?.length || 0,
+        totalPages: result.pagination?.totalPages || 0,
       },
       performance: {
         renderTime: `${renderTime}ms`,
