@@ -25,42 +25,11 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getMemberRoleLabel, getMemberStatusColor, getMemberStatusLabel, MemberWithUser } from "@/types/member.types";
-import { Organization } from "@/types";
+import { getMemberRoleLabel, getMemberStatusColor, getMemberStatusLabel, MemberDetailsContentProps } from "@/types/member.types";
 import { getMemberRoleColor } from "@/lib/utils/member-utils";
 
 // Type for the data returned by getMemberById
-interface MemberDetails {
-  id: string;
-  userId: string;
-  organizationId: string;
-  role: string;
-  createdAt: Date | string;
-  user: {
-    id: string;
-    name: string | null;
-    email: string;
-    image: string | null;
-    emailVerified: boolean;
-    createdAt: Date | string;
-    updatedAt: Date | string | null;
-    banned: boolean | null;
-    banReason: string | null;
-    banExpires: Date | string | null;
-  };
-  organization: {
-    id: string;
-    name: string;
-    slug: string | null;
-  };
-}
 
-interface MemberDetailsContentProps {
-  member: MemberDetails;
-  organization: Organization;
-  organizationId: string;
-  memberId: string;
-}
 
 
 

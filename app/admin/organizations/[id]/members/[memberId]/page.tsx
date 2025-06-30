@@ -3,11 +3,9 @@ import { getMemberById } from "@/actions/member-actions";
 import { getOrganizationById } from "@/actions/organization-actions";
 import { MemberDetailsContent } from "@/components/admin/members/members-details-content";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
-import { getErrorMessage } from "@/types";
+import { getErrorMessage, MemberDetailsPageProps } from "@/types";
 
-interface MemberDetailsPageProps {
-  params: Promise<{ id: string; memberId: string }>;
-}
+
 
 export default async function MemberDetailsPage({
   params,

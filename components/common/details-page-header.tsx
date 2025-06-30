@@ -13,37 +13,9 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { ArrowLeft, LucideIcon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { DetailsPageHeaderProps } from "@/types";
 
-export interface DetailsPageHeaderAction {
-  label: string;
-  onClick: () => void;
-  icon?: LucideIcon;
-  variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
-  loadingKey?: string;
-  loadingText?: string;
-}
-
-export interface DetailsPageHeaderProps {
-  title: string;
-  subtitle?: string;
-  avatar?: {
-    src?: string;
-    fallback: string;
-  };
-  badges?: Array<{
-    label: string;
-    variant?: "default" | "secondary" | "destructive" | "outline";
-    color?: string;
-  }>;
-  breadcrumbItems: Array<{
-    title: string;
-    href?: string;
-  }>;
-  actions?: DetailsPageHeaderAction[];
-  onBack?: () => void;
-  backLabel?: string;
-}
 
 export function DetailsPageHeader({
   title,

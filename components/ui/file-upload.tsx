@@ -8,19 +8,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Image from "next/image";
+import { FileUploadProps } from "@/types";
 
-interface FileUploadProps {
-  onUpload: (
-    file: File
-  ) => Promise<{ success: boolean; url?: string; error?: string }>;
-  onRemove?: (url: string) => Promise<{ success: boolean; error?: string }>;
-  accept?: string;
-  maxSize?: number; // in bytes
-  className?: string;
-  placeholder?: string;
-  value?: string; // Current file URL/path
-  disabled?: boolean;
-}
+
 
 export function FileUpload({
   onUpload,

@@ -4,15 +4,8 @@
 import { ArrowLeft, Building2, Plus, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import { OrganizationPageHeaderProps } from "@/types"
 
-interface OrganizationPageHeaderProps {
-  mode: "create" | "edit" | "view"
-  organizationName?: string
-  onSave?: () => void
-  isLoading?: boolean
-  showBackButton?: boolean
-  backUrl?: string
-}
 
 export function OrganizationPageHeader({
   mode,

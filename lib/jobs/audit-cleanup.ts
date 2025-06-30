@@ -4,18 +4,8 @@ import { db } from '@/db';
 import { sql } from 'drizzle-orm';
 import { auditLogs, auditCleanupLogs, organizations } from '@/db/schema';
 import { eq, lt, and } from 'drizzle-orm';
-import { OrganizationMetadata } from '@/types';
+import { Organization, OrganizationMetadata } from '@/types';
 
-interface OrganizationWithMetadata {
-  id: string;
-  name: string;
-  metadata: {
-    type?: "admin" | "client";
-    isActive?: boolean;
-    dataRetentionYears?: string;
-    [key: string]: unknown;
-  };
-}
 
 /**
  * Audit Log Cleanup Job
@@ -45,7 +35,7 @@ export function startAuditCleanupJob() {
 
       // Filter active organizations based on metadata.isActive
       const activeOrgs = allOrgs.filter((org) => {
-        const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+        const metadata = org.metadata as Organization['metadata'];
         return metadata?.isActive === true;
       });
 
@@ -58,7 +48,7 @@ export function startAuditCleanupJob() {
         let errorMessage = null;
 
         try {
-          const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+          const metadata = org.metadata as Organization['metadata'];
           const retentionYears = parseInt(metadata?.dataRetentionYears || '7');
           
           console.log(`🏥 Processing ${org.name} (retention: ${retentionYears} years)`);
@@ -183,7 +173,7 @@ export async function runAuditCleanupNow(organizationId?: string): Promise<{
         throw new Error(`Organization ${organizationId} not found`);
       }
 
-      const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+      const metadata = org.metadata as Organization['metadata'];
       const retentionYears = parseInt(metadata?.dataRetentionYears || '7');
       const cutoffDate = new Date();
       cutoffDate.setFullYear(cutoffDate.getFullYear() - retentionYears);
@@ -212,12 +202,12 @@ export async function runAuditCleanupNow(organizationId?: string): Promise<{
 
       // Filter active organizations based on metadata.isActive
       const activeOrgs = allOrgs.filter((org) => {
-        const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+        const metadata = org.metadata as Organization['metadata'];
         return metadata?.isActive === true;
       });
 
       for (const org of activeOrgs) {
-        const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+        const metadata = org.metadata as Organization['metadata'];
         const retentionYears = parseInt(metadata?.dataRetentionYears || '7');
         const cutoffDate = new Date();
         cutoffDate.setFullYear(cutoffDate.getFullYear() - retentionYears);
@@ -334,7 +324,7 @@ export async function estimateCleanupForOrganization(organizationId: string): Pr
       throw new Error(`Organization ${organizationId} not found`);
     }
 
-    const metadata = org.metadata as OrganizationWithMetadata['metadata'];
+    const metadata = org.metadata as Organization['metadata'];
     const retentionYears = parseInt(metadata?.dataRetentionYears || '7');
     const cutoffDate = new Date();
     cutoffDate.setFullYear(cutoffDate.getFullYear() - retentionYears);

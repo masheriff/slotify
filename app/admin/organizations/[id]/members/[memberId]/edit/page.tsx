@@ -5,13 +5,9 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import { MemberForm } from "@/components/admin/forms/member-form";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
+import { EditMemberPageProps } from "@/types";
 
-interface EditMemberPageProps {
-  params: Promise<{
-    id: string;
-    memberId: string;
-  }>;
-}
+
 
 export default function EditMemberPage({ params }: EditMemberPageProps) {
   const router = useRouter();

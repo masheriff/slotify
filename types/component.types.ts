@@ -1,11 +1,14 @@
 // types/component.types.ts - Component prop interfaces
 
-import { ReactNode } from 'react';
+import { ReactNode } from "react";
 import { ColumnDef } from "@tanstack/react-table";
+import { VariantProps } from "class-variance-authority";
+import { buttonVariants } from "@/components/ui/button";
+import { LucideIcon } from "lucide-react";
 
 // Form component base props
 export interface BaseFormProps {
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -16,7 +19,7 @@ export interface MemberFormProps extends BaseFormProps {
   memberId?: string;
 }
 
-// Organization form props  
+// Organization form props
 export interface OrganizationFormProps extends BaseFormProps {
   organizationId?: string;
 }
@@ -43,7 +46,7 @@ export interface FilterOption {
 export interface FilterConfig {
   label: string;
   key: string;
-  type: 'text' | 'select' | 'date' | 'number' | 'boolean';
+  type: "text" | "select" | "date" | "number" | "boolean";
   options?: FilterOption[];
   placeholder?: string;
   validation?: {
@@ -103,4 +106,38 @@ export interface BaseListItem {
   id: string;
   createdAt: Date | string;
   updatedAt?: Date | string;
+}
+
+export interface OrganizationPageHeaderProps {
+  mode: "create" | "edit" | "view";
+  organizationName?: string;
+  onSave?: () => void;
+  isLoading?: boolean;
+  showBackButton?: boolean;
+  backUrl?: string;
+}
+
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+  // Loading-related props
+  loadingKey?: string;
+  loadingText?: string;
+  icon?: LucideIcon;
+  loadingIcon?: LucideIcon;
+  autoGenerateKey?: boolean;
+}
+
+export interface FileUploadProps {
+  onUpload: (
+    file: File
+  ) => Promise<{ success: boolean; url?: string; error?: string }>;
+  onRemove?: (url: string) => Promise<{ success: boolean; error?: string }>;
+  accept?: string;
+  maxSize?: number; // in bytes
+  className?: string;
+  placeholder?: string;
+  value?: string; // Current file URL/path
+  disabled?: boolean;
 }

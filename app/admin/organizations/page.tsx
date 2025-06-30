@@ -1,4 +1,4 @@
-// app/admin/organizations/page.tsx - UPDATED WITH EXTRACTED INTERFACES
+// app/admin/organizations/page.tsx
 import {
   parseListParams,
   handleListPageRedirect,
@@ -13,7 +13,7 @@ import { organizationFilterConfig } from "@/components/admin/forms/organization-
 import { listOrganizations } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
 import { Organization } from "@/types";
-import { OrganizationsPageProps } from "@/types/page.types"; // ✅ EXTRACTED
+import { OrganizationsPageProps } from "@/types/page.types";
 
 const LIST_CONFIG = {
   defaultPageSize: 10,
@@ -27,7 +27,7 @@ const LIST_CONFIG = {
 
 export default async function OrganizationsPage({
   searchParams,
-}: OrganizationsPageProps) { // ✅ USING EXTRACTED INTERFACE
+}: OrganizationsPageProps) {
   const startTime = Date.now();
 
   try {

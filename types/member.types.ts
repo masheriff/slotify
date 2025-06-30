@@ -1,3 +1,5 @@
+import { Organization } from "./organization.types";
+
 // types/member.types.ts
 export interface MemberUser {
   id: string;
@@ -106,6 +108,38 @@ export interface MemberFilters {
   role?: string;
   status?: MemberStatus;
   joinedAfter?: string;
+}
+
+export interface MemberDetails {
+  id: string;
+  userId: string;
+  organizationId: string;
+  role: string;
+  createdAt: Date | string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+    emailVerified: boolean;
+    createdAt: Date | string;
+    updatedAt: Date | string | null;
+    banned: boolean | null;
+    banReason: string | null;
+    banExpires: Date | string | null;
+  };
+  organization: {
+    id: string;
+    name: string;
+    slug: string | null;
+  };
+}
+
+export interface MemberDetailsContentProps {
+  member: MemberDetails;
+  organization: Organization;
+  organizationId: string;
+  memberId: string;
 }
 
 // Utility functions

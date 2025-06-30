@@ -29,12 +29,9 @@ import {
   getOrganizationTypeLabel,
   getOrganizationStatusLabel,
 } from "@/lib/utils/organization-utils";
-import { Organization, OrganizationMetadata } from "@/types";
+import { OrganizationDetailsContentProps, OrganizationMetadata } from "@/types";
 import Image from "next/image";
-interface OrganizationDetailsContentProps {
-  organization: Organization; // Type this according to your organization type
-  organizationId: string;
-}
+
 
 export function OrganizationDetailsContent({
   organization,

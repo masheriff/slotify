@@ -1,10 +1,11 @@
 // components/ui/button.tsx
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
-import { cva, type VariantProps } from "class-variance-authority";
-import { Loader2, LucideIcon } from "lucide-react";
+import { cva } from "class-variance-authority";
+import { Loader2 } from "lucide-react";
 import { useLoadingStore } from "@/stores/loading-store";
 import { cn } from "@/lib/utils";
+import { ButtonProps } from "@/types";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
@@ -35,17 +36,7 @@ const buttonVariants = cva(
   }
 );
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {
-  asChild?: boolean;
-  // Loading-related props
-  loadingKey?: string;
-  loadingText?: string;
-  icon?: LucideIcon;
-  loadingIcon?: LucideIcon;
-  autoGenerateKey?: boolean;
-}
+
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   (

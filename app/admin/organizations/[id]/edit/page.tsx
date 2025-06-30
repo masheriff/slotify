@@ -5,12 +5,9 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import { OrganizationForm } from "@/components/admin/forms/organization-form";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
+import { EditOrganizationPageProps } from "@/types";
 
-interface EditOrganizationPageProps {
-  params: Promise<{
-    id: string;
-  }>;
-}
+
 
 export default function EditOrganizationPage({ params }: EditOrganizationPageProps) {
   const router = useRouter();

@@ -5,6 +5,7 @@
 import { writeFile, unlink, mkdir } from "fs/promises"
 import { join } from "path"
 import { generateId } from "better-auth"
+import { DeleteResult, UploadResult } from "@/types/action.types"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 // Added webp to allowed types with correct handling
@@ -19,16 +20,7 @@ const MIME_TO_EXTENSION = {
   "image/svg+xml": "svg"
 }
 
-interface UploadResult {
-  success: boolean
-  url?: string
-  error?: string
-}
 
-interface DeleteResult {
-  success: boolean
-  error?: string
-}
 
 // Validate file type and size
 function validateFile(file: File, allowedTypes: string[] = ALLOWED_IMAGE_TYPES): { valid: boolean; error?: string } {

@@ -13,7 +13,7 @@ import {
 } from "@/lib/list-page-server";
 import { MemberListItem } from "@/types/member.types";
 import { getErrorMessage } from "@/types";
-import { MembersPageProps } from "@/types/page.types"; // ✅ EXTRACTED
+import { MembersPageProps } from "@/types/page.types";
 
 const LIST_CONFIG = {
   defaultPageSize: 10,
@@ -27,7 +27,7 @@ const LIST_CONFIG = {
 export default async function MembersPage({ 
   params, 
   searchParams 
-}: MembersPageProps) { // ✅ USING EXTRACTED INTERFACE
+}: MembersPageProps) {
   const startTime = Date.now();
   const { id: organizationId } = await params;
 

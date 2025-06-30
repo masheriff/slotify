@@ -2,11 +2,9 @@
 import { getOrganizationById } from "@/actions/organization-actions";
 import { OrganizationDetailsContent } from "@/components/admin/organization/organization-details-content";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
-import { getErrorMessage } from "@/types";
+import { getErrorMessage, OrganizationDetailsPageProps } from "@/types";
 
-interface OrganizationDetailsPageProps {
-  params: Promise<{ id: string }>;
-}
+
 
 export default async function OrganizationDetailsPage({
   params,

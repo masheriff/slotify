@@ -18,3 +18,4 @@ export * from './table-config.types';
 export * from './page.types';
 export * from './component.types';
 export * from './form.types';
+export * from './dialog.types';

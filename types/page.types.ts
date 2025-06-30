@@ -1,5 +1,8 @@
 // types/page.types.ts - Page-specific prop interfaces
 
+import { LucideIcon } from "lucide-react";
+import { Organization } from "./organization.types";
+
 // Base page props for organization-scoped pages
 export interface BasePageProps {
   params: Promise<{ orgSlug: string }>;
@@ -28,6 +31,38 @@ export interface EditMemberPageProps {
     id: string;
     memberId: string;
   }>;
+}
+
+export interface InviteMemberPageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+export interface OrganizationDetailsPageProps {
+  params: Promise<{ id: string }>;
+}
+
+export interface EditOrganizationPageProps {
+  params: Promise<{
+    id: string;
+  }>;
+}
+
+export interface OrganizationDetailsContentProps {
+  organization: Organization; // Type this according to your organization type
+  organizationId: string;
+}
+
+export interface EditMemberPageProps {
+  params: Promise<{
+    id: string;
+    memberId: string;
+  }>;
+}
+
+export interface MemberDetailsPageProps {
+  params: Promise<{ id: string; memberId: string }>;
 }
 
 // Generic detail page props
@@ -62,4 +97,35 @@ export interface MemberSearchParams {
   role?: string;
   status?: string;
   joinedAfter?: string;
+}
+
+
+export interface DetailsPageHeaderAction {
+  label: string;
+  onClick: () => void;
+  icon?: LucideIcon;
+  variant?: "default" | "outline" | "secondary" | "ghost" | "link" | "destructive";
+  loadingKey?: string;
+  loadingText?: string;
+}
+
+export interface DetailsPageHeaderProps {
+  title: string;
+  subtitle?: string;
+  avatar?: {
+    src?: string;
+    fallback: string;
+  };
+  badges?: Array<{
+    label: string;
+    variant?: "default" | "secondary" | "destructive" | "outline";
+    color?: string;
+  }>;
+  breadcrumbItems: Array<{
+    title: string;
+    href?: string;
+  }>;
+  actions?: DetailsPageHeaderAction[];
+  onBack?: () => void;
+  backLabel?: string;
 }

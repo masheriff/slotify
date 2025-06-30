@@ -40,7 +40,6 @@ import {
   createOrganization,
   updateOrganization,
   getOrganizationById,
-  OrganizationInput,
 } from "@/actions/organization-actions";
 import { deleteFile } from "@/actions/file-upload-actions";
 import {
@@ -50,6 +49,7 @@ import {
 } from "@/types/server-actions.types";
 import { Switch } from "@/components/ui/switch";
 import { OrganizationFormProps } from "@/types";
+import { OrganizationInput } from "@/schemas";
 
 // Local slug checker
 const checkSlugAvailabilityAPI = async (
