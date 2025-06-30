@@ -1,6 +1,12 @@
 // lib/auth.ts
-import { betterAuth } from "better-auth";
-import { magicLink, admin, organization, captcha } from "better-auth/plugins";
+import { APIError, betterAuth } from "better-auth";
+import {
+  magicLink,
+  admin,
+  organization,
+  captcha,
+  createAuthMiddleware,
+} from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db";
 import { eq } from "drizzle-orm";
@@ -18,10 +24,8 @@ import {
   verifications,
 } from "@/db/schema";
 import { nextCookies } from "better-auth/next-js";
-import {
-  ac,
-  healthcareRoles,
-} from "./permissions/healthcare-access-control";
+import { ac, healthcareRoles } from "./permissions/healthcare-access-control";
+import { checkUserHasActiveOrganization, getUserOrganizationInfo } from "./utils/auth-middleware-utils";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -37,6 +41,93 @@ export const auth = betterAuth({
     },
     debugLogs: true, // Set to true to enable debug logs for the adapter
   }),
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      // Intercept magic link verification attempts
+      if (ctx.path === "/sign-in/magic-link/verify") {
+        const email = ctx.body?.email;
+
+        if (email) {
+          console.log(`🔐 Magic link verification attempt for: ${email}`);
+
+          const hasActiveOrg = await checkUserHasActiveOrganization(email);
+
+          if (!hasActiveOrg) {
+            const orgInfo = await getUserOrganizationInfo(email);
+
+            console.log(`❌ Login blocked for ${email}:`, {
+              userId: orgInfo.userId,
+              organizations: orgInfo.organizationNames,
+              activeOrganizations: orgInfo.activeOrganizations,
+            });
+
+            throw new APIError("FORBIDDEN", {
+              message:
+                "Your organization is currently inactive. Please contact your administrator to reactivate your organization access.",
+            });
+          }
+
+          console.log(
+            `✅ Login allowed for ${email} - has active organization`
+          );
+        }
+      }
+
+      // Also check during regular magic link sign-in initiation
+      if (ctx.path === "/sign-in/magic-link") {
+        const email = ctx.body?.email;
+
+        if (email) {
+          console.log(`📧 Magic link request for: ${email}`);
+
+          // Check if user exists and has active organization
+          // We do this early to avoid sending magic links to users who can't login
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, email))
+            .limit(1);
+
+          if (user) {
+            const hasActiveOrg = await checkUserHasActiveOrganization(email);
+
+            if (!hasActiveOrg) {
+              const orgInfo = await getUserOrganizationInfo(email);
+
+              console.log(`❌ Magic link request blocked for ${email}:`, {
+                userId: orgInfo.userId,
+                organizations: orgInfo.organizationNames,
+                activeOrganizations: orgInfo.activeOrganizations,
+              });
+
+              throw new APIError("FORBIDDEN", {
+                message:
+                  "Your organization is currently inactive. Please contact your administrator to reactivate your organization access.",
+              });
+            }
+          }
+        }
+      }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      // Log successful logins with organization info
+      if (ctx.path === "/sign-in/magic-link/verify" && ctx.context.newSession) {
+        const session = ctx.context.newSession;
+        const email = session.user.email;
+        
+        if (email) {
+          const orgInfo = await getUserOrganizationInfo(email);
+          
+          console.log(`✅ Successful login for ${email}:`, {
+            userId: session.user.id,
+            sessionId: session.session.id,
+            organizations: orgInfo.organizationNames,
+            activeOrganizations: orgInfo.activeOrganizations,
+          });
+        }
+      }
+    }),
+  },
   plugins: [
     admin({
       // Set default role for admin users
@@ -134,17 +225,14 @@ export const auth = betterAuth({
   rateLimit: {
     enabled: process.env.NODE_ENV === "production", // Enable rate limiting
     max: 10, // Maximum requests per IP per minute
-    windowMs: 60 * 1000, // 1 minute
-    message: "Too many requests, please try again later.",
+    window: 60 * 1000, // 1 minute
     customRules: {
       "/sign-in/magic-link": {
         max: 3, // Maximum requests for magic link endpoint
         window: 60 * 1000, // 1 minute
-        message: "Too many requests, please try again later.",
       },
     },
   },
-  
 });
 
 /**
