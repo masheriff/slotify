@@ -33,7 +33,6 @@ import {
 } from "@/components/ui/card";
 import { Loader2, Mail, Shield, User } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { MEMBER_ROLES } from "@/types/member.types";
 import {
   getMemberById,
@@ -43,9 +42,9 @@ import {
 import { getOrganizationById } from "@/actions/organization-actions";
 import {
   getErrorMessage,
-  ServerActionError,
   ServerActionResponse,
 } from "@/types/server-actions.types";
+import { MemberFormProps } from "@/types";
 
 // Form validation schema
 const memberFormSchema = z.object({
@@ -56,12 +55,6 @@ const memberFormSchema = z.object({
 
 type FormData = z.infer<typeof memberFormSchema>;
 
-interface MemberFormProps {
-  mode: "create" | "edit";
-  organizationId: string;
-  memberId?: string;
-  onSuccess?: () => void;
-}
 
 export function MemberForm({
   mode,

@@ -12,21 +12,8 @@ import { organizationColumns } from "@/components/table-configs/organization-col
 import { organizationFilterConfig } from "@/components/admin/forms/organization-filters-config";
 import { listOrganizations } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
-import { Organization } from "@/types"; // ✅ Use domain type
+import { Organization, OrganizationsPageProps } from "@/types"; // ✅ Use domain type
 
-interface OrganizationsPageProps {
-  searchParams: Promise<{
-    page?: string;
-    pageSize?: string;
-    search?: string;
-    sortBy?: string;
-    sortDirection?: "asc" | "desc";
-    type?: string;
-    createdAfter?: string;
-    status?: string;
-    contactEmail?: string;
-  }>;
-}
 
 const LIST_CONFIG = {
   defaultPageSize: 10,

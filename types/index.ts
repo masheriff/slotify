@@ -1,4 +1,4 @@
-// types/index.ts - FIXED EXPORTS (NO DUPLICATES)
+// types/index.ts - UPDATED WITH NEW EXPORTS
 export * from './auth.types';
 export * from './api.types';
 export * from './permissions.types';
@@ -14,3 +14,7 @@ export * from './list-page.types';
 export * from './organization.types';
 export * from './server-actions.types';
 export * from './member.types';
+export * from './table-config.types';
+export * from './page.types';
+export * from './component.types';
+export * from './form.types';

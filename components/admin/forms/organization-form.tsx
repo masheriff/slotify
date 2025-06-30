@@ -49,6 +49,7 @@ import {
   ServerActionResponse,
 } from "@/types/server-actions.types";
 import { Switch } from "@/components/ui/switch";
+import { OrganizationFormProps } from "@/types";
 
 // Local slug checker
 const checkSlugAvailabilityAPI = async (
@@ -124,11 +125,6 @@ const organizationFormSchema = z.object({
 type FormData = z.infer<typeof organizationFormSchema>;
 type SlugStatus = "checking" | "available" | "taken" | null;
 
-interface OrganizationFormProps {
-  mode: "create" | "edit";
-  organizationId?: string;
-  onSuccess?: () => void;
-}
 
 export function OrganizationForm({
   mode,

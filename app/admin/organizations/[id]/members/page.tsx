@@ -12,22 +12,8 @@ import {
   logListPageMetrics 
 } from "@/lib/list-page-server";
 import { MemberListItem } from "@/types/member.types";
-import { getErrorMessage } from "@/types";
+import { getErrorMessage, MembersPageProps } from "@/types";
 
-interface MembersPageProps {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{
-    page?: string;
-    pageSize?: string;
-    search?: string;
-    sortBy?: string;
-    sortDirection?: "asc" | "desc";
-    type?: string;
-    createdAfter?: string;
-    status?: string;
-    contactEmail?: string;
-  }>;
-}
 
 const LIST_CONFIG = {
   defaultPageSize: 10,

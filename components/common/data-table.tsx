@@ -33,30 +33,8 @@ import {
   ArrowUp,
   ArrowDown
 } from "lucide-react"
+import { DataTableProps } from "@/types"
 
-interface PaginationData {
-  page: number;
-  pageSize: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  hasPreviousPage: boolean;
-  totalCount: number;
-}
-
-interface SortingData {
-  sortBy?: string;
-  sortDirection?: "asc" | "desc";
-}
-
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  pagination: PaginationData;
-  sorting?: SortingData;
-  emptyMessage?: string;
-  selectable?: boolean;
-  bulkActions?: React.ReactNode;
-}
 
 export function DataTable<TData, TValue>({
   columns,

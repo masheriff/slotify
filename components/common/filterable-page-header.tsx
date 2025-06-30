@@ -15,31 +15,8 @@ import {
   X
 } from "lucide-react"
 import { useState } from "react"
+import { FilterablePageHeaderProps, FilterConfig } from "@/types"
 
-interface FilterOption {
-  value: string;
-  label: string;
-  disabled?: boolean;
-}
-
-interface FilterConfig {
-  label: string;
-  key: string;
-  type: 'text' | 'select' | 'date' | 'number' | 'boolean';
-  options?: FilterOption[];
-  placeholder?: string;
-}
-
-interface FilterablePageHeaderProps {
-  title: string;
-  description?: string;
-  createButtonText?: string;
-  createHref?: string;
-  onCreateNew?: () => void;
-  filterConfig: FilterConfig[];
-  error?: string;
-  customActions?: React.ReactNode;
-}
 
 export function FilterablePageHeader({
   title,
