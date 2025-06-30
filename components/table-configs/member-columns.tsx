@@ -15,22 +15,47 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format, formatDistanceToNow } from "date-fns";
 import { MoreHorizontal, Eye, Edit, UserMinus, Shield } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
-import { MemberListItem, getErrorMessage, getMemberRoleLabel, getMemberStatusColor, getMemberStatusLabel } from "@/types";
+import { MemberListItem } from "@/types/member.types";
 import { removeMemberFromOrganization } from "@/actions/member-actions";
 import { toast } from "sonner";
+import { getErrorMessage, ServerActionError } from "@/types";
+
+// Helper functions for member display
+function getMemberRoleLabel(role: string): string {
+  const roleLabels: Record<string, string> = {
+    system_admin: "System Admin",
+    five_am_admin: "5AM Admin", 
+    five_am_agent: "5AM Agent",
+    client_admin: "Client Admin",
+    front_desk: "Front Desk",
+    technician: "Technician",
+    interpreting_doctor: "Interpreting Doctor",
+  };
+  return roleLabels[role] || role;
+}
+
+function getMemberStatusColor(isActive: boolean): string {
+  return isActive ? "default" : "destructive";
+}
+
+function getMemberStatusLabel(isActive: boolean): string {
+  return isActive ? "Active" : "Inactive";
+}
 
 // Actions Cell Component with Navigation
 function MemberActionsCell({
   member,
-  organizationId,
 }: {
   member: MemberListItem;
-  organizationId: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(false);
+
+  // ✅ EXTRACT ORGANIZATION ID FROM PATHNAME
+  const organizationId = pathname.split('/')[3]; // /admin/organizations/{id}/members
 
   const handleViewDetails = () => {
     router.push(`/admin/organizations/${organizationId}/members/${member.id}`);
@@ -53,7 +78,7 @@ function MemberActionsCell({
         toast.success("Member removed successfully");
         router.refresh();
       } else {
-        toast.error(getErrorMessage(result.error ?? "Failed to remove member"));
+        toast.error(getErrorMessage(result.error || "Failed to remove member"));
       }
     } catch (error) {
       console.error("Error removing member:", error);
@@ -94,13 +119,15 @@ function MemberActionsCell({
   );
 }
 
+// ✅ UPDATED TO USE MEMBERLISTITEM DOMAIN TYPE
 export const memberColumns: ColumnDef<MemberListItem>[] = [
-  // 1st Column: User Info (Avatar, Name, Email)
+  // User Info (Avatar, Name, Email)
   {
-    accessorKey: "user",
+    id: "user",
     header: "Member",
     cell: ({ row }) => {
-      const user = row.getValue("user") as MemberListItem["user"];
+      const member = row.original;
+      const user = member.user;
       const initials = user.name 
         ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
         : user.email.slice(0, 2).toUpperCase();
@@ -124,7 +151,7 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
     },
   },
 
-  // 2nd Column: Role
+  // Role
   {
     accessorKey: "role",
     header: "Role",
@@ -138,68 +165,67 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
     },
   },
 
-  // 3rd Column: Status (based on user.banned)
+  // Status (based on user.banned or other logic)
   {
     id: "status",
     header: "Status",
     cell: ({ row }) => {
       const member = row.original;
-      // const isActive = !member.user.banned;
-      const isActive = true;
+      // For now, assuming all members are active unless user is banned
+      // You can extend this logic based on your requirements
+      const isActive = true; // !member.user.banned - if you have banned field
       
       return (
-        <Badge 
-          variant={isActive ? "default" : "destructive"}
-          className="text-xs"
-        >
+        <Badge variant={isActive ? "default" : "destructive"}>
           {getMemberStatusLabel(isActive)}
         </Badge>
       );
     },
   },
 
-  // 4th Column: Joined Date
-  {
-    accessorKey: "createdAt",
-    header: "Joined",
-    cell: ({ row }) => {
-      const date = row.getValue("createdAt") as Date;
-      return (
-        <div className="text-sm">
-          <div>{format(date, "MMM dd, yyyy")}</div>
-          <div className="text-xs text-muted-foreground">
-            {formatDistanceToNow(date, { addSuffix: true })}
-          </div>
-        </div>
-      );
-    },
-  },
-
-  // 5th Column: Email Verified
+  // Email Verified
   {
     id: "emailVerified",
-    header: "Verified",
+    header: "Email Verified",
     cell: ({ row }) => {
-      const user = row.original.user;
-      const isVerified = !!user.emailVerified;
+      const member = row.original;
+      const isVerified = member.user.emailVerified;
       
       return (
-        <Badge 
-          variant={isVerified ? "default" : "secondary"}
-          className="text-xs"
-        >
+        <Badge variant={isVerified ? "default" : "secondary"}>
           {isVerified ? "Verified" : "Pending"}
         </Badge>
       );
     },
   },
 
-  // 6th Column: Actions
+  // Joined Date
+  {
+    accessorKey: "createdAt",
+    header: "Joined",
+    cell: ({ row }) => {
+      const date = row.getValue("createdAt") as Date | string;
+      const joinedDate = typeof date === "string" ? new Date(date) : date;
+      
+      return (
+        <div className="text-sm">
+          <div className="font-medium">
+            {format(joinedDate, "MMM dd, yyyy")}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {formatDistanceToNow(joinedDate, { addSuffix: true })}
+          </div>
+        </div>
+      );
+    },
+  },
+
+  // Actions
   {
     id: "actions",
-    header: "Actions",
     cell: ({ row }) => {
-      return <MemberActionsCell member={row.original} organizationId={row.original.organizationId} />;
+      const member = row.original;
+      return <MemberActionsCell member={member} />;
     },
   },
 ];

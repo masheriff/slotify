@@ -1,4 +1,4 @@
-// components/common/data-table.tsx - SIMPLE FIX
+// components/common/data-table.tsx
 "use client"
 
 import {
@@ -33,27 +33,7 @@ import {
   ChevronsLeft, 
   ChevronsRight,
 } from "lucide-react"
-
-// Updated interface to match your existing pattern
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  pagination: {
-    currentPage: number;
-    pageSize: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-    totalCount?: number;
-  };
-  sorting?: {
-    sortBy?: string;
-    sortDirection?: 'asc' | 'desc';
-  };
-  emptyMessage?: string;
-  selectable?: boolean;
-  bulkActions?: React.ReactNode;
-}
+import { DataTableProps } from "@/types/list-page.types" // ✅ Import from types
 
 export function DataTable<TData, TValue>({
   columns,
@@ -61,14 +41,16 @@ export function DataTable<TData, TValue>({
   pagination,
   sorting,
   emptyMessage = "No results found.",
+  selectable = false,
+  bulkActions,
 }: DataTableProps<TData, TValue>) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Destructure pagination
+  // ✅ USE CONSISTENT PAGINATION PROPERTY NAMES
   const { 
-    currentPage, 
+    page,           // ✅ Not currentPage
     pageSize, 
     totalPages, 
     hasNextPage, 
@@ -116,7 +98,8 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onSortingChange: (updater) => {
-      const newSorting = typeof updater === 'function' ? updater(sorting_state) : updater
+      const newSorting = typeof updater === 'function' 
+        ? updater(sorting_state) : updater
       setSorting(newSorting)
       
       // Update URL with new sorting
@@ -152,12 +135,9 @@ export function DataTable<TData, TValue>({
     }
   }, [sorting?.sortBy, sorting?.sortDirection])
 
-  // Calculate display values
-  const startItem = data.length > 0 ? (currentPage - 1) * pageSize + 1 : 0
-  const endItem = Math.min(currentPage * pageSize, (currentPage - 1) * pageSize + data.length)
-  
-  // Calculate total items display
-  // const totalItems = totalCount || (totalPages * pageSize)
+  // ✅ CALCULATE DISPLAY VALUES WITH CONSISTENT PROPERTY NAMES
+  const startItem = data.length > 0 ? (page - 1) * pageSize + 1 : 0
+  const endItem = Math.min(page * pageSize, (page - 1) * pageSize + data.length)
   const displayEndItem = totalCount ? Math.min(endItem, totalCount) : endItem
 
   return (
@@ -187,7 +167,6 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-muted/50 transition-colors"
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -205,10 +184,7 @@ export function DataTable<TData, TValue>({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  <div className="flex flex-col items-center justify-center space-y-2 text-muted-foreground">
-                    <div className="text-lg">📭</div>
-                    <p>{emptyMessage}</p>
-                  </div>
+                  {emptyMessage}
                 </TableCell>
               </TableRow>
             )}
@@ -216,38 +192,45 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      {/* Pagination */}
+      {/* Pagination Controls */}
       <div className="flex items-center justify-between px-2">
-        <div className="flex items-center space-x-2">
-          <p className="text-sm font-medium">Rows per page</p>
-          <Select
-            value={`${pageSize}`}
-            onValueChange={(value) => handlePageSizeChange(Number(value))}
-          >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue placeholder={pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map((size) => (
-                <SelectItem key={size} value={`${size}`}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex-1 text-sm text-muted-foreground">
+          {totalCount > 0 ? (
+            <>
+              Showing {startItem} to {displayEndItem} of {totalCount} results
+            </>
+          ) : (
+            "No results"
+          )}
         </div>
-
+        
         <div className="flex items-center space-x-6 lg:space-x-8">
-          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-            {data.length > 0 && totalCount ? (
-              `${startItem}-${displayEndItem} of ${totalCount}`
-            ) : data.length > 0 ? (
-              `${startItem}-${displayEndItem}`
-            ) : (
-              "0 items"
-            )}
+          {/* Page Size Selector */}
+          <div className="flex items-center space-x-2">
+            <p className="text-sm font-medium">Rows per page</p>
+            <Select
+              value={pageSize.toString()}
+              onValueChange={(value) => handlePageSizeChange(Number(value))}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={pageSize} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[10, 20, 30, 40, 50].map((size) => (
+                  <SelectItem key={size} value={size.toString()}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          
+
+          {/* Page Info */}
+          <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+            Page {page} of {totalPages}
+          </div>
+
+          {/* Navigation Buttons */}
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
@@ -255,27 +238,22 @@ export function DataTable<TData, TValue>({
               onClick={() => handlePageChange(1)}
               disabled={!hasPreviousPage}
             >
+              <span className="sr-only">Go to first page</span>
               <ChevronsLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => handlePageChange(currentPage - 1)}
+              onClick={() => handlePageChange(page - 1)}
               disabled={!hasPreviousPage}
             >
               <span className="sr-only">Go to previous page</span>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            
-            {/* Page info */}
-            <div className="flex items-center justify-center text-sm font-medium min-w-[80px]">
-              Page {currentPage} of {totalPages || 1}
-            </div>
-            
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => handlePageChange(currentPage + 1)}
+              onClick={() => handlePageChange(page + 1)}
               disabled={!hasNextPage}
             >
               <span className="sr-only">Go to next page</span>

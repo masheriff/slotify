@@ -1,38 +1,7 @@
-// lib/list-page-server.ts - FIXED: Remove double wrapping
+// lib/list-page-server.ts - CLEANED UP VERSION
 import { User } from "@/types";
 import { redirect } from "next/navigation";
-
-export interface ListParams {
-  page: number;
-  pageSize: number;
-  searchQuery: string;
-  sortBy: string;
-  sortDirection: 'asc' | 'desc';
-  filters: Record<string, string>;
-}
-
-export interface ListDataResult<T> {
-  success: boolean;
-  data?: T[];
-  pagination?: {
-    totalCount: number | undefined;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
-  error?: string;
-}
-
-export interface ListPageConfig {
-  defaultPageSize?: number;
-  defaultSort?: string;
-  defaultSortDirection?: 'asc' | 'desc';
-  maxPageSize?: number;
-  allowedSortColumns?: string[];
-  requiredFilters?: string[];
-}
+import { ListDataResult, ListParams, ListPageConfig, PaginationData } from "@/types/list-page.types";
 
 /**
  * Parse and validate search parameters for list pages
@@ -107,56 +76,6 @@ export async function parseListParams(
     sortDirection,
     filters,
   };
-}
-
-/**
- * Fetch list data with error handling and logging
- * FIXED: Don't double-wrap the data - return the action result directly
- */
-export async function fetchListData<T>(
-  dataFetcher: (params: ListParams) => Promise<unknown>,
-  params: ListParams,
-  context: { module: string; user?: User } = { module: 'unknown' }
-): Promise<ListDataResult<T>> {
-  const startTime = Date.now();
-  
-  console.log(`🚀 [${context.module}] Server fetching data with params:`, {
-    page: params.page,
-    pageSize: params.pageSize,
-    searchQuery: params.searchQuery,
-    sortBy: params.sortBy,
-    sortDirection: params.sortDirection,
-    filters: params.filters,
-    timestamp: new Date().toISOString(),
-  });
-
-  try {
-    const result = await dataFetcher(params) as ListDataResult<T>;
-    
-    const duration = Date.now() - startTime;
-    console.log(`✅ [${context.module}] Server fetch successful:`, {
-      count: result.data?.length || 0,
-      page: result.pagination?.page,
-      totalPages: result.pagination?.totalPages,
-      duration: `${duration}ms`,
-    });
-
-    // FIXED: Return the action result directly without wrapping
-    // The action already returns { success: boolean, data?: {...}, error?: string }
-    return result;
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`❌ [${context.module}] Server fetch failed:`, {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      duration: `${duration}ms`,
-      params,
-    });
-
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to fetch data',
-    };
-  }
 }
 
 /**
@@ -248,55 +167,41 @@ export function createEmptyListResult<T>(params: ListParams): ListDataResult<T> 
 export async function validateListPageAccess(
   user?: User
 ): Promise<{ success: boolean; error?: string }> {
-  // This would integrate with your Better Auth permission system
-  try {
-    // Example: Check if user has permission to access this module
-    // const hasPermission = await auth.api.hasPermission({
-    //   body: { resource: module, action },
-    //   headers: await headers()
-    // });
-    
-    // Placeholder implementation
-    if (!user) {
-      return { success: false, error: 'Authentication required' };
-    }
-    
-    return { success: true };
-  } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Permission check failed' 
+  if (!user) {
+    return {
+      success: false,
+      error: "Authentication required",
     };
   }
+
+  // Add your role-based access logic here
+  // For now, allowing all authenticated users
+  return {
+    success: true,
+  };
 }
 
 /**
- * Log list page performance metrics
+ * Log list page metrics for monitoring and debugging
  */
 export function logListPageMetrics<T>(
   module: string,
   params: ListParams,
   result: ListDataResult<T>,
-  renderTime: number
-) {
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`📊 [${module}] Page Metrics:`, {
-      module,
-      params: {
-        page: params.page,
-        pageSize: params.pageSize,
-        hasSearch: !!params.searchQuery,
-        hasFilters: Object.keys(params.filters).length > 0,
-      },
-      result: {
-        success: result.success,
-        dataCount: result.data?.length || 0,
-        totalPages: result.pagination?.totalPages || 0,
-      },
-      performance: {
-        renderTime: `${renderTime}ms`,
-        timestamp: new Date().toISOString(),
-      },
-    });
-  }
+  renderTime?: number
+): void {
+  console.log(`📊 [${module}] List page metrics:`, {
+    page: params.page,
+    pageSize: params.pageSize,
+    searchQuery: params.searchQuery,
+    sortBy: params.sortBy,
+    sortDirection: params.sortDirection,
+    filters: params.filters,
+    success: result.success,
+    dataCount: result.data?.length || 0,
+    totalCount: result.pagination?.totalCount || 0,
+    totalPages: result.pagination?.totalPages || 0,
+    renderTime: renderTime ? `${renderTime}ms` : undefined,
+    timestamp: new Date().toISOString(),
+  });
 }

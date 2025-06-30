@@ -5,13 +5,13 @@ import { requireSuperAdmin } from "@/lib/auth-server";
 import { db } from "@/db";
 import { members, users, organizations } from "@/db/schema";
 import { eq, and, ilike, or, sql, gte, desc, asc } from "drizzle-orm";
-import { ListDataResult } from "@/lib/list-page-server";
+import { ListDataResult } from "@/types/list-page.types"; // ✅ Use updated import
 import { MemberListItem } from "@/types/member.types";
 import { ServerActionResponse } from "@/types/server-actions.types";
 
 /**
  * List members for a specific organization
- * Returns ListDataResult structure to match logListPageMetrics expected format
+ * ✅ UPDATED: Returns clean ListDataResult structure
  */
 export async function getMembersList(params: {
   organizationId: string;
@@ -129,10 +129,11 @@ export async function getMembersList(params: {
     // Ensure user is not null for MemberListItem[]
     const filteredData = data.filter(item => item.user !== null) as MemberListItem[];
 
+    // ✅ UPDATED: Return clean flat structure
     return {
       success: true,
-      data: {
-        data: filteredData,
+      data: filteredData,  // ✅ Direct array, no nesting
+      pagination: {
         page: params.page,
         pageSize: params.pageSize,
         totalCount,
@@ -146,6 +147,15 @@ export async function getMembersList(params: {
     console.error("❌ Error listing organization members:", error);
     return {
       success: false,
+      data: [],  // ✅ Always return array
+      pagination: {
+        page: params.page,
+        pageSize: params.pageSize,
+        totalCount: 0,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      },
       error: error instanceof Error ? error.message : "Failed to list organization members",
     };
   }
@@ -251,191 +261,7 @@ export async function getMemberById(memberId: string): Promise<ServerActionRespo
     console.error("❌ Error getting member by ID:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to get member",
-    };
-  }
-}
-
-/**
- * Update member role
- */
-export async function updateMemberRole(
-  memberId: string,
-  role: string
-): Promise<ServerActionResponse> {
-  try {
-    console.log("🔄 Updating member role:", { memberId, role });
-
-    // Only super admins can update member roles
-    await requireSuperAdmin();
-
-    const [updatedMember] = await db
-      .update(members)
-      .set({ role })
-      .where(eq(members.id, memberId))
-      .returning({ id: members.id, role: members.role });
-
-    if (!updatedMember) {
-      return {
-        success: false,
-        error: "Failed to update member role",
-      };
-    }
-
-    console.log("✅ Member role updated successfully:", updatedMember);
-    
-    return {
-      success: true,
-      data: updatedMember,
-      message: "Member role updated successfully",
-    };
-    
-  } catch (error) {
-    console.error("❌ Error updating member role:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update member role",
-    };
-  }
-}
-
-/**
- * Alternative implementation using a query builder pattern
- * This avoids the Drizzle query reuse issue completely
- */
-export async function getMembersListAlternative(params: {
-  organizationId: string;
-  page: number;
-  pageSize: number;
-  search?: string;
-  sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
-  role?: string;
-  status?: string;
-  joinedAfter?: string;
-}): Promise<ListDataResult<MemberListItem>> {
-  try {
-    console.log("📋 Starting getMembersListAlternative with params:", params);
-
-    await requireSuperAdmin();
-
-    // Helper function to build base query
-    const buildBaseQuery = () => {
-      return db
-        .select({
-          id: members.id,
-          userId: members.userId,
-          organizationId: members.organizationId,
-          role: members.role,
-          createdAt: members.createdAt,
-          user: {
-            id: users.id,
-            name: users.name,
-            email: users.email,
-            image: users.image,
-            emailVerified: users.emailVerified,
-            createdAt: users.createdAt,
-          },
-        })
-        .from(members)
-        .leftJoin(users, eq(members.userId, users.id));
-    };
-
-    // Helper function to build count query
-    const buildCountQuery = () => {
-      return db
-        .select({ count: sql<number>`count(*)` })
-        .from(members)
-        .leftJoin(users, eq(members.userId, users.id));
-    };
-
-    // Helper function to apply filters
-    const applyFilters = (query: any) => {
-      let filteredQuery = query.where(eq(members.organizationId, params.organizationId));
-
-      if (params.search) {
-        filteredQuery = filteredQuery.where(
-          or(
-            ilike(users.name, `%${params.search}%`),
-            ilike(users.email, `%${params.search}%`)
-          )
-        );
-      }
-
-      if (params.role) {
-        filteredQuery = filteredQuery.where(eq(members.role, params.role));
-      }
-
-      if (params.status === 'active') {
-        filteredQuery = filteredQuery.where(
-          sql`(${users.banned} IS NULL OR ${users.banned} = false)`
-        );
-      } else if (params.status === 'inactive') {
-        filteredQuery = filteredQuery.where(sql`${users.banned} = true`);
-      }
-
-      if (params.joinedAfter) {
-        filteredQuery = filteredQuery.where(
-          gte(members.createdAt, new Date(params.joinedAfter))
-        );
-      }
-
-      return filteredQuery;
-    };
-
-    // Get total count
-    const countQuery = buildCountQuery();
-    const filteredCountQuery = applyFilters(countQuery);
-    const [{ count: totalCount }] = await filteredCountQuery;
-
-    // Get paginated results
-    const offset = (params.page - 1) * params.pageSize;
-    const sortBy = params.sortBy || 'createdAt';
-    const sortDirection = params.sortDirection || 'desc';
-    
-    let orderClause;
-    if (sortBy === 'user.name') {
-      orderClause = sortDirection === 'asc' ? asc(users.name) : desc(users.name);
-    } else if (sortBy === 'user.email') {
-      orderClause = sortDirection === 'asc' ? asc(users.email) : desc(users.email);
-    } else if (sortBy === 'role') {
-      orderClause = sortDirection === 'asc' ? asc(members.role) : desc(members.role);
-    } else {
-      orderClause = sortDirection === 'asc' ? asc(members.createdAt) : desc(members.createdAt);
-    }
-
-    const dataQuery = buildBaseQuery();
-    const filteredDataQuery = applyFilters(dataQuery);
-    const data = await filteredDataQuery
-      .limit(params.pageSize)
-      .offset(offset)
-      .orderBy(orderClause);
-
-    const totalPages = Math.ceil(totalCount / params.pageSize);
-
-    console.log(`✅ Listed ${data.length} members for organization ${params.organizationId}`);
-
-    // Ensure user is not null for MemberListItem[]
-    const filteredData = data.filter((item: { user: null; }) => item.user !== null) as MemberListItem[];
-
-    return {
-      success: true,
-      data: {
-        data: filteredData,
-        page: params.page,
-        pageSize: params.pageSize,
-        totalCount,
-        totalPages,
-        hasNextPage: params.page < totalPages,
-        hasPreviousPage: params.page > 1,
-      },
-    };
-    
-  } catch (error) {
-    console.error("❌ Error listing organization members:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to list organization members",
+      error: error instanceof Error ? error.message : "Failed to get member details",
     };
   }
 }

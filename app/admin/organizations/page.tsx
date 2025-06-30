@@ -1,4 +1,4 @@
-// app/admin/organizations/page.tsx - FIXED pagination data access
+// app/admin/organizations/page.tsx
 import {
   parseListParams,
   handleListPageRedirect,
@@ -12,9 +12,7 @@ import { organizationColumns } from "@/components/table-configs/organization-col
 import { organizationFilterConfig } from "@/components/admin/forms/organization-filters-config";
 import { listOrganizations } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
-import {
-  Organization,
-} from "@/types";
+import { Organization } from "@/types"; // ✅ Use domain type
 
 interface OrganizationsPageProps {
   searchParams: Promise<{
@@ -35,7 +33,7 @@ const LIST_CONFIG = {
   defaultSort: "name",
   defaultSortDirection: "asc" as const,
   maxPageSize: 100,
-  allowedSortColumns: ["name", "createdAt", "type", "city", "state"],
+  allowedSortColumns: ["name", "createdAt", "type"],
   searchable: true,
   exportable: true,
 };
@@ -48,9 +46,7 @@ export default async function OrganizationsPage({
   try {
     const params = await parseListParams(searchParams, LIST_CONFIG);
     const user = await getCurrentUser();
-    const accessCheck = await validateListPageAccess(
-      user ?? undefined
-    );
+    const accessCheck = await validateListPageAccess(user ?? undefined);
 
     if (!accessCheck.success) {
       return (
@@ -64,7 +60,7 @@ export default async function OrganizationsPage({
       );
     }
 
-    // Call listOrganizations directly since it returns the correct structure
+    // ✅ CALL ACTION DIRECTLY - RETURNS CLEAN ListDataResult<Organization>
     const result = await listOrganizations({
       page: params.page,
       pageSize: params.pageSize,
@@ -77,10 +73,10 @@ export default async function OrganizationsPage({
       createdAfter: params.filters.createdAfter || undefined,
     });
 
-    if (!result.success || !result.data) {
+    if (!result.success) {
       return (
         <ListPageWrapper
-          error={result.error ?? "Failed to load organizations"}
+          error={result.error || "Failed to load organizations"}
           breadcrumbs={[
             { label: "Admin", href: "/admin" },
             { label: "Organizations", current: true },
@@ -89,25 +85,14 @@ export default async function OrganizationsPage({
       );
     }
 
-    // FIXED: Access the correct data structure
-    const organizationsArray = result.data;
-    const paginationInfo = result.pagination;
-
-    console.log("🔍 Debug pagination data:", {
-      totalCount: paginationInfo?.totalCount,
-      totalPages: paginationInfo?.totalPages,
-      currentPage: paginationInfo?.page,
-      pageSize: paginationInfo?.pageSize,
-      arrayLength: organizationsArray.length,
-    });
-
+    // ✅ HANDLE REDIRECT WITH CLEAN PAGINATION ACCESS
     handleListPageRedirect(
       "/admin/organizations",
       params,
-      paginationInfo?.totalPages ?? 0
+      result.pagination.totalPages
     );
 
-
+    // ✅ LOG METRICS
     const renderTime = Date.now() - startTime;
     logListPageMetrics<Organization>(
       "organizations",
@@ -132,29 +117,24 @@ export default async function OrganizationsPage({
             filterConfig={organizationFilterConfig}
           />
 
+          {/* ✅ CLEAN DATA FLOW - NO TRANSFORMATION NEEDED */}
           <DataTable
-            columns={organizationColumns}
-            data={organizationsArray}
-            pagination={{
-              // FIXED: Use correct property names and data source
-              currentPage: paginationInfo.page,
-              pageSize: paginationInfo.pageSize,
-              totalPages: paginationInfo.totalPages,
-              hasNextPage: paginationInfo.hasNextPage,
-              hasPreviousPage: paginationInfo.hasPreviousPage,
-              totalCount: paginationInfo?.totalCount ?? 0, // This should fix the NaN issue
-            }}
+            columns={organizationColumns}     
+            data={result.data}               
+            pagination={result.pagination}   
             sorting={{
               sortBy: params.sortBy,
               sortDirection: params.sortDirection,
             }}
             emptyMessage="No organizations found. Create your first organization to get started."
             selectable={user?.role === "system_admin"}
-            bulkActions={
-              user?.role === "system_admin" ? (
-                <div className="flex gap-2">{/* Bulk action buttons */}</div>
-              ) : undefined
-            }
+            // bulkActions={
+            //   user?.role === "system_admin" ? (
+            //     <div className="flex gap-2">
+            //       {/* Add bulk action buttons here if needed */}
+            //     </div>
+            //   ) : undefined
+            // }
           />
         </div>
       </ListPageWrapper>

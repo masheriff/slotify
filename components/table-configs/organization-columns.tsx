@@ -15,9 +15,7 @@ import {
 import { format } from "date-fns";
 import { MoreHorizontal, Eye, Edit, Users, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
-// Import your organization type - adjust the import path as needed
-import { OrganizationListItem } from "@/types";
-
+import { Organization } from "@/types"; // ✅ Use domain type directly
 import { useState } from "react";
 import { DeleteOrganizationDialog } from "./delete-organization-dialog";
 import {
@@ -28,15 +26,13 @@ import {
 } from "@/lib/utils/organization-utils";
 import Image from "next/image";
 
-
 // Actions Cell Component with Navigation
 function OrganizationActionsCell({
   organization,
 }: {
-  organization: OrganizationListItem;
+  organization: Organization;
 }) {
   const router = useRouter();
-
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [organizationToDelete, setOrganizationToDelete] = useState<{
     id: string;
@@ -112,30 +108,28 @@ function OrganizationActionsCell({
   );
 }
 
-export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
-  // 1st Column: Organization Name
+// ✅ UPDATED TO USE ORGANIZATION DOMAIN TYPE
+export const organizationColumns: ColumnDef<Organization>[] = [
+  // Logo Column
   {
-    accessorKey: "logo",
+    id: "logo",
     header: "Logo",
     cell: ({ row }) => {
-      const name = row.getValue("name") as string;
-      const logo = row.original.logo;
-
+      const org = row.original;
       return (
         <div className="flex items-center space-x-3">
-          {logo ? (
+          {org.logo ? (
             <Image
-              src={logo}
-              alt={`${name} logo`}
-              width={0}
-              height={0}
-              sizes="100vw"
-              className="h-8 w-auto object-cover"
+              src={org.logo}
+              alt={`${org.name} logo`}
+              width={32}
+              height={32}
+              className="h-8 w-8 object-cover rounded"
             />
           ) : (
             <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
               <span className="text-xs font-medium text-muted-foreground">
-                {name.substring(0, 2).toUpperCase()}
+                {org.name.substring(0, 2).toUpperCase()}
               </span>
             </div>
           )}
@@ -143,70 +137,71 @@ export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
       );
     },
   },
+
+  // Organization Name
   {
     accessorKey: "name",
     header: "Organization",
     cell: ({ row }) => {
-      const name = row.getValue("name") as string;
-
+      const org = row.original;
       return (
-        <div className="flex items-center space-x-3">
-          <div>
-            <div className="font-medium">{name}</div>
-            <div className="text-sm text-muted-foreground">
-              {row.original.slug}
-            </div>
-          </div>
+        <div className="flex flex-col">
+          <div className="font-medium">{org.name}</div>
+          {org.slug && (
+            <div className="text-sm text-muted-foreground">/{org.slug}</div>
+          )}
         </div>
       );
     },
   },
 
-  // 2nd Column: Type
+  // Type - ✅ Extract from metadata
   {
-    accessorKey: "type",
+    id: "type",
     header: "Type",
     cell: ({ row }) => {
-      const type = row.getValue("type") as string;
+      const type = row.original.metadata?.type || "client";
       return (
-        <Badge className={getOrganizationTypeColor(type || "client")}>
-          {getOrganizationTypeLabel(type || "client")}
+        <Badge className={getOrganizationTypeColor(type)}>
+          {getOrganizationTypeLabel(type)}
         </Badge>
       );
     },
   },
 
-  // 3rd Column: Contact Email
+  // Contact Email - ✅ Extract from metadata
   {
-    accessorKey: "contactEmail",
+    id: "contactEmail",
     header: "Contact Email",
     cell: ({ row }) => {
-      const email = row.getValue("contactEmail") as string;
+      const email = row.original.metadata?.contactEmail;
       return <div className="text-sm">{email || "-"}</div>;
     },
   },
 
-  // 4th Column: Phone
+  // Phone - ✅ Extract from metadata
   {
-    accessorKey: "contactPhone",
+    id: "contactPhone",
     header: "Phone",
     cell: ({ row }) => {
-      const phone = row.getValue("contactPhone") as string;
+      const phone = row.original.metadata?.contactPhone;
       return <div className="text-sm">{phone || "-"}</div>;
     },
   },
 
-  // 5th Column: Location (City, State)
+  // Location - ✅ Extract from metadata
   {
-    accessorKey: "city",
+    id: "location",
     header: "Location",
     cell: ({ row }) => {
-      const city = row.getValue("city") as string;
-      const state = row.original.state;
-
-      if (!city && !state)
+      const metadata = row.original.metadata;
+      const city = metadata?.city;
+      const state = metadata?.state;
+      
+      if (!city && !state) {
         return <div className="text-sm text-muted-foreground">-</div>;
-
+      }
+      
       return (
         <div className="text-sm">
           {[city, state].filter(Boolean).join(", ")}
@@ -215,38 +210,34 @@ export const organizationColumns: ColumnDef<OrganizationListItem>[] = [
     },
   },
 
-  // 6th Column: Status
+  // Status - ✅ Extract from metadata
   {
-    accessorKey: "isActive",
+    id: "status",
     header: "Status",
     cell: ({ row }) => {
-      const isActive = row.getValue("isActive") as boolean;
+      const isActive = row.original.metadata?.isActive !== false;
       return (
-        <Badge className={getOrganizationStatusColor(isActive !== false)}>
-          {getOrganizationStatusLabel(isActive !== false)}
+        <Badge className={getOrganizationStatusColor(isActive)}>
+          {getOrganizationStatusLabel(isActive)}
         </Badge>
       );
     },
   },
 
-  // 7th Column: Created At
+  // Created Date
   {
     accessorKey: "createdAt",
     header: "Created",
     cell: ({ row }) => {
       const date = row.getValue("createdAt") as Date | string;
-      const formattedDate =
-        typeof date === "string"
-          ? format(new Date(date), "MMM dd, yyyy")
-          : format(date, "MMM dd, yyyy");
-
-      return (
-        <div className="text-sm text-muted-foreground">{formattedDate}</div>
-      );
+      const formattedDate = typeof date === "string" 
+        ? format(new Date(date), "MMM dd, yyyy")
+        : format(date, "MMM dd, yyyy");
+      return <div className="text-sm text-muted-foreground">{formattedDate}</div>;
     },
   },
 
-  // 8th Column: Actions (Fixed with navigation)
+  // Actions
   {
     id: "actions",
     cell: ({ row }) => {

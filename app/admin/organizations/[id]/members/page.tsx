@@ -2,114 +2,156 @@
 import { getMembersList } from "@/actions/member-actions";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
 import { getOrganizationById } from "@/actions/organization-actions";
-import { getErrorMessage } from "@/types";
 import { FilterablePageHeader } from "@/components/common/filterable-page-header";
 import { DataTable } from "@/components/common/data-table";
 import { memberColumns } from "@/components/table-configs/member-columns";
 import { memberFilterConfig } from "@/components/admin/forms/member-filters-config";
+import { 
+  parseListParams, 
+  handleListPageRedirect, 
+  logListPageMetrics 
+} from "@/lib/list-page-server";
+import { MemberListItem } from "@/types/member.types";
+import { getErrorMessage } from "@/types";
 
 interface MembersPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams: Promise<{
+    page?: string;
+    pageSize?: string;
+    search?: string;
+    sortBy?: string;
+    sortDirection?: "asc" | "desc";
+    type?: string;
+    createdAfter?: string;
+    status?: string;
+    contactEmail?: string;
+  }>;
 }
 
+const LIST_CONFIG = {
+  defaultPageSize: 10,
+  defaultSort: "createdAt",
+  defaultSortDirection: "desc" as const,
+  maxPageSize: 100,
+  allowedSortColumns: ["createdAt", "role", "user.name", "user.email"],
+  searchable: true,
+};
+
 export default async function MembersPage({ params, searchParams }: MembersPageProps) {
+  const startTime = Date.now();
   const { id: organizationId } = await params;
-  const searchParamsResolved = await searchParams;
 
-  // Parse search params
-  const page = parseInt(searchParamsResolved.page as string) || 1;
-  const pageSize = parseInt(searchParamsResolved.pageSize as string) || 10;
-  const search = searchParamsResolved.search as string;
-  const sortBy = searchParamsResolved.sortBy as string;
-  const sortDirection = (searchParamsResolved.sortDirection as 'asc' | 'desc') || 'desc';
-  const role = searchParamsResolved.role as string;
-  const status = searchParamsResolved.status as string;
-  const joinedAfter = searchParamsResolved.joinedAfter as string;
+  try {
+    // ✅ USE CONSISTENT PARAM PARSING
+    const listParams = await parseListParams(searchParams, LIST_CONFIG);
 
-  // Get organization details for breadcrumb
-  const orgResult = await getOrganizationById(organizationId);
-  if (!orgResult.success || !orgResult.data) {
-    return (
-      <ListPageWrapper
-        error={getErrorMessage(orgResult.error ?? "Organization not found")}
-        breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Organizations', href: '/admin/organizations' },
-          { label: 'Members', current: true },
-        ]}
-      />
+    // Get organization details for breadcrumb
+    const orgResult = await getOrganizationById(organizationId);
+    if (!orgResult.success || !orgResult.data) {
+      return (
+        <ListPageWrapper
+          error={getErrorMessage(orgResult.error || "Organization not found")}
+          breadcrumbs={[
+            { label: 'Admin', href: '/admin' },
+            { label: 'Organizations', href: '/admin/organizations' },
+            { label: 'Members', current: true },
+          ]}
+        />
+      );
+    }
+
+    // ✅ CALL ACTION DIRECTLY - RETURNS CLEAN ListDataResult<MemberListItem>
+    const membersResult = await getMembersList({
+      organizationId,
+      page: listParams.page,
+      pageSize: listParams.pageSize,
+      search: listParams.searchQuery || undefined,
+      sortBy: listParams.sortBy || undefined,
+      sortDirection: listParams.sortDirection || undefined,
+      role: listParams.filters.role || undefined,
+      status: listParams.filters.status || undefined,
+      joinedAfter: listParams.filters.joinedAfter || undefined,
+    });
+
+    if (!membersResult.success) {
+      return (
+        <ListPageWrapper
+          error={membersResult.error || "Failed to load members"}
+          breadcrumbs={[
+            { label: 'Admin', href: '/admin' },
+            { label: 'Organizations', href: '/admin/organizations' },
+            { label: orgResult.data.name, href: `/admin/organizations/${organizationId}` },
+            { label: 'Members', current: true },
+          ]}
+        />
+      );
+    }
+
+    // ✅ HANDLE REDIRECT WITH CLEAN PAGINATION ACCESS
+    handleListPageRedirect(
+      `/admin/organizations/${organizationId}/members`,
+      listParams,
+      membersResult.pagination.totalPages
     );
-  }
 
-  // Fetch members data
-  const membersResult = await getMembersList({
-    organizationId,
-    page,
-    pageSize,
-    search,
-    sortBy,
-    sortDirection,
-    role,
-    status,
-    joinedAfter,
-  });
+    // ✅ LOG METRICS
+    const renderTime = Date.now() - startTime;
+    logListPageMetrics<MemberListItem>(
+      "members",
+      listParams,
+      membersResult,
+      renderTime
+    );
 
-  console.log(membersResult)
-
-  if (!membersResult.success) {
     return (
       <ListPageWrapper
-        error={getErrorMessage(membersResult.error ?? "Failed to load members")}
         breadcrumbs={[
           { label: 'Admin', href: '/admin' },
           { label: 'Organizations', href: '/admin/organizations' },
           { label: orgResult.data.name, href: `/admin/organizations/${organizationId}` },
           { label: 'Members', current: true },
         ]}
+      >
+        <div className="space-y-6">
+          <FilterablePageHeader
+            title={`Members - ${orgResult.data.name}`}
+            description={`Manage members and their roles for ${orgResult.data.name}`}
+            createButtonText="Invite Member"
+            createHref={`/admin/organizations/${organizationId}/members/invite`}
+            filterConfig={memberFilterConfig}
+          />
+
+          {/* ✅ CLEAN DATA FLOW - NO TRANSFORMATION NEEDED */}
+          <DataTable
+            columns={memberColumns}           // ✅ Typed for MemberListItem
+            data={membersResult.data}         // ✅ MemberListItem[] - direct pass
+            pagination={membersResult.pagination} // ✅ PaginationData - direct pass
+            sorting={{
+              sortBy: listParams.sortBy,
+              sortDirection: listParams.sortDirection,
+            }}
+            emptyMessage="No members found. Invite your first member to get started."
+          />
+        </div>
+      </ListPageWrapper>
+    );
+  } catch (error) {
+    console.error("❌ [members] Page render error:", error);
+
+    return (
+      <ListPageWrapper
+        error={
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred"
+        }
+        breadcrumbs={[
+          { label: 'Admin', href: '/admin' },
+          { label: 'Organizations', href: '/admin/organizations' },
+          { label: 'Members', current: true },
+        ]}
       />
     );
   }
-
-  // The memberColumns already handles organizationId through table meta
-  // We just need to pass the organizationId in the DataTable meta prop
-
-  return (
-    <ListPageWrapper
-      breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Organizations', href: '/admin/organizations' },
-        { label: orgResult.data.name, href: `/admin/organizations/${organizationId}` },
-        { label: 'Members', current: true },
-      ]}
-    >
-      <div className="space-y-6">
-        <FilterablePageHeader
-          title={`Members - ${orgResult.data.name}`}
-          description={`Manage members and their roles for ${orgResult.data.name}`}
-          createButtonText="Invite Member"
-          createHref={`/admin/organizations/${organizationId}/members/invite`}
-          filterConfig={memberFilterConfig}
-        />
-
-        <DataTable
-          columns={memberColumns}
-          data={membersResult.data?.data ?? []}
-          pagination={{
-            currentPage: membersResult.data?.page ?? 1,
-            pageSize: membersResult.data?.pageSize ?? 10,
-            totalPages: membersResult.data?.totalPages ?? 1,
-            hasNextPage: membersResult.data?.hasNextPage ?? false,
-            hasPreviousPage: membersResult.data?.hasPreviousPage ?? false,
-            totalCount: membersResult.data?.totalCount ?? 0,
-          }}
-          sorting={{
-            sortBy: undefined, // Will be read from URL params
-            sortDirection: 'desc',
-          }}
-          emptyMessage="No members found. Invite your first member to get started."
-        />
-      </div>
-    </ListPageWrapper>
-  );
 }

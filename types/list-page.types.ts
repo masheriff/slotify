@@ -1,4 +1,4 @@
-// lib/types/list-page.types.ts - Updated version without export functionality
+// types/list-page.types.ts - CLEANED UP VERSION
 import { ColumnDef } from "@tanstack/react-table";
 
 // Base interfaces
@@ -31,13 +31,14 @@ export interface ListParams {
   filters: Record<string, string>;
 }
 
+// ✅ UNIFIED PAGINATION INTERFACE
 export interface PaginationData {
-  currentPage: number;
+  page: number;
   pageSize: number;
   totalPages: number;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
-  totalCount?: number;
+  totalCount: number;
 }
 
 export interface SortingData {
@@ -55,37 +56,15 @@ export interface ListPageConfig {
   searchable?: boolean;
 }
 
+// ✅ UPDATED LIST DATA RESULT WITH CONSISTENT PAGINATION
 export interface ListDataResult<T> {
   success: boolean;
-  data?: T[];
-  pagination?: {
-    page: number;
-    pageSize: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-    totalCount?: number;
-  };
+  data: T[];
+  pagination: PaginationData;
   error?: string;
-  metadata?: {
-    fetchTime?: number;
-    cacheHit?: boolean;
-    source?: string;
-  };
 }
 
-// Component prop interfaces - UPDATED to remove export functionality
-export interface FilterablePageHeaderProps {
-  title: string;
-  description?: string;
-  createButtonText?: string;
-  createHref?: string;
-  onCreateNew?: () => void;
-  filterConfig: FilterConfig[];
-  error?: string;
-  customActions?: React.ReactNode;
-}
-
+// ✅ UPDATED DATA TABLE PROPS WITH CONSISTENT PAGINATION
 export interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
@@ -98,6 +77,18 @@ export interface DataTableProps<TData, TValue> {
   selectable?: boolean;
   onSelectionChange?: (selectedRows: TData[]) => void;
   bulkActions?: React.ReactNode;
+}
+
+// Component prop interfaces
+export interface FilterablePageHeaderProps {
+  title: string;
+  description?: string;
+  createButtonText?: string;
+  createHref?: string;
+  onCreateNew?: () => void;
+  filterConfig: FilterConfig[];
+  error?: string;
+  customActions?: React.ReactNode;
 }
 
 export interface ListPageWrapperProps {
@@ -121,126 +112,4 @@ export interface BaseListItem {
   updatedAt?: Date | string;
 }
 
-// Organization List Item interface
-export interface OrganizationListItem extends BaseListItem {
-  isActive: any;
-  name: string;
-  slug?: string;
-  logo?: string;
-  description?: string;
-  type: "admin" | "client";
-  memberCount?: number;
-  status: "active" | "inactive" | "suspended";
-  contactEmail?: string;
-  contactPhone?: string;
-  address?: string;
-  city: string;
-  state: string;
-  country: string;
-}
-
-// User List Item interface
-export interface UserListItem extends BaseListItem {
-  name: string;
-  email: string;
-  role: string;
-  status: "active" | "inactive" | "banned";
-  emailVerified: boolean;
-  lastLogin?: Date | string;
-  organizationId?: string;
-  organizationName?: string;
-}
-
-// Patient List Item interface
-export interface PatientListItem extends BaseListItem {
-  firstName: string;
-  lastName: string;
-  dateOfBirth: Date | string;
-  gender: "male" | "female" | "other";
-  email?: string;
-  phone?: string;
-  mrn: string; // Medical Record Number
-  status: "active" | "inactive";
-  lastVisit?: Date | string;
-  organizationId: string;
-}
-
-// Appointment List Item interface
-export interface AppointmentListItem extends BaseListItem {
-  patientId: string;
-  patientName: string;
-  patientMrn: string;
-  procedureType: string;
-  scheduledDate: Date | string;
-  scheduledTime: string;
-  status:
-    | "scheduled"
-    | "confirmed"
-    | "in_progress"
-    | "completed"
-    | "cancelled"
-    | "no_show";
-  referringDoctor?: string;
-  location?: string;
-  notes?: string;
-  organizationId: string;
-}
-
-// Booking List Item interface
-export interface BookingListItem extends BaseListItem {
-  appointmentId: string;
-  patientId: string;
-  patientName: string;
-  patientMrn: string;
-  procedureType: string;
-  scheduledDate: Date | string;
-  status:
-    | "scheduled"
-    | "checked_in"
-    | "in_progress"
-    | "completed"
-    | "cancelled";
-  technicianId?: string;
-  technicianName?: string;
-  deviceAssigned?: boolean;
-  interpretationAssigned?: boolean;
-  organizationId: string;
-}
-
-// Device List Item interface
-export interface HolterDeviceListItem extends BaseListItem {
-  serialNumber: string;
-  model: string;
-  manufacturer: string;
-  status: "available" | "assigned" | "in_use" | "maintenance" | "retired";
-  lastMaintenance?: Date | string;
-  nextMaintenance?: Date | string;
-  currentPatientId?: string;
-  currentPatientName?: string;
-  organizationId: string;
-}
-
-// Doctor List Item interface
-export interface DoctorListItem extends BaseListItem {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  specialization: string;
-  licenseNumber: string;
-  status: "active" | "inactive";
-  type: "interpreting" | "referring";
-  organizationId?: string;
-}
-
-// Technician List Item interface
-export interface TechnicianListItem extends BaseListItem {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  certifications: string[];
-  status: "active" | "inactive";
-  currentAssignments: number;
-  organizationId: string;
-}
+// ✅ REMOVED OrganizationListItem - Use Organization directly from domain types
