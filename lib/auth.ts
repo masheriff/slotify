@@ -1,5 +1,7 @@
 // lib/auth.ts
-import { APIError, betterAuth } from "better-auth";
+import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
+
 import {
   magicLink,
   admin,
