@@ -42,13 +42,12 @@ import {
   getOrganizationById,
   OrganizationInput,
 } from "@/actions/organization-actions";
-import {
-  deleteFile,
-} from "@/actions/file-upload-actions";
+import { deleteFile } from "@/actions/file-upload-actions";
 import {
   getErrorMessage,
   ServerActionResponse,
 } from "@/types/server-actions.types";
+import { Switch } from "@/components/ui/switch";
 
 // Local slug checker
 const checkSlugAvailabilityAPI = async (
@@ -91,7 +90,7 @@ const organizationFormSchema = z.object({
       if (!val || val.trim() === "") return true;
       return val.startsWith("/") || val.startsWith("http");
     }, "Logo must be a valid URL or path"),
-  
+
   // FIXED: Allow both admin and client types for edit mode
   type: z.enum(["admin", "client"]),
 
@@ -117,6 +116,8 @@ const organizationFormSchema = z.object({
       "Business Associate Agreement must be signed"
     ),
   dataRetentionYears: z.string().min(1, "Data retention period is required"),
+  // Status field - only for edit mode
+  isActive: z.boolean(),
 });
 
 type FormData = z.infer<typeof organizationFormSchema>;
@@ -159,10 +160,10 @@ export function OrganizationForm({
       hipaaOfficer: "",
       businessAssociateAgreement: false,
       dataRetentionYears: "",
+      isActive: true,
     },
     mode: "onChange", // Enable real-time validation
   });
-
 
   // Removed debug logging as requested
 
@@ -171,10 +172,10 @@ export function OrganizationForm({
     const loadOrganizationData = async () => {
       if (mode === "edit" && organizationId) {
         setIsLoading(true);
-        
+
         try {
           const result = await getOrganizationById(organizationId);
-          
+
           if (result.success && result.data) {
             const org = result.data;
             const metadata = org.metadata || {};
@@ -195,9 +196,12 @@ export function OrganizationForm({
               country: metadata.country || "United States",
               timezone: metadata.timezone || "America/New_York",
               hipaaOfficer: metadata.hipaaOfficer || "",
-              businessAssociateAgreement: Boolean(metadata.businessAssociateAgreement),
+              businessAssociateAgreement: Boolean(
+                metadata.businessAssociateAgreement
+              ),
               // FIXED: Proper data retention mapping
               dataRetentionYears: metadata.dataRetentionYears || "",
+              isActive: metadata.isActive !== false, // Default to true if not set
             };
 
             form.reset(formData);
@@ -286,19 +290,21 @@ export function OrganizationForm({
 
   // FIXED: Logo upload handler using API route instead of server action
   const handleLogoUpload = useCallback(
-    async (file: File): Promise<{ success: boolean; url?: string; error?: string }> => {
+    async (
+      file: File
+    ): Promise<{ success: boolean; url?: string; error?: string }> => {
       try {
         const formData = new FormData();
         formData.append("file", file);
 
         // Use API route instead of server action to avoid FormData issues
-        const response = await fetch('/api/upload/organization-logo', {
-          method: 'POST',
+        const response = await fetch("/api/upload/organization-logo", {
+          method: "POST",
           body: formData,
         });
 
         const result = await response.json();
-        
+
         if (result.success && result.url) {
           form.setValue("logo", result.url);
           toast.success("Logo uploaded successfully!");
@@ -380,7 +386,7 @@ export function OrganizationForm({
           hipaaOfficer: data.hipaaOfficer,
           businessAssociateAgreement: data.businessAssociateAgreement,
           dataRetentionYears: data.dataRetentionYears,
-          isActive: true,
+          isActive: data.isActive,
           settings: {
             features: {
               multiTenant: false,
@@ -413,10 +419,11 @@ export function OrganizationForm({
       }
 
       if (result.success) {
-        const successMessage = mode === "create"
-          ? "Organization created successfully!"
-          : "Organization updated successfully!";
-        
+        const successMessage =
+          mode === "create"
+            ? "Organization created successfully!"
+            : "Organization updated successfully!";
+
         toast.success(successMessage);
 
         // Navigate on success
@@ -446,6 +453,7 @@ export function OrganizationForm({
             "hipaaOfficer",
             "businessAssociateAgreement",
             "dataRetentionYears",
+            "isActive",
           ];
 
           result.validationErrors.forEach((error) => {
@@ -461,9 +469,9 @@ export function OrganizationForm({
                 type: "manual",
                 message: error.message,
               });
-            } 
+            }
           });
-          
+
           toast.error("Please check the form for validation errors");
         } else {
           toast.error(getErrorMessage(result.error ?? "An error occurred"));
@@ -471,7 +479,8 @@ export function OrganizationForm({
       }
     } catch (error) {
       console.error("Error in form submission:", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      const errorMessage =
+        error instanceof Error ? error.message : "An unexpected error occurred";
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
@@ -571,13 +580,41 @@ export function OrganizationForm({
                       />
                     </FormControl>
                     <FormDescription>
-                      Upload a logo for your organization (PNG, JPG, SVG or WebP)
+                      Upload a logo for your organization (PNG, JPG, SVG or
+                      WebP)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
+
+            {/* isActive field - only show in edit mode */}
+            {mode === "edit" && (
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Organization Status
+                      </FormLabel>
+                      <FormDescription>
+                        Enable or disable this organization. Disabled
+                        organizations cannot be accessed by members.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Hidden organization type field - but accessible for edit mode */}
             <FormField
@@ -586,10 +623,7 @@ export function OrganizationForm({
               render={({ field }) => (
                 <FormItem className="hidden">
                   <FormLabel>Organization Type</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select organization type" />
@@ -597,7 +631,9 @@ export function OrganizationForm({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="admin">Admin Organization</SelectItem>
-                      <SelectItem value="client">Client Organization</SelectItem>
+                      <SelectItem value="client">
+                        Client Organization
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -608,206 +644,205 @@ export function OrganizationForm({
         </Card>
 
         <div className="grid grid-cols-1 md:grid-cols-10 gap-6">
-        {/* Contact Information */}
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Contact Information</CardTitle>
-            <CardDescription>
-              Primary contact details for the organization
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 gap-6">
-              <FormField
-                control={form.control}
-                name="contactEmail"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="contact@organization.com"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="contactPhone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Phone</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="tel"
-                        placeholder="+1 (555) 123-4567"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </CardContent>
-        </Card>
-                {/* Address Information */}
-        <Card className="col-span-7">
-          <CardHeader>
-            <CardTitle>Address Information</CardTitle>
-            <CardDescription>
-              Physical location of the organization
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              control={form.control}
-              name="addressLine1"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address Line 1</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="123 Main Street"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="addressLine2"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Address Line 2 (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Suite 100"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            </div>
-
-
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              <FormField
-                control={form.control}
-                name="city"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>City</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="New York"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="state"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>State/Province</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="NY"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="postalCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Postal Code</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="10001"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-                            <FormField
-                control={form.control}
-                name="country"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Country</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+          {/* Contact Information */}
+          <Card className="col-span-3">
+            <CardHeader>
+              <CardTitle>Contact Information</CardTitle>
+              <CardDescription>
+                Primary contact details for the organization
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-6">
+                <FormField
+                  control={form.control}
+                  name="contactEmail"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Email</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select country" />
-                        </SelectTrigger>
+                        <Input
+                          type="email"
+                          placeholder="contact@organization.com"
+                          {...field}
+                        />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="United States">United States</SelectItem>
-                        <SelectItem value="Canada">Canada</SelectItem>
-                        <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="timezone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Timezone</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                <FormField
+                  control={form.control}
+                  name="contactPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Contact Phone</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select timezone" />
-                        </SelectTrigger>
+                        <Input
+                          type="tel"
+                          placeholder="+1 (555) 123-4567"
+                          {...field}
+                        />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="America/New_York">Eastern Time</SelectItem>
-                        <SelectItem value="America/Chicago">Central Time</SelectItem>
-                        <SelectItem value="America/Denver">Mountain Time</SelectItem>
-                        <SelectItem value="America/Los_Angeles">Pacific Time</SelectItem>
-                        <SelectItem value="UTC">UTC</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </CardContent>
-        </Card>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+          {/* Address Information */}
+          <Card className="col-span-7">
+            <CardHeader>
+              <CardTitle>Address Information</CardTitle>
+              <CardDescription>
+                Physical location of the organization
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="addressLine1"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address Line 1</FormLabel>
+                      <FormControl>
+                        <Input placeholder="123 Main Street" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="addressLine2"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Address Line 2 (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Suite 100" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input placeholder="New York" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State/Province</FormLabel>
+                      <FormControl>
+                        <Input placeholder="NY" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="postalCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Postal Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="10001" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select country" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="United States">
+                            United States
+                          </SelectItem>
+                          <SelectItem value="Canada">Canada</SelectItem>
+                          <SelectItem value="United Kingdom">
+                            United Kingdom
+                          </SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="timezone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Timezone</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select timezone" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="America/New_York">
+                            Eastern Time
+                          </SelectItem>
+                          <SelectItem value="America/Chicago">
+                            Central Time
+                          </SelectItem>
+                          <SelectItem value="America/Denver">
+                            Mountain Time
+                          </SelectItem>
+                          <SelectItem value="America/Los_Angeles">
+                            Pacific Time
+                          </SelectItem>
+                          <SelectItem value="UTC">UTC</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
-
-
-
 
         {/* HIPAA Compliance */}
         <Card>
@@ -826,10 +861,7 @@ export function OrganizationForm({
                   <FormItem>
                     <FormLabel>HIPAA Privacy Officer</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Dr. John Smith"
-                        {...field}
-                      />
+                      <Input placeholder="Dr. John Smith" {...field} />
                     </FormControl>
                     <FormDescription>
                       Name of the designated HIPAA Privacy Officer
@@ -855,7 +887,9 @@ export function OrganizationForm({
                         <SelectItem value="1">1 Year</SelectItem>
                         <SelectItem value="3">3 Years</SelectItem>
                         <SelectItem value="5">5 Years</SelectItem>
-                        <SelectItem value="7">7 Years (HIPAA Recommended)</SelectItem>
+                        <SelectItem value="7">
+                          7 Years (HIPAA Recommended)
+                        </SelectItem>
                         <SelectItem value="10">10 Years</SelectItem>
                         <SelectItem value="indefinite">Indefinite</SelectItem>
                       </SelectContent>
@@ -916,7 +950,9 @@ export function OrganizationForm({
               </>
             ) : (
               <>
-                {mode === "create" ? "Create Organization" : "Update Organization"}
+                {mode === "create"
+                  ? "Create Organization"
+                  : "Update Organization"}
               </>
             )}
           </Button>
