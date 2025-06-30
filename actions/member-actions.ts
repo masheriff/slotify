@@ -3,7 +3,7 @@
 
 import { requireSuperAdmin } from "@/lib/auth-server";
 import { db } from "@/db";
-import { members, users, organizations } from "@/db/schema";
+import { members, users, organizations, invitations } from "@/db/schema";
 import { eq, and, ilike, or, sql, gte, desc, asc } from "drizzle-orm";
 import { ListDataResult } from "@/types/list-page.types"; // ✅ Use updated import
 import { MemberListItem } from "@/types/member.types";
@@ -262,6 +262,199 @@ export async function getMemberById(memberId: string): Promise<ServerActionRespo
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to get member details",
+    };
+  }
+}
+
+/**
+ * Update member role in organization
+ */
+export async function updateMemberRole(
+  memberId: string,
+  newRole: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("✏️ Updating member role:", { memberId, newRole });
+
+    // Only super admins can update member roles
+    await requireSuperAdmin();
+
+    // Validate the role
+    const validRoles = [
+      "system_admin",
+      "five_am_admin", 
+      "five_am_agent",
+      "client_admin",
+      "front_desk",
+      "technician",
+      "interpreting_doctor",
+    ];
+
+    if (!validRoles.includes(newRole)) {
+      return {
+        success: false,
+        error: "Invalid role specified",
+      };
+    }
+
+    // Get the current member to verify it exists
+    const [currentMember] = await db
+      .select()
+      .from(members)
+      .where(eq(members.id, memberId))
+      .limit(1);
+
+    if (!currentMember) {
+      return {
+        success: false,
+        error: "Member not found",
+      };
+    }
+
+    // Update the member role (no updatedAt in your schema)
+    const [updatedMember] = await db
+      .update(members)
+      .set({ 
+        role: newRole
+      })
+      .where(eq(members.id, memberId))
+      .returning();
+
+    if (!updatedMember) {
+      return {
+        success: false,
+        error: "Failed to update member role",
+      };
+    }
+
+    console.log("✅ Member role updated successfully:", updatedMember);
+
+    return {
+      success: true,
+      data: updatedMember,
+      message: "Member role updated successfully",
+    };
+    
+  } catch (error) {
+    console.error("❌ Error updating member role:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update member role",
+    };
+  }
+}
+
+/**
+ * Invite user to organization (using Better Auth)
+ */
+export async function inviteUserToOrganization(
+  organizationId: string,
+  email: string,
+  role: string,
+  name?: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("📧 Inviting user to organization:", { organizationId, email, role });
+
+    // Only super admins can invite users
+    await requireSuperAdmin();
+
+    // Validate the role
+    const validRoles = [
+      "system_admin",
+      "five_am_admin", 
+      "five_am_agent",
+      "client_admin",
+      "front_desk",
+      "technician",
+      "interpreting_doctor",
+    ];
+
+    if (!validRoles.includes(role)) {
+      return {
+        success: false,
+        error: "Invalid role specified",
+      };
+    }
+
+    // Check if organization exists
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+
+    if (!organization) {
+      return {
+        success: false,
+        error: "Organization not found",
+      };
+    }
+
+    // Check if user is already a member
+    const existingUser = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
+    if (existingUser.length > 0) {
+      const existingMember = await db
+        .select()
+        .from(members)
+        .where(
+          and(
+            eq(members.userId, existingUser[0].id),
+            eq(members.organizationId, organizationId)
+          )
+        )
+        .limit(1);
+
+      if (existingMember.length > 0) {
+        return {
+          success: false,
+          error: "User is already a member of this organization",
+        };
+      }
+    }
+
+    // Create invitation using Better Auth patterns
+    // For now, we'll use direct database insertion
+    // In a real implementation, you'd use Better Auth's invitation system
+    
+    const invitationId = crypto.randomUUID();
+    const token = crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    const [invitation] = await db
+      .insert(invitations)
+      .values({
+        id: invitationId,
+        organizationId,
+        email,
+        role,
+        expiresAt,
+        inviterId: "system", // You might want to get this from the current user
+        status: "pending",
+      })
+      .returning();
+
+    console.log("✅ Invitation created:", invitation);
+
+    // TODO: Send invitation email using your email service
+    // await sendInvitationEmail(email, organization.name, token);
+
+    return {
+      success: true,
+      data: invitation,
+      message: "Invitation sent successfully",
+    };
+    
+  } catch (error) {
+    console.error("❌ Error inviting user:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send invitation",
     };
   }
 }

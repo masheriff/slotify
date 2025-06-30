@@ -54,7 +54,7 @@ export function OrganizationDetailsContent({
   };
 
   const handleInviteUser = () => {
-    router.push(`/admin/organizations/${organizationId}/invite`);
+    router.push(`/admin/organizations/${organizationId}/members/invite`);
   };
 
   return (

@@ -1,4 +1,4 @@
-// app/admin/organizations/[id]/members/invite/page.tsx
+// app/admin/organizations/[id]/members/[memberId]/edit/page.tsx
 "use client";
 
 import { use } from "react";
@@ -6,20 +6,21 @@ import { useRouter } from "next/navigation";
 import { MemberForm } from "@/components/admin/forms/member-form";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
 
-interface InviteMemberPageProps {
+interface EditMemberPageProps {
   params: Promise<{
     id: string;
+    memberId: string;
   }>;
 }
 
-export default function InviteMemberPage({ params }: InviteMemberPageProps) {
+export default function EditMemberPage({ params }: EditMemberPageProps) {
   const router = useRouter();
   
   // Use React.use() to unwrap the Promise as required by Next.js latest
-  const { id: organizationId } = use(params);
+  const { id: organizationId, memberId } = use(params);
 
   const handleSuccess = () => {
-    router.push(`/admin/organizations/${organizationId}/members`);
+    router.push(`/admin/organizations/${organizationId}/members/${memberId}`);
   };
 
   return (
@@ -29,7 +30,8 @@ export default function InviteMemberPage({ params }: InviteMemberPageProps) {
         { label: 'Organizations', href: '/admin/organizations' },
         { label: 'Organization', href: `/admin/organizations/${organizationId}` },
         { label: 'Members', href: `/admin/organizations/${organizationId}/members` },
-        { label: 'Invite Member', current: true },
+        { label: 'Member', href: `/admin/organizations/${organizationId}/members/${memberId}` },
+        { label: 'Edit', current: true },
       ]}
     >
       {/* Using consistent space-y-6 like the list page */}
@@ -37,17 +39,18 @@ export default function InviteMemberPage({ params }: InviteMemberPageProps) {
         {/* Header matching FilterablePageHeader style */}
         <div className="flex items-center justify-between">
           <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight">Invite Member</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Edit Member</h1>
             <p className="text-muted-foreground">
-              Send an invitation to add a new member to this organization
+              Update member role and permissions
             </p>
           </div>
         </div>
 
         {/* Form Container - matching the layout of other pages */}
         <MemberForm 
-          mode="create"
+          mode="edit"
           organizationId={organizationId}
+          memberId={memberId}
           onSuccess={handleSuccess}
         />
       </div>
