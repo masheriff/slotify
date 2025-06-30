@@ -1,4 +1,4 @@
-// app/admin/organizations/page.tsx
+// app/admin/organizations/page.tsx - UPDATED WITH EXTRACTED INTERFACES
 import {
   parseListParams,
   handleListPageRedirect,
@@ -12,8 +12,8 @@ import { organizationColumns } from "@/components/table-configs/organization-col
 import { organizationFilterConfig } from "@/components/admin/forms/organization-filters-config";
 import { listOrganizations } from "@/actions/organization-actions";
 import { getCurrentUser } from "@/lib/auth-server";
-import { Organization, OrganizationsPageProps } from "@/types"; // ✅ Use domain type
-
+import { Organization } from "@/types";
+import { OrganizationsPageProps } from "@/types/page.types"; // ✅ EXTRACTED
 
 const LIST_CONFIG = {
   defaultPageSize: 10,
@@ -27,10 +27,11 @@ const LIST_CONFIG = {
 
 export default async function OrganizationsPage({
   searchParams,
-}: OrganizationsPageProps) {
+}: OrganizationsPageProps) { // ✅ USING EXTRACTED INTERFACE
   const startTime = Date.now();
 
   try {
+    // ✅ Now compatible with parseListParams expecting Record<string, string | undefined>
     const params = await parseListParams(searchParams, LIST_CONFIG);
     const user = await getCurrentUser();
     const accessCheck = await validateListPageAccess(user ?? undefined);
@@ -47,7 +48,7 @@ export default async function OrganizationsPage({
       );
     }
 
-    // ✅ CALL ACTION DIRECTLY - RETURNS CLEAN ListDataResult<Organization>
+    // Rest of component implementation...
     const result = await listOrganizations({
       page: params.page,
       pageSize: params.pageSize,

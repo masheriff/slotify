@@ -6,34 +6,15 @@ export interface BasePageProps {
   searchParams: Promise<Record<string, string | undefined>>;
 }
 
-// Common list page search params
-export interface ListPageSearchParams {
-  page?: string;
-  pageSize?: string;
-  search?: string;
-  sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
-}
-
-// Organizations page props
+// Organizations page props - compatible with parseListParams
 export interface OrganizationsPageProps {
-  searchParams: Promise<ListPageSearchParams & {
-    type?: string;
-    createdAfter?: string;
-    status?: string;
-    contactEmail?: string;
-  }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }
 
-// Organization members page props
+// Organization members page props - compatible with parseListParams
 export interface MembersPageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<ListPageSearchParams & {
-    type?: string;
-    createdAfter?: string;
-    status?: string;
-    contactEmail?: string;
-  }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }
 
 // Edit organization page props
@@ -54,7 +35,31 @@ export interface DetailPageProps {
   params: Promise<{ id: string }>;
 }
 
-// Generic list page props with filters
-export interface GenericListPageProps<T = Record<string, string | undefined>> {
-  searchParams: Promise<ListPageSearchParams & T>;
+// Generic list page props - flexible for any list page
+export interface GenericListPageProps {
+  searchParams: Promise<Record<string, string | undefined>>;
+}
+
+// Specific search param types for documentation (not used in components)
+export interface OrganizationSearchParams {
+  page?: string;
+  pageSize?: string;
+  search?: string;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+  type?: string;
+  createdAfter?: string;
+  status?: string;
+  contactEmail?: string;
+}
+
+export interface MemberSearchParams {
+  page?: string;
+  pageSize?: string;
+  search?: string;
+  sortBy?: string;
+  sortDirection?: 'asc' | 'desc';
+  role?: string;
+  status?: string;
+  joinedAfter?: string;
 }

@@ -1,4 +1,4 @@
-// app/admin/organizations/[id]/members/page.tsx
+// app/admin/organizations/[id]/members/page.tsx - UPDATED
 import { getMembersList } from "@/actions/member-actions";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
 import { getOrganizationById } from "@/actions/organization-actions";
@@ -12,8 +12,8 @@ import {
   logListPageMetrics 
 } from "@/lib/list-page-server";
 import { MemberListItem } from "@/types/member.types";
-import { getErrorMessage, MembersPageProps } from "@/types";
-
+import { getErrorMessage } from "@/types";
+import { MembersPageProps } from "@/types/page.types"; // ✅ EXTRACTED
 
 const LIST_CONFIG = {
   defaultPageSize: 10,
@@ -24,12 +24,15 @@ const LIST_CONFIG = {
   searchable: true,
 };
 
-export default async function MembersPage({ params, searchParams }: MembersPageProps) {
+export default async function MembersPage({ 
+  params, 
+  searchParams 
+}: MembersPageProps) { // ✅ USING EXTRACTED INTERFACE
   const startTime = Date.now();
   const { id: organizationId } = await params;
 
   try {
-    // ✅ USE CONSISTENT PARAM PARSING
+    // ✅ Now compatible with parseListParams expecting Record<string, string | undefined>
     const listParams = await parseListParams(searchParams, LIST_CONFIG);
 
     // Get organization details for breadcrumb
@@ -47,7 +50,7 @@ export default async function MembersPage({ params, searchParams }: MembersPageP
       );
     }
 
-    // ✅ CALL ACTION DIRECTLY - RETURNS CLEAN ListDataResult<MemberListItem>
+    // Call action with proper parameter mapping
     const membersResult = await getMembersList({
       organizationId,
       page: listParams.page,
