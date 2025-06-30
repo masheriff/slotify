@@ -4,7 +4,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from 'zod';
 import { useGoogleReCaptcha } from "react-google-recaptcha-v3";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,18 +17,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { AlertCircle, CheckCircle, Send } from "lucide-react";
-import { sendMagicLinkAction, type MagicLinkSignInInput } from "@/actions/login-actions";
+import { sendMagicLinkAction } from "@/actions/login-actions";
 import { useLoadingControl } from "@/lib/with-loading";
+import { LoginFormData, loginSchema, MagicLinkSignInInput } from "@/schemas";
 
 // Zod schema for form validation (client-side)
-const loginSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Please enter a valid email address"),
-});
 
-type LoginFormData = z.infer<typeof loginSchema>;
 
 const LOADING_KEY = "magic-link-login";
 

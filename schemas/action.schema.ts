@@ -68,3 +68,13 @@ export const organizationDataSchema = z.object({
 });
 
 export type OrganizationInput = z.infer<typeof organizationDataSchema>;
+
+export const MagicLinkSignInSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
+  recaptchaToken: z.string().min(1, "reCAPTCHA token is required"),
+});
+
+export type MagicLinkSignInInput = z.infer<typeof MagicLinkSignInSchema>;

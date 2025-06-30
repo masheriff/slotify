@@ -2,19 +2,11 @@
 "use server";
 
 import { auth } from "@/lib/auth";
-import { z } from "zod";
 import { APIError } from "better-auth/api";
+import { MagicLinkSignInInput, MagicLinkSignInSchema } from "@/schemas";
 
 // Zod schema for server-side validation
-const MagicLinkSignInSchema = z.object({
-  email: z
-    .string()
-    .min(1, "Email is required")
-    .email("Please enter a valid email address"),
-  recaptchaToken: z.string().min(1, "reCAPTCHA token is required"),
-});
 
-export type MagicLinkSignInInput = z.infer<typeof MagicLinkSignInSchema>;
 
 export async function sendMagicLinkAction(formData: MagicLinkSignInInput) {
   const validatedFields = MagicLinkSignInSchema.safeParse(formData);

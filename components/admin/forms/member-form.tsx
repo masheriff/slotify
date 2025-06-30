@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, SubmitHandler } from "react-hook-form";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,15 +44,9 @@ import {
   ServerActionResponse,
 } from "@/types/server-actions.types";
 import { MemberFormProps } from "@/types";
+import { MemberFormData, memberFormSchema } from "@/schemas";
 
-// Form validation schema
-const memberFormSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  role: z.string().min(1, "Please select a role"),
-  name: z.string().optional(),
-});
 
-type FormData = z.infer<typeof memberFormSchema>;
 
 
 export function MemberForm({
@@ -67,7 +60,7 @@ export function MemberForm({
   const [organization, setOrganization] = useState<any>(null);
 
   // Form with validation
-  const form = useForm<FormData>({
+  const form = useForm<MemberFormData>({
     resolver: zodResolver(memberFormSchema),
     defaultValues: {
       email: "",
@@ -137,7 +130,7 @@ export function MemberForm({
   };
 
   // Form submission
-  const onSubmit: SubmitHandler<FormData> = async (data) => {
+  const onSubmit: SubmitHandler<MemberFormData> = async (data) => {
     try {
       setIsLoading(true);
 
