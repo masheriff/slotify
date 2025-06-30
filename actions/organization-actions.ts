@@ -80,104 +80,6 @@ const organizationDataSchema = z.object({
 
 export type OrganizationInput = z.infer<typeof organizationDataSchema>;
 
-export async function createOrganization(
-  data: OrganizationInput
-): Promise<ServerActionResponse> {
-  try {
-    console.log("🏢 Creating organization:", data.name);
-
-    // FIXED: Use direct role check for system admin
-    const session = await getServerSession();
-    if (!session?.user) {
-      throw new Error("Authentication required");
-    }
-
-    // FIXED: Direct system admin check instead of membership-based check
-    if (!isSuperAdmin(session.user.role ?? "")) {
-      throw new Error("System admin access required");
-    }
-
-    // Validate the data
-    const validatedData = organizationDataSchema.parse(data);
-    console.log("✅ Validation passed, creating organization");
-
-    // Check if slug already exists
-    const existingOrg = await db
-      .select({ id: organizations.id })
-      .from(organizations)
-      .where(eq(organizations.slug, validatedData.slug))
-      .limit(1);
-
-    if (existingOrg.length > 0) {
-      return {
-        success: false,
-        error: `Organization with slug "${validatedData.slug}" already exists`,
-      };
-    }
-
-    // Generate organization ID
-    const organizationId = generateId();
-
-    // Create organization
-    const [createdOrg] = await db
-      .insert(organizations)
-      .values({
-        id: organizationId,
-        name: validatedData.name,
-        slug: validatedData.slug,
-        logo: validatedData.logo,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        metadata: validatedData.metadata,
-      })
-      .returning();
-
-    console.log("✅ Organization created successfully:", createdOrg.id);
-
-    return {
-      success: true,
-      data: {
-        id: createdOrg.id,
-        organization: createdOrg,
-      },
-      message: "Organization created successfully",
-    };
-  } catch (error) {
-    console.error("❌ Error creating organization:", error);
-
-    // Handle validation errors
-    if (error instanceof z.ZodError) {
-      return {
-        success: false,
-        error: error.errors[0].message,
-        validationErrors: error.errors.map((err) => ({
-          message: err.message,
-          path: err.path,
-          code: err.code,
-        })),
-      };
-    }
-
-    // Handle database constraint errors
-    if (error && typeof error === "object" && "code" in error) {
-      if (error.code === "23505") {
-        return {
-          success: false,
-          error: "An organization with this slug already exists",
-        };
-      }
-    }
-
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to create organization",
-    };
-  }
-}
-
 export async function updateOrganization(
   organizationId: string,
   data: OrganizationInput
@@ -185,13 +87,13 @@ export async function updateOrganization(
   try {
     console.log("✏️ Updating organization:", organizationId);
 
-    // FIXED: Use direct role check for system admin
+    // Use direct role check for system admin
     const session = await getServerSession();
     if (!session?.user) {
       throw new Error("Authentication required");
     }
 
-    // FIXED: Direct system admin check instead of membership-based check
+    // Direct system admin check instead of membership-based check
     if (!isSuperAdmin(session.user.role ?? "")) {
       throw new Error("System admin access required");
     }
@@ -235,20 +137,30 @@ export async function updateOrganization(
       };
     }
 
-    // FIXED: Properly merge metadata while preserving existing type in edit mode
+    // FIXED: Check if trying to deactivate admin organization
     interface ExistingMetadata {
+      type?: string;
       isActive?: boolean;
       [key: string]: any;
     }
 
     const existingMetadata: ExistingMetadata =
       (existingOrg.metadata as ExistingMetadata) || {};
+    
+    // Prevent deactivating admin organizations
+    if (existingMetadata.type === "admin" && validatedData.metadata.isActive === false) {
+      return {
+        success: false,
+        error: "Admin organizations cannot be deactivated. Admin organizations must remain active to ensure system functionality.",
+      };
+    }
+
+    // FIXED: Properly merge metadata while preserving existing settings
     const updatedMetadata = {
       ...existingMetadata,
       ...validatedData.metadata,
-      // IMPORTANT: Preserve isActive flag from existing metadata unless explicitly changed
-      isActive:
-        existingMetadata.isActive !== false ? true : existingMetadata.isActive,
+      // Ensure the isActive value from the form is properly set
+      isActive: validatedData.metadata.isActive,
     };
 
     // Prepare update data
@@ -322,6 +234,97 @@ export async function updateOrganization(
         error instanceof Error
           ? error.message
           : "Failed to update organization",
+    };
+  }
+}
+
+// Rest of the organization actions remain the same...
+export async function createOrganization(
+  data: OrganizationInput
+): Promise<ServerActionResponse> {
+  try {
+    console.log("🔧 Creating organization");
+
+    const session = await getServerSession();
+    if (!session?.user) {
+      throw new Error("Authentication required");
+    }
+
+    if (!isSuperAdmin(session.user.role ?? "")) {
+      throw new Error("System admin access required");
+    }
+
+    const validatedData = organizationDataSchema.parse(data);
+    console.log("✅ Validation passed, creating organization");
+
+    const existingOrg = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.slug, validatedData.slug))
+      .limit(1);
+
+    if (existingOrg.length > 0) {
+      return {
+        success: false,
+        error: `Organization with slug "${validatedData.slug}" already exists`,
+      };
+    }
+
+    const organizationId = generateId();
+
+    const [createdOrg] = await db
+      .insert(organizations)
+      .values({
+        id: organizationId,
+        name: validatedData.name,
+        slug: validatedData.slug,
+        logo: validatedData.logo,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        metadata: validatedData.metadata,
+      })
+      .returning();
+
+    console.log("✅ Organization created successfully:", createdOrg.id);
+
+    return {
+      success: true,
+      data: {
+        id: createdOrg.id,
+        organization: createdOrg,
+      },
+      message: "Organization created successfully",
+    };
+  } catch (error) {
+    console.error("❌ Error creating organization:", error);
+
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: error.errors[0].message,
+        validationErrors: error.errors.map((err) => ({
+          message: err.message,
+          path: err.path,
+          code: err.code,
+        })),
+      };
+    }
+
+    if (error && typeof error === "object" && "code" in error) {
+      if (error.code === "23505") {
+        return {
+          success: false,
+          error: "An organization with this slug already exists",
+        };
+      }
+    }
+
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to create organization",
     };
   }
 }
