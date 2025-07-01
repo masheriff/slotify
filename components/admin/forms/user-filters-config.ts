@@ -1,78 +1,77 @@
-// components/admin/forms/user-filters-config.ts
-import { FilterConfig } from "@/types";
+// components/admin/forms/user-filters-config.ts - User List Filter Configuration
+import { FilterConfig } from "@/types/component.types";
 
 export const userFilterConfig: FilterConfig[] = [
   {
-    key: "role",
+    label: "Search",
+    key: "search",
+    type: "text",
+    placeholder: "Search by name or email...",
+  },
+  {
     label: "Role",
+    key: "role",
     type: "select",
     placeholder: "Filter by role",
     options: [
-      { value: "", label: "All roles" },
-      { value: "system_admin", label: "System Admin" },
-      { value: "five_am_admin", label: "5AM Admin" },
+      { value: "system_admin", label: "System Administrator" },
+      { value: "five_am_admin", label: "5AM Administrator" },
       { value: "five_am_agent", label: "5AM Agent" },
-      { value: "client_admin", label: "Client Admin" },
+      { value: "client_admin", label: "Client Administrator" },
       { value: "front_desk", label: "Front Desk" },
       { value: "technician", label: "Technician" },
       { value: "interpreting_doctor", label: "Interpreting Doctor" },
     ],
   },
   {
-    key: "status",
     label: "Status",
+    key: "status",
     type: "select",
     placeholder: "Filter by status",
     options: [
-      { value: "", label: "All statuses" },
+      { value: "all", label: "All Users" },
       { value: "active", label: "Active" },
       { value: "banned", label: "Banned" },
     ],
   },
   {
-    key: "organization",
     label: "Organization",
-    type: "select",
-    placeholder: "Filter by organization",
-    options: [
-      { value: "", label: "All organizations" },
-      // Note: This would be populated dynamically with actual organizations
-      // For now, providing placeholder structure
-    ],
+    key: "organization",
+    type: "text",
+    placeholder: "Filter by organization name...",
   },
   {
-    key: "organizationType",
     label: "Organization Type",
+    key: "organizationType",
     type: "select",
     placeholder: "Filter by organization type",
     options: [
-      { value: "", label: "All types" },
-      { value: "admin", label: "Admin" },
-      { value: "client", label: "Client" },
+      { value: "admin", label: "Admin Organizations" },
+      { value: "client", label: "Client Organizations" },
     ],
   },
   {
-    key: "createdAfter",
     label: "Created After",
+    key: "createdAfter",
     type: "date",
-    placeholder: "Select date",
+    placeholder: "Select start date",
   },
   {
-    key: "createdBefore",
     label: "Created Before",
+    key: "createdBefore",
     type: "date",
-    placeholder: "Select date",
+    placeholder: "Select end date",
   },
   {
-    key: "lastLoginAfter",
     label: "Last Login After",
+    key: "lastLoginAfter",
     type: "date",
-    placeholder: "Select date",
+    placeholder: "Select start date",
   },
   {
-    key: "lastLoginBefore",
     label: "Last Login Before",
+    key: "lastLoginBefore",
     type: "date",
-    placeholder: "Select date",
+    placeholder: "Select end date",
   },
 ];
