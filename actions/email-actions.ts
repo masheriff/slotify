@@ -1,24 +1,22 @@
 // app/actions/email-actions.ts
-'use server';
+"use server";
 
-import { emailSender } from '@/lib/email/email-sender';
-import { 
-  welcomeEmailSchema, 
-  notificationEmailSchema, 
-  bulkNotificationSchema,
-  magicLinkEmailSchema,
+import { emailSender } from "@/lib/email/email-sender";
+import {
   formatRecipientName,
-  sanitizeEmailContent, 
-  organizationInvitationEmailSchema
-} from '@/lib/utils/email-utils';
-import { EmailSendResult } from '@/types/email.types';
+  sanitizeEmailContent,
+} from "@/lib/utils/email-utils";
+import { welcomeEmailSchema, notificationEmailSchema, bulkNotificationSchema, magicLinkEmailSchema, organizationInvitationEmailSchema } from "@/schemas";
+import { EmailSendResult } from "@/types/email.types";
 
-export async function sendWelcomeEmail(formData: FormData): Promise<EmailSendResult> {
+export async function sendWelcomeEmail(
+  formData: FormData
+): Promise<EmailSendResult> {
   try {
     const data = {
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
-      loginUrl: formData.get('loginUrl') as string || undefined,
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      loginUrl: (formData.get("loginUrl") as string) || undefined,
     };
 
     // Validate input
@@ -36,23 +34,26 @@ export async function sendWelcomeEmail(formData: FormData): Promise<EmailSendRes
 
     return result;
   } catch (error) {
-    console.error('Welcome email action failed:', error);
+    console.error("Welcome email action failed:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send welcome email',
+      error:
+        error instanceof Error ? error.message : "Failed to send welcome email",
     };
   }
 }
 
-export async function sendNotificationEmail(formData: FormData): Promise<EmailSendResult> {
+export async function sendNotificationEmail(
+  formData: FormData
+): Promise<EmailSendResult> {
   try {
     const data = {
-      email: formData.get('email') as string,
-      name: formData.get('name') as string,
-      title: formData.get('title') as string,
-      message: formData.get('message') as string,
-      actionUrl: formData.get('actionUrl') as string || undefined,
-      actionText: formData.get('actionText') as string || undefined,
+      email: formData.get("email") as string,
+      name: formData.get("name") as string,
+      title: formData.get("title") as string,
+      message: formData.get("message") as string,
+      actionUrl: (formData.get("actionUrl") as string) || undefined,
+      actionText: (formData.get("actionText") as string) || undefined,
     };
 
     // Validate input
@@ -79,10 +80,13 @@ export async function sendNotificationEmail(formData: FormData): Promise<EmailSe
 
     return result;
   } catch (error) {
-    console.error('Notification email action failed:', error);
+    console.error("Notification email action failed:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send notification email',
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to send notification email",
     };
   }
 }
@@ -93,15 +97,18 @@ export async function sendBulkNotificationEmails(formData: FormData): Promise<{
   error?: string;
 }> {
   try {
-    const emailsString = formData.get('emails') as string;
-    const emails = emailsString.split(',').map(email => email.trim()).filter(Boolean);
-    
+    const emailsString = formData.get("emails") as string;
+    const emails = emailsString
+      .split(",")
+      .map((email) => email.trim())
+      .filter(Boolean);
+
     const data = {
       emails,
-      title: formData.get('title') as string,
-      message: formData.get('message') as string,
-      actionUrl: formData.get('actionUrl') as string || undefined,
-      actionText: formData.get('actionText') as string || undefined,
+      title: formData.get("title") as string,
+      message: formData.get("message") as string,
+      actionUrl: (formData.get("actionUrl") as string) || undefined,
+      actionText: (formData.get("actionText") as string) || undefined,
     };
 
     // Validate input
@@ -111,15 +118,18 @@ export async function sendBulkNotificationEmails(formData: FormData): Promise<{
     const sanitizedMessage = sanitizeEmailContent(validatedData.message);
 
     // Send bulk notifications
-    const results = await emailSender.sendBulkNotifications(validatedData.emails, {
-      name: 'User', // Generic name for bulk emails
-      title: validatedData.title,
-      message: sanitizedMessage,
-      actionUrl: validatedData.actionUrl,
-      actionText: validatedData.actionText,
-    });
+    const results = await emailSender.sendBulkNotifications(
+      validatedData.emails,
+      {
+        name: "User", // Generic name for bulk emails
+        title: validatedData.title,
+        message: sanitizedMessage,
+        actionUrl: validatedData.actionUrl,
+        actionText: validatedData.actionText,
+      }
+    );
 
-    const successCount = results.filter(r => r.result.success).length;
+    const successCount = results.filter((r) => r.result.success).length;
     const totalCount = results.length;
 
     return {
@@ -127,10 +137,13 @@ export async function sendBulkNotificationEmails(formData: FormData): Promise<{
       results,
     };
   } catch (error) {
-    console.error('Bulk notification email action failed:', error);
+    console.error("Bulk notification email action failed:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send bulk notification emails',
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to send bulk notification emails",
     };
   }
 }
@@ -153,7 +166,8 @@ export async function sendWelcomeEmailDirect(data: {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send welcome email',
+      error:
+        error instanceof Error ? error.message : "Failed to send welcome email",
     };
   }
 }
@@ -169,12 +183,15 @@ export async function sendMagicLinkEmail(data: {
     return await emailSender.sendMagicLinkEmail(validatedData.email, {
       email: validatedData.email,
       url: validatedData.url,
-      expiresIn: validatedData.expiresIn || '5 minutes',
+      expiresIn: validatedData.expiresIn || "5 minutes",
     });
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send magic link email',
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to send magic link email",
     };
   }
 }
@@ -189,17 +206,23 @@ export async function sendOrganizationInvitationEmail(data: {
   try {
     const validatedData = organizationInvitationEmailSchema.parse(data);
 
-    return await emailSender.sendOrganizationInvitationEmail(validatedData.email, {
-      email: validatedData.email,
-      organizationName: validatedData.organizationName,
-      inviterName: validatedData.inviterName,
-      invitationLink: validatedData.invitationLink,
-      expiresIn: validatedData.expiresIn || '7 days',
-    });
+    return await emailSender.sendOrganizationInvitationEmail(
+      validatedData.email,
+      {
+        email: validatedData.email,
+        organizationName: validatedData.organizationName,
+        inviterName: validatedData.inviterName,
+        invitationLink: validatedData.invitationLink,
+        expiresIn: validatedData.expiresIn || "7 days",
+      }
+    );
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to send organization invitation email',
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to send organization invitation email",
     };
   }
 }

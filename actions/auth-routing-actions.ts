@@ -1,3 +1,4 @@
+
 // actions/auth-routing-actions.ts
 'use server';
 
@@ -27,11 +28,12 @@ export async function handlePostAuthRouting() {
   const userId = session.user.id;
   const userEmail = session.user.email;
 
-  try {
-    console.log(`🏠 Determining home route for user: ${userEmail} (ID: ${userId})`);
+  console.log(`🏠 Determining home route for user: ${userEmail} (ID: ${userId})`);
 
-    // Get user's organization membership (single org per user)
-    const [membership] = await db
+  // Get user's organization membership (single org per user)
+  let membership;
+  try {
+    [membership] = await db
       .select({
         memberRole: members.role,
         organizationId: organizations.id,
@@ -43,37 +45,42 @@ export async function handlePostAuthRouting() {
       .leftJoin(organizations, eq(members.organizationId, organizations.id))
       .where(eq(members.userId, userId))
       .limit(1);
+  } catch (dbError) {
+    console.error(`❌ Database error while fetching membership for ${userEmail}:`, dbError);
+    redirect("/error?type=database_error");
+  }
 
-    if (!membership) {
-      console.error(`❌ No organization membership found for user: ${userEmail}`);
-      redirect("/error?type=no_organization");
-    }
+  if (!membership) {
+    console.error(`❌ No organization membership found for user: ${userEmail}`);
+    redirect("/error?type=no_organization");
+  }
 
-    const role = membership.memberRole;
-    const orgMetadata = membership.organizationMetadata as OrganizationMetadata;
-    
-    console.log(`📋 User membership details:`, {
-      organization: membership.organizationName,
-      role: role,
-      orgType: orgMetadata?.type,
-      slug: membership.organizationSlug
-    });
+  const role = membership.memberRole;
+  const orgMetadata = membership.organizationMetadata as OrganizationMetadata;
+  
+  console.log(`📋 User membership details:`, {
+    organization: membership.organizationName,
+    role: role,
+    orgType: orgMetadata?.type,
+    slug: membership.organizationSlug
+  });
 
-    // Determine redirect URL based on role and organization type
-    let redirectUrl: string;
+  // Determine redirect URL based on role and organization type
+  let redirectUrl: string;
 
-    switch (role) {
-      case HEALTHCARE_ROLES.SYSTEM_ADMIN:
-      case HEALTHCARE_ROLES.FIVE_AM_ADMIN:
-        redirectUrl = "/5am-corp/admin/dashboard";
-        console.log(`🏢 Admin user redirecting to: ${redirectUrl}`);
-        break;
+  switch (role) {
+    case HEALTHCARE_ROLES.SYSTEM_ADMIN:
+    case HEALTHCARE_ROLES.FIVE_AM_ADMIN:
+      redirectUrl = "/5am-corp/admin/dashboard";
+      console.log(`🏢 Admin user redirecting to: ${redirectUrl}`);
+      break;
 
-      case HEALTHCARE_ROLES.FIVE_AM_AGENT:
-        redirectUrl = "/5am-corp/agent/dashboard";
-        console.log(`👥 Agent user redirecting to: ${redirectUrl}`);
-        
-        // Optional: Log agent assignments for debugging
+    case HEALTHCARE_ROLES.FIVE_AM_AGENT:
+      redirectUrl = "/5am-corp/agent/dashboard";
+      console.log(`👥 Agent user redirecting to: ${redirectUrl}`);
+      
+      // Optional: Log agent assignments for debugging
+      try {
         const agentAssignments = await db
           .select({ 
             clientOrgId: agentOrganizationAssignments.clientOrganizationId,
@@ -86,50 +93,45 @@ export async function handlePostAuthRouting() {
         console.log(`📊 Agent has ${agentAssignments.length} client assignments:`, 
           agentAssignments.map(a => a.clientOrgName)
         );
-        break;
+      } catch (assignmentError) {
+        console.warn(`⚠️ Could not fetch agent assignments for ${userEmail}:`, assignmentError);
+      }
+      break;
 
-      case HEALTHCARE_ROLES.CLIENT_ADMIN:
+    case HEALTHCARE_ROLES.CLIENT_ADMIN:
+      redirectUrl = `/${membership.organizationSlug}/dashboard`;
+      console.log(`👔 Client Admin redirecting to: ${redirectUrl}`);
+      break;
+
+    case HEALTHCARE_ROLES.FRONT_DESK:
+      redirectUrl = `/${membership.organizationSlug}/front-desk/dashboard`;
+      console.log(`🏥 Front Desk user redirecting to: ${redirectUrl}`);
+      break;
+
+    case HEALTHCARE_ROLES.TECHNICIAN:
+      redirectUrl = `/${membership.organizationSlug}/technician/dashboard`;
+      console.log(`🔧 Technician redirecting to: ${redirectUrl}`);
+      break;
+
+    case HEALTHCARE_ROLES.INTERPRETING_DOCTOR:
+      redirectUrl = `/${membership.organizationSlug}/doctor/dashboard`;
+      console.log(`👨‍⚕️ Doctor redirecting to: ${redirectUrl}`);
+      break;
+
+    default:
+      console.warn(`⚠️ Unknown role: ${role}, using fallback routing`);
+      
+      // Fallback logic based on organization type
+      if (orgMetadata?.type === "client" && membership.organizationSlug) {
         redirectUrl = `/${membership.organizationSlug}/dashboard`;
-        console.log(`👔 Client Admin redirecting to: ${redirectUrl}`);
-        break;
-
-      case HEALTHCARE_ROLES.FRONT_DESK:
-        redirectUrl = `/${membership.organizationSlug}/front-desk/dashboard`;
-        console.log(`🏥 Front Desk user redirecting to: ${redirectUrl}`);
-        break;
-
-      case HEALTHCARE_ROLES.TECHNICIAN:
-        redirectUrl = `/${membership.organizationSlug}/technician/dashboard`;
-        console.log(`🔧 Technician redirecting to: ${redirectUrl}`);
-        break;
-
-      case HEALTHCARE_ROLES.INTERPRETING_DOCTOR:
-        redirectUrl = `/${membership.organizationSlug}/doctor/dashboard`;
-        console.log(`👨‍⚕️ Doctor redirecting to: ${redirectUrl}`);
-        break;
-
-      default:
-        console.warn(`⚠️ Unknown role: ${role}, using fallback routing`);
-        
-        // Fallback logic based on organization type
-        if (orgMetadata?.type === "client" && membership.organizationSlug) {
-          redirectUrl = `/${membership.organizationSlug}/dashboard`;
-          console.log(`🏥 Unknown client role, redirecting to org dashboard: ${redirectUrl}`);
-        } else {
-          redirectUrl = "/dashboard";
-          console.log(`❓ Unknown role and org type, redirecting to generic dashboard`);
-        }
-        break;
-    }
-
-    console.log(`✅ Final redirect for ${userEmail}: ${redirectUrl}`);
-    redirect(redirectUrl);
-
-  } catch (error) {
-    console.error(`❌ Error during post-auth routing for ${userEmail}:`, error);
-    
-    // Redirect to error page with context
-    const errorMessage = error instanceof Error ? error.message : "Unknown routing error";
-    redirect(`/error?type=routing_failed&message=${encodeURIComponent(errorMessage)}`);
+        console.log(`🏥 Unknown client role, redirecting to org dashboard: ${redirectUrl}`);
+      } else {
+        redirectUrl = "/dashboard";
+        console.log(`❓ Unknown role and org type, redirecting to generic dashboard`);
+      }
+      break;
   }
+
+  console.log(`✅ Redirecting ${userEmail} to: ${redirectUrl}`);
+  redirect(redirectUrl);
 }

@@ -16,16 +16,16 @@ export default function InviteMemberPage({ params }: InviteMemberPageProps) {
   const { id: organizationId } = use(params);
 
   const handleSuccess = () => {
-    router.push(`/admin/organizations/${organizationId}/members`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}/members`);
   };
 
   return (
     <ListPageWrapper
       breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Organizations', href: '/admin/organizations' },
-        { label: 'Organization', href: `/admin/organizations/${organizationId}` },
-        { label: 'Members', href: `/admin/organizations/${organizationId}/members` },
+        { label: 'Admin', href: '/5am-corp/admin' },
+        { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+        { label: 'Organization', href: `/5am-corp/admin/organizations/${organizationId}` },
+        { label: 'Members', href: `/5am-corp/admin/organizations/${organizationId}/members` },
         { label: 'Invite Member', current: true },
       ]}
     >

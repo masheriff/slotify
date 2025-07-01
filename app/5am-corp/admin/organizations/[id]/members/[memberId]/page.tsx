@@ -25,9 +25,9 @@ export default async function MemberDetailsPage({
         <ListPageWrapper
           error={getErrorMessage(organizationResult.error || "Organization not found")}
           breadcrumbs={[
-            { label: 'Admin', href: '/admin' },
-            { label: 'Organizations', href: '/admin/organizations' },
-            { label: 'Members', href: `/admin/organizations/${organizationId}/members` },
+            { label: 'Admin', href: '/5am-corp/admin' },
+            { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+            { label: 'Members', href: `/5am-corp/admin/organizations/${organizationId}/members` },
             { label: 'Member Details', current: true },
           ]}
         />
@@ -40,10 +40,10 @@ export default async function MemberDetailsPage({
         <ListPageWrapper
           error={getErrorMessage(memberResult.error || "Member not found")}
           breadcrumbs={[
-            { label: 'Admin', href: '/admin' },
-            { label: 'Organizations', href: '/admin/organizations' },
-            { label: organizationResult.data.name, href: `/admin/organizations/${organizationId}` },
-            { label: 'Members', href: `/admin/organizations/${organizationId}/members` },
+            { label: 'Admin', href: '/5am-corp/admin' },
+            { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+            { label: organizationResult.data.name, href: `/5am-corp/admin/organizations/${organizationId}` },
+            { label: 'Members', href: `/5am-corp/admin/organizations/${organizationId}/members` },
             { label: 'Member Details', current: true },
           ]}
         />
@@ -56,10 +56,10 @@ export default async function MemberDetailsPage({
         <ListPageWrapper
           error="Member does not belong to this organization"
           breadcrumbs={[
-            { label: 'Admin', href: '/admin' },
-            { label: 'Organizations', href: '/admin/organizations' },
-            { label: organizationResult.data.name, href: `/admin/organizations/${organizationId}` },
-            { label: 'Members', href: `/admin/organizations/${organizationId}/members` },
+            { label: 'Admin', href: '/5am-corp/admin' },
+            { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+            { label: organizationResult.data.name, href: `/5am-corp/admin/organizations/${organizationId}` },
+            { label: 'Members', href: `/5am-corp/admin/organizations/${organizationId}/members` },
             { label: 'Member Details', current: true },
           ]}
         />
@@ -69,10 +69,10 @@ export default async function MemberDetailsPage({
     return (
       <ListPageWrapper
         breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Organizations', href: '/admin/organizations' },
-          { label: organizationResult.data.name, href: `/admin/organizations/${organizationId}` },
-          { label: 'Members', href: `/admin/organizations/${organizationId}/members` },
+          { label: 'Admin', href: '/5am-corp/admin' },
+          { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+          { label: organizationResult.data.name, href: `/5am-corp/admin/organizations/${organizationId}` },
+          { label: 'Members', href: `/5am-corp/admin/organizations/${organizationId}/members` },
           { label: memberResult.data.user.name || memberResult.data.user.email, current: true },
         ]}
       >
@@ -91,9 +91,9 @@ export default async function MemberDetailsPage({
       <ListPageWrapper
         error={error instanceof Error ? error.message : "Failed to load member details"}
         breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Organizations', href: '/admin/organizations' },
-          { label: 'Members', href: `/admin/organizations/${organizationId}/members` },
+          { label: 'Admin', href: '/5am-corp/admin' },
+          { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+          { label: 'Members', href: `/5am-corp/admin/organizations/${organizationId}/members` },
           { label: 'Member Details', current: true },
         ]}
       />

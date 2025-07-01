@@ -40,15 +40,15 @@ function OrganizationActionsCell({
   } | null>(null);
 
   const handleViewDetails = () => {
-    router.push(`/admin/organizations/${organization.id}`);
+    router.push(`/5am-corp/admin/organizations/${organization.id}`);
   };
 
   const handleEdit = () => {
-    router.push(`/admin/organizations/${organization.id}/edit`);
+    router.push(`/5am-corp/admin/organizations/${organization.id}/edit`);
   };
 
   const handleManageMembers = () => {
-    router.push(`/admin/organizations/${organization.id}/members`);
+    router.push(`/5am-corp/admin/organizations/${organization.id}/members`);
   };
 
   const handleDelete = () => {

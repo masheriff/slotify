@@ -9,14 +9,14 @@ export default function CreateOrganizationPage() {
   const router = useRouter();
 
   const handleSuccess = () => {
-    router.push("/admin/organizations");
+    router.push("/5am-corp/admin/organizations");
   };
 
   return (
     <ListPageWrapper
       breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Organizations', href: '/admin/organizations' },
+        { label: 'Admin', href: '/5am-corp/admin' },
+        { label: 'Organizations', href: '/5am-corp/admin/organizations' },
         { label: 'Create', current: true },
       ]}
     >

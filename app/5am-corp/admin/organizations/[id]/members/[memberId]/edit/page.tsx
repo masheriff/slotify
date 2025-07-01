@@ -16,17 +16,17 @@ export default function EditMemberPage({ params }: EditMemberPageProps) {
   const { id: organizationId, memberId } = use(params);
 
   const handleSuccess = () => {
-    router.push(`/admin/organizations/${organizationId}/members/${memberId}`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}/members/${memberId}`);
   };
 
   return (
     <ListPageWrapper
       breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Organizations', href: '/admin/organizations' },
-        { label: 'Organization', href: `/admin/organizations/${organizationId}` },
-        { label: 'Members', href: `/admin/organizations/${organizationId}/members` },
-        { label: 'Member', href: `/admin/organizations/${organizationId}/members/${memberId}` },
+        { label: 'Admin', href: '/5am-corp/admin' },
+        { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+        { label: 'Organization', href: `/5am-corp/admin/organizations/${organizationId}` },
+        { label: 'Members', href: `/5am-corp/admin/organizations/${organizationId}/members` },
+        { label: 'Member', href: `/5am-corp/admin/organizations/${organizationId}/members/${memberId}` },
         { label: 'Edit', current: true },
       ]}
     >

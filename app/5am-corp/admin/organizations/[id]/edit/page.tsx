@@ -16,15 +16,15 @@ export default function EditOrganizationPage({ params }: EditOrganizationPagePro
   const { id: organizationId } = use(params);
 
   const handleSuccess = () => {
-    router.push(`/admin/organizations/${organizationId}`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}`);
   };
 
   return (
     <ListPageWrapper
       breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Organizations', href: '/admin/organizations' },
-        { label: 'Organization Details', href: `/admin/organizations/${organizationId}` },
+        { label: 'Admin', href: '/5am-corp/admin' },
+        { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+        { label: 'Organization Details', href: `/5am-corp/admin/organizations/${organizationId}` },
         { label: 'Edit', current: true },
       ]}
     >

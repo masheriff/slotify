@@ -41,7 +41,7 @@ export default async function OrganizationsPage({
         <ListPageWrapper
           error={accessCheck.error || "Access denied"}
           breadcrumbs={[
-            { label: "Admin", href: "/admin" },
+            { label: "Admin", href: "/5am-corp/admin" },
             { label: "Organizations", current: true },
           ]}
         />
@@ -66,7 +66,7 @@ export default async function OrganizationsPage({
         <ListPageWrapper
           error={result.error || "Failed to load organizations"}
           breadcrumbs={[
-            { label: "Admin", href: "/admin" },
+            { label: "Admin", href: "/5am-corp/admin" },
             { label: "Organizations", current: true },
           ]}
         />
@@ -75,7 +75,7 @@ export default async function OrganizationsPage({
 
     // ✅ HANDLE REDIRECT WITH CLEAN PAGINATION ACCESS
     handleListPageRedirect(
-      "/admin/organizations",
+      "/5am-corp/admin/organizations",
       params,
       result.pagination.totalPages
     );
@@ -92,7 +92,7 @@ export default async function OrganizationsPage({
     return (
       <ListPageWrapper
         breadcrumbs={[
-          { label: "Admin", href: "/admin" },
+          { label: "Admin", href: "/5am-corp/admin" },
           { label: "Organizations", current: true },
         ]}
       >
@@ -101,7 +101,7 @@ export default async function OrganizationsPage({
             title="Organizations"
             description="Manage healthcare organizations and their settings"
             createButtonText="Add Organization"
-            createHref="/admin/organizations/create"
+            createHref="/5am-corp/admin/organizations/create"
             filterConfig={organizationFilterConfig}
           />
 
@@ -138,7 +138,7 @@ export default async function OrganizationsPage({
             : "An unexpected error occurred"
         }
         breadcrumbs={[
-          { label: "Admin", href: "/admin" },
+          { label: "Admin", href: "/5am-corp/admin" },
           { label: "Organizations", current: true },
         ]}
       />

@@ -43,15 +43,15 @@ export function OrganizationDetailsContent({
   const metadata = organization.metadata as OrganizationMetadata;
 
   const handleEdit = () => {
-    router.push(`/admin/organizations/${organizationId}/edit`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}/edit`);
   };
 
   const handleManageMembers = () => {
-    router.push(`/admin/organizations/${organizationId}/members`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}/members`);
   };
 
   const handleInviteUser = () => {
-    router.push(`/admin/organizations/${organizationId}/members/invite`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}/members/invite`);
   };
 
   return (

@@ -42,8 +42,8 @@ export default async function MembersPage({
         <ListPageWrapper
           error={getErrorMessage(orgResult.error || "Organization not found")}
           breadcrumbs={[
-            { label: 'Admin', href: '/admin' },
-            { label: 'Organizations', href: '/admin/organizations' },
+            { label: 'Admin', href: '/5am-corp/admin' },
+            { label: 'Organizations', href: '/5am-corp/admin/organizations' },
             { label: 'Members', current: true },
           ]}
         />
@@ -68,9 +68,9 @@ export default async function MembersPage({
         <ListPageWrapper
           error={membersResult.error || "Failed to load members"}
           breadcrumbs={[
-            { label: 'Admin', href: '/admin' },
-            { label: 'Organizations', href: '/admin/organizations' },
-            { label: orgResult.data.name, href: `/admin/organizations/${organizationId}` },
+            { label: 'Admin', href: '/5am-corp/admin' },
+            { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+            { label: orgResult.data.name, href: `/5am-corp/admin/organizations/${organizationId}` },
             { label: 'Members', current: true },
           ]}
         />
@@ -96,9 +96,9 @@ export default async function MembersPage({
     return (
       <ListPageWrapper
         breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Organizations', href: '/admin/organizations' },
-          { label: orgResult.data.name, href: `/admin/organizations/${organizationId}` },
+          { label: 'Admin', href: '/5am-corp/admin' },
+          { label: 'Organizations', href: '/5am-corp/admin/organizations' },
+          { label: orgResult.data.name, href: `/5am-corp/admin/organizations/${organizationId}` },
           { label: 'Members', current: true },
         ]}
       >
@@ -107,7 +107,7 @@ export default async function MembersPage({
             title={`Members - ${orgResult.data.name}`}
             description={`Manage members and their roles for ${orgResult.data.name}`}
             createButtonText="Invite Member"
-            createHref={`/admin/organizations/${organizationId}/members/invite`}
+            createHref={`/5am-corp/admin/organizations/${organizationId}/members/invite`}
             filterConfig={memberFilterConfig}
           />
 
@@ -136,8 +136,8 @@ export default async function MembersPage({
             : "An unexpected error occurred"
         }
         breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Organizations', href: '/admin/organizations' },
+          { label: 'Admin', href: '/5am-corp/admin' },
+          { label: 'Organizations', href: '/5am-corp/admin/organizations' },
           { label: 'Members', current: true },
         ]}
       />

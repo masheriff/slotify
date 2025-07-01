@@ -42,15 +42,15 @@ export function MemberDetailsContent({
   const router = useRouter();
 
   const handleEdit = () => {
-    router.push(`/admin/organizations/${organizationId}/members/${memberId}/edit`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}/members/${memberId}/edit`);
   };
 
   const handleBackToMembers = () => {
-    router.push(`/admin/organizations/${organizationId}/members`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}/members`);
   };
 
   const handleBackToOrganization = () => {
-    router.push(`/admin/organizations/${organizationId}`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}`);
   };
 
   const isUserActive = !member.user.banned;

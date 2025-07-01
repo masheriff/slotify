@@ -30,30 +30,30 @@ const adminNavItems = [
   },
   {
     title: "Organizations",
-    url: "/admin/organizations",
+    url: "/5am-corp/admin/organizations",
     icon: Building,
     items: [
-      { title: "All Organizations", url: "/admin/organizations" },
-      { title: "Create Organization", url: "/admin/organizations/create" },
+      { title: "All Organizations", url: "/5am-corp/admin/organizations" },
+      { title: "Create Organization", url: "/5am-corp/admin/organizations/create" },
     ]
   },
   {
     title: "Users",
-    url: "/admin/users", 
+    url: "/5am-corp/admin/users", 
     icon: Users,
     items: [
-      { title: "All Users", url: "/admin/users" },
-      { title: "Create User", url: "/admin/users/create" },
+      { title: "All Users", url: "/5am-corp/admin/users" },
+      { title: "Create User", url: "/5am-corp/admin/users/create" },
     ]
   },
   {
     title: "Audit Logs",
-    url: "/admin/audit-logs",
+    url: "/5am-corp/admin/audit-logs",
     icon: FileText,
   },
   {
     title: "Settings",
-    url: "/admin/settings",
+    url: "/5am-corp/admin/settings",
     icon: Settings2,
   },
 ]

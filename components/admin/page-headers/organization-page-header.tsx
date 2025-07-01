@@ -13,7 +13,7 @@ export function OrganizationPageHeader({
   onSave,
   isLoading = false,
   showBackButton = true,
-  backUrl = "/admin/organizations"
+  backUrl = "/5am-corp/admin/organizations"
 }: OrganizationPageHeaderProps) {
   const router = useRouter()
 

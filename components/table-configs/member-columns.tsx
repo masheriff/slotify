@@ -43,15 +43,15 @@ function MemberActionsCell({ member }: { member: MemberListItem }) {
   const [isLoading, setIsLoading] = useState(false);
 
   // ✅ EXTRACT ORGANIZATION ID FROM PATHNAME
-  const organizationId = pathname.split("/")[3]; // /admin/organizations/{id}/members
+  const organizationId = pathname.split("/")[3]; // /5am-corp/admin/organizations/{id}/members
 
   const handleViewDetails = () => {
-    router.push(`/admin/organizations/${organizationId}/members/${member.id}`);
+    router.push(`/5am-corp/admin/organizations/${organizationId}/members/${member.id}`);
   };
 
   const handleEditRole = () => {
     router.push(
-      `/admin/organizations/${organizationId}/members/${member.id}/edit`
+      `/5am-corp/admin/organizations/${organizationId}/members/${member.id}/edit`
     );
   };
 

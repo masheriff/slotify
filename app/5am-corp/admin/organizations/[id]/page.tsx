@@ -20,8 +20,8 @@ export default async function OrganizationDetailsPage({
       <ListPageWrapper
         error={getErrorMessage(result.error ?? "The organization you're looking for doesn't exist.") }
         breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
-          { label: 'Organizations', href: '/admin/organizations' },
+          { label: 'Admin', href: '/5am-corp/admin' },
+          { label: 'Organizations', href: '/5am-corp/admin/organizations' },
           { label: 'Organization Details', current: true },
         ]}
       />
@@ -31,8 +31,8 @@ export default async function OrganizationDetailsPage({
   return (
     <ListPageWrapper
       breadcrumbs={[
-        { label: 'Admin', href: '/admin' },
-        { label: 'Organizations', href: '/admin/organizations' },
+        { label: 'Admin', href: '/5am-corp/admin' },
+        { label: 'Organizations', href: '/5am-corp/admin/organizations' },
         { label: result.data.name, current: true },
       ]}
     >
