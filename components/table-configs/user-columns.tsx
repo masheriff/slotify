@@ -12,18 +12,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatDistanceToNow } from "date-fns";
-import { MoreHorizontal, Eye, Edit, UserCheck, UserX, LogIn } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import {
+  MoreHorizontal,
+  Eye,
+  Edit,
+  UserCheck,
+  UserX,
+  LogIn,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserListItem } from "@/types/user.types";
 import { useState } from "react";
-import { 
-  getUserStatusColor, 
+import {
+  getUserStatusColor,
   getUserStatusLabel,
   getRoleColor,
   getRoleLabel,
   getOrganizationTypeColor,
-  getOrganizationTypeLabel
+  getOrganizationTypeLabel,
 } from "@/lib/utils/user-utils";
 import Image from "next/image";
 
@@ -32,18 +39,14 @@ function getUserInitials(name: string | null): string {
   if (!name) return "?";
   return name
     .split(" ")
-    .map(n => n[0])
+    .map((n) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
 }
 
 // Actions Cell Component with Navigation
-function UserActionsCell({
-  user,
-}: {
-  user: UserListItem;
-}) {
+function UserActionsCell({ user }: { user: UserListItem }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -62,7 +65,7 @@ function UserActionsCell({
       const response = await fetch(`/api/admin/users/${user.id}/impersonate`, {
         method: "POST",
       });
-      
+
       if (response.ok) {
         // Redirect to user's dashboard or appropriate page
         window.location.href = "/dashboard";
@@ -81,13 +84,16 @@ function UserActionsCell({
       const response = await fetch(`/api/admin/users/${user.id}/${action}`, {
         method: "POST",
       });
-      
+
       if (response.ok) {
         // Refresh the page or update state
         window.location.reload();
       }
     } catch (error) {
-      console.error(`Failed to ${user.status === "active" ? "ban" : "unban"} user:`, error);
+      console.error(
+        `Failed to ${user.status === "active" ? "ban" : "unban"} user:`,
+        error
+      );
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +125,11 @@ function UserActionsCell({
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={handleToggleStatus}
-          className={user.status === "active" ? "text-destructive focus:text-destructive" : ""}
+          className={
+            user.status === "active"
+              ? "text-destructive focus:text-destructive"
+              : ""
+          }
         >
           {user.status === "active" ? (
             <>
@@ -210,8 +220,8 @@ export const userColumns: ColumnDef<UserListItem>[] = [
         <div className="space-y-1">
           <div className="font-medium">{user.organization}</div>
           {user.organizationType && (
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={getOrganizationTypeColor(user.organizationType)}
             >
               {getOrganizationTypeLabel(user.organizationType)}
@@ -239,25 +249,6 @@ export const userColumns: ColumnDef<UserListItem>[] = [
     },
   },
 
-  // Last Login Column
-  {
-    accessorKey: "lastLoginAt",
-    header: "Last Login",
-    cell: ({ row }) => {
-      const user = row.original;
-      if (!user.lastLoginAt) {
-        return <span className="text-muted-foreground">Never</span>;
-      }
-
-      const lastLogin = new Date(user.lastLoginAt);
-      return (
-        <span className="text-sm">
-          {formatDistanceToNow(lastLogin, { addSuffix: true })}
-        </span>
-      );
-    },
-  },
-
   // Created At Column
   {
     accessorKey: "createdAt",
@@ -266,9 +257,12 @@ export const userColumns: ColumnDef<UserListItem>[] = [
       const user = row.original;
       const createdAt = new Date(user.createdAt);
       return (
-        <span className="text-sm">
-          {formatDistanceToNow(createdAt, { addSuffix: true })}
-        </span>
+        <div className="text-sm">
+          <div className="font-medium">{format(createdAt, "MMM dd, yyyy")}</div>
+          <div className="text-xs text-muted-foreground">
+            {formatDistanceToNow(createdAt, { addSuffix: true })}
+          </div>
+        </div>
       );
     },
   },

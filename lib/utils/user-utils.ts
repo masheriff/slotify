@@ -61,7 +61,7 @@ export function getOrganizationTypeColor(type: string): string {
     case "admin":
       return "border-indigo-200 bg-indigo-50 text-indigo-700";
     case "client":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+      return "border-cyan-200 bg-cyan-50 text-cyan-700";
     default:
       return "border-gray-200 bg-gray-50 text-gray-700";
   }

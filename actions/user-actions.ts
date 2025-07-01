@@ -116,7 +116,6 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
         organization: organizations.name,
         organizationType: sql<string>`(${organizations.metadata} ->> 'type')`,
         status: sql<string>`CASE WHEN ${users.banned} = true THEN 'banned' ELSE 'active' END`,
-        lastLoginAt: users.updatedAt, // Using updatedAt as proxy for last login
         createdAt: users.createdAt,
         emailVerified: users.emailVerified,
       })

@@ -8,7 +8,6 @@ export interface UserListItem {
   organization: string; // Organization name
   organizationType?: "admin" | "client";
   status: "active" | "banned";
-  lastLoginAt: Date | string | null;
   createdAt: Date | string;
   emailVerified: boolean;
 }

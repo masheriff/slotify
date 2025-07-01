@@ -19,8 +19,6 @@ import {
   Eye,
   UserMinus,
   Shield,
-  CheckCircle,
-  XCircle,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";

@@ -12,7 +12,6 @@ import { userColumns } from "@/components/table-configs/user-columns";
 import { userFilterConfig } from "@/components/admin/forms/user-filters-config";
 import { getUsersList } from "@/actions/user-actions";
 import { getCurrentUser } from "@/lib/auth-server";
-import { User } from "@/types";
 import { GenericListPageProps } from "@/types/page.types";
 import { UserListItem } from "@/types/user.types";
 
