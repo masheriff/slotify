@@ -222,6 +222,8 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
   // Actions
   {
     id: "actions",
+    header: "Actions",
+    enableSorting: false,
     cell: ({ row }) => {
       const member = row.original;
       return <MemberActionsCell member={member} />;

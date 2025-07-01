@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { MoreHorizontal, Eye, Edit, Users, Trash } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Organization } from "@/types"; // ✅ Use domain type directly
@@ -114,6 +114,7 @@ export const organizationColumns: ColumnDef<Organization>[] = [
   {
     id: "logo",
     header: "Logo",
+    enableSorting: false,
     cell: ({ row }) => {
       const org = row.original;
       return (
@@ -173,6 +174,7 @@ export const organizationColumns: ColumnDef<Organization>[] = [
   {
     id: "contactEmail",
     header: "Contact Email",
+    enableSorting: false,
     cell: ({ row }) => {
       const email = row.original.metadata?.contactEmail;
       return <div className="text-sm">{email || "-"}</div>;
@@ -183,6 +185,7 @@ export const organizationColumns: ColumnDef<Organization>[] = [
   {
     id: "contactPhone",
     header: "Phone",
+    enableSorting: false,
     cell: ({ row }) => {
       const phone = row.original.metadata?.contactPhone;
       return <div className="text-sm">{phone || "-"}</div>;
@@ -193,15 +196,16 @@ export const organizationColumns: ColumnDef<Organization>[] = [
   {
     id: "location",
     header: "Location",
+    enableSorting: false,
     cell: ({ row }) => {
       const metadata = row.original.metadata;
       const city = metadata?.city;
       const state = metadata?.state;
-      
+
       if (!city && !state) {
         return <div className="text-sm text-muted-foreground">-</div>;
       }
-      
+
       return (
         <div className="text-sm">
           {[city, state].filter(Boolean).join(", ")}
@@ -214,6 +218,7 @@ export const organizationColumns: ColumnDef<Organization>[] = [
   {
     id: "status",
     header: "Status",
+    enableSorting: false,
     cell: ({ row }) => {
       const isActive = row.original.metadata?.isActive !== false;
       return (
@@ -230,16 +235,26 @@ export const organizationColumns: ColumnDef<Organization>[] = [
     header: "Created",
     cell: ({ row }) => {
       const date = row.getValue("createdAt") as Date | string;
-      const formattedDate = typeof date === "string" 
-        ? format(new Date(date), "MMM dd, yyyy")
-        : format(date, "MMM dd, yyyy");
-      return <div className="text-sm text-muted-foreground">{formattedDate}</div>;
+      const joinedDate = typeof date === "string" ? new Date(date) : date;
+
+      return (
+        <div className="text-sm">
+          <div className="font-medium">
+            {format(joinedDate, "MMM dd, yyyy")}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {formatDistanceToNow(joinedDate, { addSuffix: true })}
+          </div>
+        </div>
+      );
     },
   },
 
   // Actions
   {
     id: "actions",
+    header: "Actions",
+    enableSorting: false,
     cell: ({ row }) => {
       const organization = row.original;
       return <OrganizationActionsCell organization={organization} />;

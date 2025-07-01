@@ -154,6 +154,7 @@ export const userColumns: ColumnDef<UserListItem>[] = [
   {
     id: "avatar",
     header: "Avatar",
+    enableSorting:false,
     cell: ({ row }) => {
       const user = row.original;
       const initials = getUserInitials(user.name);
@@ -271,6 +272,7 @@ export const userColumns: ColumnDef<UserListItem>[] = [
   {
     id: "actions",
     header: "Actions",
+    enableSorting:false,
     cell: ({ row }) => <UserActionsCell user={row.original} />,
   },
 ];
