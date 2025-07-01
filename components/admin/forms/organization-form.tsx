@@ -5,7 +5,6 @@ import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, SubmitHandler } from "react-hook-form";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -170,7 +169,7 @@ export function OrganizationForm({
     };
 
     loadOrganizationData();
-  }, [mode, organizationId, form]);
+  }, [mode, organizationId, form, router]);
 
   // Reset auto-generation flag when mode/org changes
   useEffect(() => {

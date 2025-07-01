@@ -169,8 +169,7 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
   {
     id: "status",
     header: "Status",
-    cell: ({ row }) => {
-      const member = row.original;
+    cell: () => {
       // For now, assuming all members are active unless user is banned
       // You can extend this logic based on your requirements
       const isActive = true; // !member.user.banned - if you have banned field

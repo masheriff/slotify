@@ -43,7 +43,7 @@ import {
   getErrorMessage,
   ServerActionResponse,
 } from "@/types/server-actions.types";
-import { MemberFormProps } from "@/types";
+import { MemberFormProps, Organization } from "@/types";
 import { MemberFormData, memberFormSchema } from "@/schemas";
 
 
@@ -57,7 +57,7 @@ export function MemberForm({
 }: MemberFormProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [organization, setOrganization] = useState<any>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
 
   // Form with validation
   const form = useForm<MemberFormData>({
@@ -285,7 +285,7 @@ export function MemberForm({
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    Choose the role that best matches the member's responsibilities
+                    Choose the role that best matches the member&apos;s responsibilities
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

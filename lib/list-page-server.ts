@@ -1,7 +1,7 @@
 // lib/list-page-server.ts - CLEANED UP VERSION
 import { User } from "@/types";
 import { redirect } from "next/navigation";
-import { ListDataResult, ListParams, ListPageConfig, PaginationData } from "@/types/list-page.types";
+import { ListDataResult, ListParams, ListPageConfig } from "@/types/list-page.types";
 
 /**
  * Parse and validate search parameters for list pages
