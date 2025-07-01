@@ -1,6 +1,5 @@
 import { pgTable, text, timestamp, index, boolean, pgEnum } from "drizzle-orm/pg-core";
 import { organizations, users } from "./auth-schema"; // Import users table for foreign key references
-import { table } from "console";
 
 // Medical specialties enum for interpreting doctors
 export const interpretingSpecialtyEnum = pgEnum("interpreting_specialty", [
@@ -42,6 +41,7 @@ export const interpretingDoctors = pgTable("interpreting_doctors", {
   organizationId: text("organization_id")
   .notNull()
   .references(() => organizations.id),
+  userId: text("user_id").references(() => users.id),
   firstName: text("first_name").notNull(),
   middleName: text("middle_name"),
   lastName: text("last_name").notNull(),
@@ -103,4 +103,5 @@ export const interpretingDoctors = pgTable("interpreting_doctors", {
   index("interpreting_doctors_deleted_at_idx").on(table.deletedAt),
   index("interpreting_doctors_created_by_idx").on(table.createdBy),
   index("interpreting_doctors_updated_by_idx").on(table.updatedBy),
+  index("interpreting_doctors_user_id_idx").on(table.userId),
 ]);

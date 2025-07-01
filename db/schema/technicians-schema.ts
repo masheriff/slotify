@@ -27,6 +27,7 @@ export const technicians = pgTable("technicians", {
   organizationId: text("organization_id")
   .notNull()
   .references(() => organizations.id),
+  userId: text("user_id").references(() => users.id),
   firstName: text("first_name").notNull(),
   middleName: text("middle_name"),
   lastName: text("last_name").notNull(),
@@ -80,4 +81,6 @@ export const technicians = pgTable("technicians", {
   index("technicians_deleted_at_idx").on(table.deletedAt),
   index("technicians_created_by_idx").on(table.createdBy),
   index("technicians_updated_by_idx").on(table.updatedBy),
+  index("technicians_user_id_idx").on(table.userId),
+
 ]);
