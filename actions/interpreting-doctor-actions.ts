@@ -252,13 +252,6 @@ export async function deleteInterpretingDoctor(
       error: error instanceof Error ? error.message : "Failed to delete interpreting doctor",
     };
   }
-}error) {
-    console.error("❌ Error creating interpreting doctor:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create interpreting doctor profile",
-    };
-  }
 }
 
 /**
@@ -520,11 +513,11 @@ export async function getInterpretingDoctorsList(
       }
 
       if (params.primarySpecialty) {
-        conditions.push(eq(interpretingDoctors.primarySpecialty, params.primarySpecialty));
+        conditions.push(eq(interpretingDoctors.primarySpecialty, params.primarySpecialty as any));
       }
 
       if (params.readingStatus) {
-        conditions.push(eq(interpretingDoctors.readingStatus, params.readingStatus));
+        conditions.push(eq(interpretingDoctors.readingStatus, params.readingStatus as any));
       }
 
       if (params.emergencyReads !== undefined) {

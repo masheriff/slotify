@@ -4,13 +4,24 @@
 import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
 import { db } from "@/db";
 import { technicians, users, organizations } from "@/db/schema";
-import { eq, and, ilike, or, sql, desc, asc } from "drizzle-orm";
+import { eq, and, ilike, or, sql, gte, desc, asc } from "drizzle-orm";
 import { generateId } from "better-auth";
 import { revalidatePath } from "next/cache";
 import { ServerActionResponse } from "@/types/server-actions.types";
 import { ListDataResult } from "@/types/list-page.types";
 
-// Technician interfaces
+// Import enum validation at the top
+import { 
+  validateTechnicianEnums, 
+  isValidFacilitySpecialty, 
+  isValidCertificationLevel, 
+  isValidEmploymentStatus,
+  type FacilitySpecialty,
+  type CertificationLevel,
+  type EmploymentStatus
+} from "@/lib/utils/enum-validation";
+
+// Update the technician profile data interface
 export interface TechnicianProfileData {
   firstName: string;
   middleName?: string;
@@ -23,9 +34,9 @@ export interface TechnicianProfileData {
   state?: string;
   code?: string;
   licenseNumber?: string;
-  specialty: string; // Required - matches facilitySpecialtyEnum
-  certificationLevel: string;
-  employmentStatus: string;
+  specialty: FacilitySpecialty; // Now properly typed
+  certificationLevel: CertificationLevel;
+  employmentStatus: EmploymentStatus;
   isActive?: boolean;
 }
 
@@ -156,15 +167,16 @@ export async function getTechniciansList(
         );
       }
 
-      if (params.specialty) {
+      // Validate enum filters with proper type safety
+      if (params.specialty && isValidFacilitySpecialty(params.specialty)) {
         conditions.push(eq(technicians.specialty, params.specialty));
       }
 
-      if (params.certificationLevel) {
+      if (params.certificationLevel && isValidCertificationLevel(params.certificationLevel)) {
         conditions.push(eq(technicians.certificationLevel, params.certificationLevel));
       }
 
-      if (params.employmentStatus) {
+      if (params.employmentStatus && isValidEmploymentStatus(params.employmentStatus)) {
         conditions.push(eq(technicians.employmentStatus, params.employmentStatus));
       }
 
@@ -244,20 +256,13 @@ export async function getTechniciansList(
       ? await dataQuery.where(dataWhereClause)
       : await dataQuery;
 
-    // Map organization: null -> undefined and user: null -> undefined to match TechnicianListItem type
-    const mappedResults = results.map((item) => ({
-      ...item,
-      organization: item.organization === null ? undefined : item.organization,
-      user: item.user === null ? undefined : item.user,
-    }));
-
     const totalPages = Math.ceil(totalCount / params.pageSize);
 
     console.log(`✅ Found ${results.length} technicians (${totalCount} total)`);
 
     return {
       success: true,
-      data: mappedResults,
+      data: results,
       pagination: {
         page: params.page,
         pageSize: params.pageSize,
@@ -273,15 +278,6 @@ export async function getTechniciansList(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to list technicians",
-      data: [],
-      pagination: {
-        page: params.page,
-        pageSize: params.pageSize,
-        totalPages: 0,
-        hasNextPage: false,
-        hasPreviousPage: false,
-        totalCount: 0,
-      },
     };
   }
 }
@@ -380,11 +376,25 @@ export async function createTechnician(
 
     await requireSuperAdmin();
 
-    // Validate required fields
+    // Validate required fields and enums
     if (!profileData.firstName || !profileData.lastName || !profileData.specialty) {
       return {
         success: false,
         error: "First name, last name, and specialty are required",
+      };
+    }
+
+    // Validate enum values
+    const enumValidation = validateTechnicianEnums({
+      specialty: profileData.specialty,
+      certificationLevel: profileData.certificationLevel,
+      employmentStatus: profileData.employmentStatus,
+    });
+
+    if (!enumValidation.isValid) {
+      return {
+        success: false,
+        error: `Invalid enum values: ${enumValidation.errors.join(", ")}`,
       };
     }
 
@@ -426,9 +436,9 @@ export async function createTechnician(
         state: profileData.state || null,
         code: profileData.code || null,
         licenseNumber: profileData.licenseNumber || null,
-        specialty: profileData.specialty as any, // Cast to enum
-        certificationLevel: (profileData.certificationLevel || "entry_level") as any,
-        employmentStatus: (profileData.employmentStatus || "full_time") as any,
+        specialty: profileData.specialty, // Now properly typed
+        certificationLevel: profileData.certificationLevel || "entry_level",
+        employmentStatus: profileData.employmentStatus || "full_time",
         isActive: profileData.isActive ?? true,
         createdAt: new Date(),
         updatedAt: new Date(),
