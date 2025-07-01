@@ -133,7 +133,7 @@ function UserActionsCell({ user }: { user: UserListItem }) {
         >
           {user.status === "active" ? (
             <>
-              <UserX className="mr-2 h-4 w-4" />
+              <UserX className="mr-2 h-4 w-4 text-destructive" />
               Ban user
             </>
           ) : (

@@ -103,7 +103,7 @@ function MemberActionsCell({ member }: { member: MemberListItem }) {
           onClick={handleRemoveMember}
           className="text-destructive focus:text-destructive"
         >
-          <UserMinus className="mr-2 h-4 w-4" />
+          <UserMinus className="mr-2 h-4 w-4 text-destructive" />
           Remove member
         </DropdownMenuItem>
       </DropdownMenuContent>
