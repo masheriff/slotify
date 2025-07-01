@@ -129,3 +129,7 @@ export interface DetailsPageHeaderProps {
   onBack?: () => void;
   backLabel?: string;
 }
+
+export interface UsersPageProps {
+  params: Promise<{ id: string }>;
+}

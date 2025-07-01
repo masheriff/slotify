@@ -8,7 +8,7 @@ export const memberFilterConfig: FilterConfig[] = [
     type: "select",
     placeholder: "Filter by role",
     options: [
-      { value: "", label: "All roles" },
+      // Remove the empty value option since the component handles "All" internally
       ...MEMBER_ROLES.map(role => ({
         value: role.value,
         label: role.label,
@@ -21,7 +21,7 @@ export const memberFilterConfig: FilterConfig[] = [
     type: "select",
     placeholder: "Filter by status",
     options: [
-      { value: "", label: "All statuses" },
+      // Remove the empty value option since the component handles "All" internally
       { value: "active", label: "Active" },
       { value: "inactive", label: "Inactive" },
     ],

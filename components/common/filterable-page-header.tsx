@@ -1,4 +1,4 @@
-// components/common/filterable-page-header.tsx - Simplified server-side version
+// components/common/filterable-page-header.tsx
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
@@ -15,8 +15,8 @@ import {
   X
 } from "lucide-react"
 import { useState } from "react"
+import * as React from "react"
 import { FilterablePageHeaderProps, FilterConfig } from "@/types"
-
 
 export function FilterablePageHeader({
   title,
@@ -39,11 +39,21 @@ export function FilterablePageHeader({
     return acc
   }, {} as Record<string, string>)
 
+  // Local state for filter form values
+  const [localFilters, setLocalFilters] = useState(currentFilters)
+
+  // Update local state when URL changes
+  React.useEffect(() => {
+    setLocalFilters(currentFilters)
+  }, [searchParams])
+
   // Count active filters (excluding search)
   const activeFilterCount = Object.values(currentFilters).filter(value => value.trim()).length
 
   // Handle search form submission
-  const handleSearchSubmit = (formData: FormData) => {
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
     const searchValue = formData.get('search')?.toString().trim() || ''
     const params = new URLSearchParams(searchParams.toString())
     
@@ -59,14 +69,14 @@ export function FilterablePageHeader({
     router.push(`${window.location.pathname}?${params.toString()}`)
   }
 
-  // Handle filter form submission
-  const handleFilterSubmit = (formData: FormData) => {
+  // Handle filter application
+  const handleFilterSubmit = () => {
     const params = new URLSearchParams(searchParams.toString())
     
-    // Update all filter values from form
+    // Update all filter values from local state
     filterConfig.forEach(filter => {
-      const value = formData.get(filter.key)?.toString().trim() || ''
-      if (value) {
+      const value = localFilters[filter.key]?.trim() || ''
+      if (value && value !== '__all__') { // Don't include the "All" placeholder value
         params.set(filter.key, value)
       } else {
         params.delete(filter.key)
@@ -78,6 +88,14 @@ export function FilterablePageHeader({
     
     router.push(`${window.location.pathname}?${params.toString()}`)
     setFiltersOpen(false)
+  }
+
+  // Handle individual filter change
+  const handleFilterChange = (key: string, value: string) => {
+    setLocalFilters(prev => ({
+      ...prev,
+      [key]: value === '__all__' ? '' : value
+    }))
   }
 
   // Clear all filters and search
@@ -107,20 +125,27 @@ export function FilterablePageHeader({
     switch (filter.type) {
       case 'select':
         return (
-          <Select name={filter.key} defaultValue={currentValue}>
+          <Select 
+            value={localFilters[filter.key] || '__all__'} 
+            onValueChange={(value) => handleFilterChange(filter.key, value)}
+          >
             <SelectTrigger className="w-full">
               <SelectValue placeholder={filter.placeholder || `Select ${filter.label.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All {filter.label}</SelectItem>
+              {/* Use a special value instead of empty string for "All" option */}
+              <SelectItem value="__all__">All {filter.label}</SelectItem>
               {filter.options?.map((option) => (
-                <SelectItem 
-                  key={option.value} 
-                  value={option.value}
-                  disabled={option.disabled}
-                >
-                  {option.label}
-                </SelectItem>
+                // Only render SelectItem if value is not empty
+                option.value && option.value.trim() ? (
+                  <SelectItem 
+                    key={option.value} 
+                    value={option.value}
+                    disabled={option.disabled}
+                  >
+                    {option.label}
+                  </SelectItem>
+                ) : null
               ))}
             </SelectContent>
           </Select>
@@ -130,8 +155,8 @@ export function FilterablePageHeader({
         return (
           <Input
             type="date"
-            name={filter.key}
-            defaultValue={currentValue}
+            value={localFilters[filter.key] || ''}
+            onChange={(e) => handleFilterChange(filter.key, e.target.value)}
             className="w-full"
           />
         )
@@ -140,8 +165,8 @@ export function FilterablePageHeader({
         return (
           <Input
             type="number"
-            name={filter.key}
-            defaultValue={currentValue}
+            value={localFilters[filter.key] || ''}
+            onChange={(e) => handleFilterChange(filter.key, e.target.value)}
             placeholder={filter.placeholder || `Enter ${filter.label.toLowerCase()}`}
             className="w-full"
           />
@@ -149,12 +174,15 @@ export function FilterablePageHeader({
 
       case 'boolean':
         return (
-          <Select name={filter.key} defaultValue={currentValue}>
+          <Select 
+            value={localFilters[filter.key] || '__all__'} 
+            onValueChange={(value) => handleFilterChange(filter.key, value)}
+          >
             <SelectTrigger className="w-full">
               <SelectValue placeholder={filter.placeholder || `Select ${filter.label.toLowerCase()}`} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All</SelectItem>
+              <SelectItem value="__all__">All</SelectItem>
               <SelectItem value="true">Yes</SelectItem>
               <SelectItem value="false">No</SelectItem>
             </SelectContent>
@@ -165,8 +193,8 @@ export function FilterablePageHeader({
         return (
           <Input
             type="text"
-            name={filter.key}
-            defaultValue={currentValue}
+            value={localFilters[filter.key] || ''}
+            onChange={(e) => handleFilterChange(filter.key, e.target.value)}
             placeholder={filter.placeholder || `Enter ${filter.label.toLowerCase()}`}
             className="w-full"
           />
@@ -190,7 +218,7 @@ export function FilterablePageHeader({
       {/* Action buttons */}
       <div className="flex items-center gap-2">
         {/* Search form */}
-        <form action={handleSearchSubmit} className="relative w-64">
+        <form onSubmit={handleSearchSubmit} className="relative w-64">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             name="search"
@@ -241,7 +269,7 @@ export function FilterablePageHeader({
                 </SheetDescription>
               </SheetHeader>
               
-              <form action={handleFilterSubmit} className="space-y-6 mt-6">
+              <div className="space-y-6 p-4">
                 {filterConfig.map((filter) => (
                   <div key={filter.key} className="space-y-2">
                     <label htmlFor={filter.key} className="text-sm font-medium">
@@ -252,7 +280,10 @@ export function FilterablePageHeader({
                 ))}
                 
                 <div className="flex gap-2 pt-4 border-t">
-                  <Button type="submit" className="flex-1">
+                  <Button 
+                    onClick={handleFilterSubmit} 
+                    className="flex-1"
+                  >
                     Apply Filters
                   </Button>
                   <Button 
@@ -264,7 +295,7 @@ export function FilterablePageHeader({
                     Clear All
                   </Button>
                 </div>
-              </form>
+              </div>
             </SheetContent>
           </Sheet>
         )}
