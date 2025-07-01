@@ -33,24 +33,16 @@ export function getUserStatusLabel(status: string): string {
  * Get color class for user role badge
  */
 export function getRoleColor(role: string): string {
-  switch (role) {
-    case "system_admin":
-      return "border-purple-200 bg-purple-50 text-purple-700";
-    case "five_am_admin":
-      return "border-blue-200 bg-blue-50 text-blue-700";
-    case "five_am_agent":
-      return "border-cyan-200 bg-cyan-50 text-cyan-700";
-    case "client_admin":
-      return "border-orange-200 bg-orange-50 text-orange-700";
-    case "front_desk":
-      return "border-yellow-200 bg-yellow-50 text-yellow-700";
-    case "technician":
-      return "border-green-200 bg-green-50 text-green-700";
-    case "interpreting_doctor":
-      return "border-pink-200 bg-pink-50 text-pink-700";
-    default:
-      return "border-gray-200 bg-gray-50 text-gray-700";
+  const roleColors: Record<string, string> = {
+    system_admin: "border-purple-200 bg-purple-50 text-purple-700",
+    five_am_admin: "border-blue-200 bg-blue-50 text-blue-700",
+    five_am_agent: "border-cyan-200 bg-cyan-50 text-cyan-700",
+    client_admin: "border-orange-200 bg-orange-50 text-orange-700",
+    front_desk: "border-yellow-200 bg-yellow-50 text-yellow-700",
+    technician: "border-green-200 bg-green-50 text-green-700",
+    interpreting_doctor: "border-pink-200 bg-pink-50 text-pink-700",
   }
+  return roleColors[role] || "border-gray-200 bg-gray-50 text-gray-700";
 }
 
 /**

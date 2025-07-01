@@ -14,21 +14,21 @@ export function getMemberRoleLabel(role: string): string {
 
 export function getMemberRoleColor(role: string): string {
   const roleColors: Record<string, string> = {
-    system_admin: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-    five_am_admin: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-    five_am_agent: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-    client_admin: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    front_desk: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-    technician: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-    interpreting_doctor: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
-  };
-  return roleColors[role] || "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
+    system_admin: "border-purple-200 bg-purple-50 text-purple-700",
+    five_am_admin: "border-blue-200 bg-blue-50 text-blue-700",
+    five_am_agent: "border-cyan-200 bg-cyan-50 text-cyan-700",
+    client_admin: "border-orange-200 bg-orange-50 text-orange-700",
+    front_desk: "border-yellow-200 bg-yellow-50 text-yellow-700",
+    technician: "border-green-200 bg-green-50 text-green-700",
+    interpreting_doctor: "border-pink-200 bg-pink-50 text-pink-700",
+  }
+  return roleColors[role] || "border-gray-200 bg-gray-50 text-gray-700";
 }
 
 export function getMemberStatusColor(isActive: boolean): string {
   return isActive 
-    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    ? "border-green-200 bg-green-50 text-green-700"
+    : "border-red-200 bg-red-50 text-red-700";
 }
 
 export function getMemberStatusLabel(isActive: boolean): string {
@@ -37,8 +37,8 @@ export function getMemberStatusLabel(isActive: boolean): string {
 
 export function getMemberEmailVerifiedColor(isActive: boolean): string {
   return isActive 
-    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    ? "border-green-200 bg-green-50 text-green-700"
+    : "border-red-200 bg-red-50 text-red-700";
 }
 
 export function getMemberEmailVerifiedLabel(isActive: boolean): string {
