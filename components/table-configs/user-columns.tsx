@@ -1,4 +1,4 @@
-// components/table-configs/user-columns.tsx - User Table Columns Configuration
+// Updated user-columns.tsx with consistent date formatting and member badge colors
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
@@ -14,10 +14,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Edit, Eye, UserX, UserCheck } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 
 import { UserListItem } from "@/types/user.types";
-import { formatUserDate, getRoleBadgeClass, getRoleDisplayName, getUserDisplayName, getUserInitials, getUserStatusBadgeClass, getUserStatusText } from "@/lib/utils/user-utils";
+import { 
+  getUserDisplayName, 
+  getUserInitials,
+  getUserStatusText
+} from "@/lib/utils/user-utils";
+import { 
+  getMemberRoleColor,
+  getMemberRoleLabel,
+  getMemberStatusColor,
+  getMemberStatusLabel
+} from "@/lib/utils/member-utils";
 
 export const userColumns: ColumnDef<UserListItem>[] = [
   {
@@ -49,8 +60,8 @@ export const userColumns: ColumnDef<UserListItem>[] = [
       return (
         <div className="space-y-1">
           {user.primaryRole && (
-            <Badge className={getRoleBadgeClass(user.primaryRole as any)}>
-              {getRoleDisplayName(user.primaryRole as any)}
+            <Badge className={getMemberRoleColor(user.primaryRole)}>
+              {getMemberRoleLabel(user.primaryRole)}
             </Badge>
           )}
           {user.membershipCount > 1 && (
@@ -86,10 +97,11 @@ export const userColumns: ColumnDef<UserListItem>[] = [
     header: "Status",
     cell: ({ row }) => {
       const user = row.original;
+      const isActive = !user.banned;
       return (
         <div className="flex flex-col space-y-1">
-          <Badge className={getUserStatusBadgeClass(user)}>
-            {getUserStatusText(user)}
+          <Badge className={getMemberStatusColor(isActive)}>
+            {getMemberStatusLabel(isActive)}
           </Badge>
           {!user.emailVerified && (
             <Badge variant="secondary" className="text-xs">
@@ -104,10 +116,17 @@ export const userColumns: ColumnDef<UserListItem>[] = [
     accessorKey: "createdAt",
     header: "Created",
     cell: ({ row }) => {
-      const user = row.original;
+      const date = row.getValue("createdAt") as Date | string;
+      const createdDate = typeof date === "string" ? new Date(date) : date;
+
       return (
         <div className="text-sm">
-          {formatUserDate(user.createdAt)}
+          <div className="font-medium">
+            {format(createdDate, "MMM dd, yyyy")}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {formatDistanceToNow(createdDate, { addSuffix: true })}
+          </div>
         </div>
       );
     },
@@ -117,9 +136,24 @@ export const userColumns: ColumnDef<UserListItem>[] = [
     header: "Last Updated",
     cell: ({ row }) => {
       const user = row.original;
+      if (!user.updatedAt) {
+        return (
+          <div className="text-sm text-muted-foreground">
+            Never
+          </div>
+        );
+      }
+
+      const date = typeof user.updatedAt === "string" ? new Date(user.updatedAt) : user.updatedAt;
+
       return (
         <div className="text-sm">
-          {user.updatedAt ? formatUserDate(user.updatedAt) : "Never"}
+          <div className="font-medium">
+            {format(date, "MMM dd, yyyy")}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {formatDistanceToNow(date, { addSuffix: true })}
+          </div>
         </div>
       );
     },
@@ -159,22 +193,12 @@ export const userColumns: ColumnDef<UserListItem>[] = [
             <DropdownMenuSeparator />
             
             {user.banned ? (
-              <DropdownMenuItem 
-                onClick={() => {
-                  // TODO: Implement unban user functionality
-                }}
-                className="text-green-600"
-              >
+              <DropdownMenuItem>
                 <UserCheck className="h-4 w-4 mr-2" />
                 Unban User
               </DropdownMenuItem>
             ) : (
-              <DropdownMenuItem 
-                onClick={() => {
-                  // TODO: Implement ban user functionality
-                }}
-                className="text-red-600"
-              >
+              <DropdownMenuItem>
                 <UserX className="h-4 w-4 mr-2" />
                 Ban User
               </DropdownMenuItem>
