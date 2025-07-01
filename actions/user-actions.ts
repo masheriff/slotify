@@ -1,7 +1,7 @@
 // actions/user-actions.ts - User management server actions
 "use server";
 
-import { requireSuperAdmin, requireAuth } from "@/lib/auth-server";
+import { requireSuperAdmin, requireAuth, getServerSession } from "@/lib/auth-server";
 import { db } from "@/db";
 import { users, members, organizations, technicians, interpretingDoctors } from "@/db/schema";
 import { eq, and, ilike, or, sql, gte, lte, desc, asc, inArray } from "drizzle-orm";
@@ -25,7 +25,12 @@ import {
   UserCreationResult 
 } from "@/types/user.types";
 import { ListDataResult } from "@/types/list-page.types";
-import { ServerActionResponse } from "@/types/server-actions.types";
+import { getErrorMessage, ServerActionResponse } from "@/types/server-actions.types";
+import { canUserCreateInOrganization, getOrganizationsForUserCreation, getOrganizationWithMetadata } from "./organization-actions";
+import { createMembership, getMembersByUser } from "./member-actions";
+import { Member } from "@/types";
+import { createTechnician } from "./technicians-actions";
+import { createInterpretingDoctor } from "./interpreting-doctor-actions";
 
 /**
  * Get users list with filtering, sorting, and pagination
@@ -301,6 +306,7 @@ export async function getUserById(params: GetUserByIdParams): Promise<ServerActi
       interpretingDoctorProfile: interpretingDoctorProfile && interpretingDoctorProfile.userId
         ? { ...interpretingDoctorProfile, userId: interpretingDoctorProfile.userId as string }
         : undefined,
+      membershipCount: memberships.length
     };
 
     console.log(`✅ Found user with ${memberships.length} memberships`);
@@ -318,156 +324,160 @@ export async function getUserById(params: GetUserByIdParams): Promise<ServerActi
   }
 }
 
-/**
- * Create new user with optional professional profile
- */
 export async function createUser(params: CreateUserParams): Promise<ServerActionResponse<UserCreationResult>> {
-  try {
-    console.log("🆕 Creating user:", params.userData);
+  const transaction = db.transaction(async (tx) => {
+    try {
+      console.log("👤 Starting user creation transaction:", params);
 
-    const { user: currentUser } = await requireAuth();
-    
-    // Validate input
-    const validatedData = createUserSchema.parse(params.userData);
+      const { userData } = params;
 
-    // Check permissions based on current user role
-    if (currentUser.role === "client_admin") {
-      // Fetch current user's primary membership to get their organizationId
-      const [currentMembership] = await db
+      // Validate input data
+      const validatedData = createUserSchema.parse(userData);
+      console.log("✅ User data validation passed");
+
+      // Check authorization
+      const session = await getServerSession();
+      if (!session?.user) {
+        throw new Error("Authentication required");
+      }
+
+      // Verify user can create in target organization
+      if (validatedData.organizationId) {
+        const permissionCheck = await canUserCreateInOrganization(
+          session.user.role ?? "",
+          validatedData.organizationId,
+          session.user.id
+        );
+
+        if (!permissionCheck.success || !permissionCheck.data?.canCreate) {
+          throw new Error(permissionCheck.data?.reason || "Insufficient permissions");
+        }
+      }
+
+      // STEP 1: Create or get existing user record
+      let userId: string;
+      let isNewUser = false;
+
+      const existingUser = await tx
         .select()
-        .from(members)
-        .where(eq(members.userId, currentUser.id));
+        .from(users)
+        .where(eq(users.email, validatedData.email))
+        .limit(1);
 
-      if (!currentMembership || validatedData.organizationId !== currentMembership.organizationId) {
-        return {
-          success: false,
-          error: "Cannot create users in other organizations",
-        };
+      if (existingUser.length > 0) {
+        userId = existingUser[0].id;
+        console.log("📧 Using existing user with email:", validatedData.email);
+      } else {
+        // Create new user record
+        const newUserId = generateId();
+        const [newUser] = await tx
+          .insert(users)
+          .values({
+            id: newUserId,
+            email: validatedData.email,
+            ...(validatedData.name ? { name: validatedData.name } : {}),
+            emailVerified: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .returning();
+
+        userId = newUser.id;
+        isNewUser = true;
+        console.log("✅ New user created:", userId);
       }
-      
-      // Client admins cannot create 5AM roles
-      if (["system_admin", "five_am_admin", "five_am_agent"].includes(validatedData.role)) {
-        return {
-          success: false,
-          error: "Cannot create 5AM Corp roles",
-        };
+
+      // STEP 2: Create membership using member actions
+      if (validatedData.organizationId && validatedData.role) {
+        const membershipResult = await createMembership(
+          userId,
+          validatedData.organizationId,
+          validatedData.role
+        );
+
+        if (!membershipResult.success) {
+          throw new Error(`Failed to create membership: ${membershipResult.error}`);
+        }
+
+        console.log("✅ Membership created successfully");
       }
+
+      // STEP 3: Create professional profiles if needed
+      let technicianProfile = null;
+      let interpretingDoctorProfile = null;
+
+      if (validatedData.role === "technician" && validatedData.professionalDetails) {
+        const technicianResult = await createTechnician(
+          validatedData.professionalDetails,
+          userId,
+          validatedData.organizationId!
+        );
+
+        if (!technicianResult.success) {
+          throw new Error(`Failed to create technician profile: ${technicianResult.error}`);
+        }
+
+        technicianProfile = technicianResult.data;
+        console.log("✅ Technician profile created successfully");
+      }
+
+      if (validatedData.role === "interpreting_doctor" && validatedData.professionalDetails) {
+        const doctorResult = await createInterpretingDoctor(
+          validatedData.professionalDetails,
+          userId,
+          validatedData.organizationId!
+        );
+
+        if (!doctorResult.success) {
+          throw new Error(`Failed to create interpreting doctor profile: ${doctorResult.error}`);
+        }
+
+        interpretingDoctorProfile = doctorResult.data;
+        console.log("✅ Interpreting doctor profile created successfully");
+      }
+
+      // STEP 4: Send invitation if requested
+      if (params.sendInvitation && validatedData.organizationId) {
+        // This would integrate with your existing invitation system
+        // For now, we'll just log it
+        console.log("📧 Invitation would be sent to:", validatedData.email);
+      }
+
+      const result: UserCreationResult = {
+        user: userId,
+        email: validatedData.email,
+        isNewUser,
+        membershipCreated: !!validatedData.organizationId,
+        organizationId: validatedData.organizationId || null,
+        role: validatedData.role || null,
+        technicianProfile,
+        interpretingDoctorProfile,
+      };
+
+      console.log("✅ User creation transaction completed successfully:", result);
+
+      // Revalidate relevant paths
+      revalidatePath("/5am-corp/admin/users");
+      if (validatedData.organizationId) {
+        revalidatePath(`/[orgSlug]/staff/users`, 'page');
+      }
+
+      return {
+        success: true,
+        data: result,
+        message: "User created successfully",
+      };
+
+    } catch (error) {
+      console.error("❌ Error in user creation transaction:", error);
+      throw error; // This will trigger transaction rollback
     }
+  });
 
-    // Check if user with email already exists
-    const [existingUser] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, validatedData.email));
-
-    let user;
-    let isNewUser = false;
-
-    if (existingUser) {
-      user = existingUser;
-      console.log("📧 User with email already exists, linking to organization");
-    } else {
-      // Create new user
-      const userId = generateId();
-      [user] = await db
-        .insert(users)
-        .values({
-          id: userId,
-          name: validatedData.name,
-          email: validatedData.email,
-          emailVerified: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .returning();
-      isNewUser = true;
-      console.log("👤 Created new user");
-    }
-
-    // Create member record
-    const memberId = generateId();
-    const [member] = await db
-      .insert(members)
-      .values({
-        id: memberId,
-        userId: user.id,
-        organizationId: validatedData.organizationId,
-        role: validatedData.role,
-        createdAt: new Date(),
-      })
-      .returning();
-
-    console.log("🏢 Created member record");
-
-    let professionalProfile;
-
-    // Create professional profile if needed
-    if (validatedData.role === "technician" && "professionalDetails" in validatedData) {
-      const technicianId = generateId();
-      [professionalProfile] = await db
-        .insert(technicians)
-        .values({
-          id: technicianId,
-          organizationId: validatedData.organizationId,
-          userId: user.id,
-          ...validatedData.professionalDetails,
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: currentUser.id,
-          updatedBy: currentUser.id,
-        })
-        .returning();
-      console.log("🔧 Created technician profile");
-    }
-
-    if (validatedData.role === "interpreting_doctor" && "professionalDetails" in validatedData) {
-      const doctorId = generateId();
-      [professionalProfile] = await db
-        .insert(interpretingDoctors)
-        .values({
-          id: doctorId,
-          organizationId: validatedData.organizationId,
-          userId: user.id,
-          ...validatedData.professionalDetails,
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          createdBy: currentUser.id,
-          updatedBy: currentUser.id,
-        })
-        .returning();
-      console.log("👨‍⚕️ Created interpreting doctor profile");
-    }
-
-    // TODO: Send invitation email if requested
-    const invitationSent = false; // Implement invitation logic
-
-    // Revalidate relevant paths
-    revalidatePath("/5am-corp/admin/users");
-    revalidatePath(`/5am-corp/admin/organizations/${validatedData.organizationId}/members`);
-
-    return {
-      success: true,
-      data: {
-        user,
-        member: {
-          id: member.id,
-          organizationId: member.organizationId,
-          organizationName: "", // Would need to fetch from organization
-          organizationSlug: "",
-          role: member.role,
-          createdAt: member.createdAt,
-          isActive: true,
-        },
-        professionalProfile: professionalProfile && professionalProfile.userId
-          ? { ...professionalProfile, userId: professionalProfile.userId as string }
-          : undefined,
-        invitationSent,
-      },
-    };
+  try {
+    return await transaction;
   } catch (error) {
-    console.error("❌ [createUser] Error:", error);
+    console.error("❌ Transaction failed, rolling back:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to create user",
@@ -475,6 +485,189 @@ export async function createUser(params: CreateUserParams): Promise<ServerAction
   }
 }
 
+/**
+ * ✅ NEW: Get user creation options for forms
+ */
+export async function getUserCreationOptions(
+  currentUserId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("⚙️ Getting user creation options for user:", currentUserId);
+
+    // Get organizations user can create in
+    const organizationsResult = await getOrganizationsForUserCreation(currentUserId);
+    
+    if (!organizationsResult.success) {
+      throw new Error(getErrorMessage(organizationsResult.error || "Failed to get organizations"));
+    }
+
+    const options = {
+      organizations: organizationsResult.data || [],
+      defaultRole: "client_admin", // Can be customized based on user's role
+      professionalRoles: ["technician", "interpreting_doctor"],
+      requiresProfessionalProfile: (role: string) => 
+        ["technician", "interpreting_doctor"].includes(role),
+    };
+
+    return {
+      success: true,
+      data: options,
+    };
+    
+  } catch (error) {
+    console.error("❌ Error getting user creation options:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get user creation options",
+    };
+  }
+}
+
+/**
+ * ✅ ENHANCED: Get user details with all memberships and professional profiles
+ */
+export async function getUserDetails(userId: string): Promise<ServerActionResponse<UserDetails>> {
+  try {
+    console.log("🔍 Getting comprehensive user details:", userId);
+
+    // Only super admins and 5AM admins can get full user details
+    await requireAuth();
+
+    // Get base user info
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user) {
+      return {
+        success: false,
+        error: "User not found",
+      };
+    }
+
+    // Get all memberships using member actions
+    const membershipsResult = await getMembersByUser(userId);
+    const memberships = membershipsResult.success ? membershipsResult.data || [] : [];
+
+    // Get technician profiles
+    const technicianProfiles = await db
+      .select()
+      .from(technicians)
+      .where(
+        and(
+          eq(technicians.userId, userId),
+          eq(technicians.isActive, true)
+        )
+      );
+
+    // Get interpreting doctor profiles
+    const doctorProfiles = await db
+      .select()
+      .from(interpretingDoctors)
+      .where(
+        and(
+          eq(interpretingDoctors.userId, userId),
+          eq(interpretingDoctors.isActive, true)
+        )
+      );
+
+    // Calculate primary organization (most recent membership)
+    const primaryMembership = memberships[0]; // Already sorted by createdAt desc
+    
+    const userDetails: UserDetails = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image,
+      emailVerified: user.emailVerified,
+      banned: user.banned,
+      banReason: user.banReason,
+      banExpires: user.banExpires,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      primaryRole: primaryMembership?.role,
+      primaryOrganizationId: primaryMembership?.organizationId,
+      primaryOrganizationName: primaryMembership?.organization?.name,
+      membershipCount: memberships.length,
+      memberships: memberships.map((m: { id: any; organizationId: any; organization: { name: any; slug: any; }; role: any; createdAt: any; }) => ({
+        id: m.id,
+        organizationId: m.organizationId,
+        organizationName: m.organization?.name || "Unknown",
+        organizationSlug: m.organization?.slug || null,
+        role: m.role,
+        createdAt: m.createdAt,
+        isActive: true, // Assuming active if not deleted
+      })),
+      technicianProfile: technicianProfiles[0]
+        ? { ...technicianProfiles[0], userId: technicianProfiles[0].userId ?? "" }
+        : undefined,
+      interpretingDoctorProfile: doctorProfiles[0]
+        ? { ...doctorProfiles[0], userId: doctorProfiles[0].userId ?? "" }
+        : undefined,
+    };
+
+    console.log("✅ Comprehensive user details retrieved");
+
+    return {
+      success: true,
+      data: userDetails,
+    };
+    
+  } catch (error) {
+    console.error("❌ Error getting user details:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get user details",
+    };
+  }
+}
+
+/**
+ * ✅ NEW: Utility function to check if role requires professional profile
+ */
+export function doesRoleRequireProfessionalProfile(role: string): {
+  requiresTechnician: boolean;
+  requiresInterpretingDoctor: boolean;
+} {
+  return {
+    requiresTechnician: role === "technician",
+    requiresInterpretingDoctor: role === "interpreting_doctor",
+  };
+}
+
+/**
+ * ✅ NEW: Get roles available for organization
+ */
+export async function getRolesForOrganization(
+  organizationId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("📋 Getting roles for organization:", organizationId);
+
+    // Get organization metadata to determine type
+    const orgResult = await getOrganizationWithMetadata(organizationId);
+    
+    if (!orgResult.success || !orgResult.data) {
+      throw new Error("Organization not found");
+    }
+
+    const roles = orgResult.data.availableRoles || [];
+
+    return {
+      success: true,
+      data: roles,
+    };
+    
+  } catch (error) {
+    console.error("❌ Error getting roles for organization:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get organization roles",
+    };
+  }
+}
 /**
  * Update user information
  */

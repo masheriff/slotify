@@ -8,7 +8,6 @@ export interface MemberUser {
   image: string | null;
   emailVerified: boolean;
   createdAt: Date | string;
-  deletedAt: Date | string | null;
 }
 
 export interface MemberOrganization {
@@ -29,7 +28,7 @@ export interface Member {
 
 // Member with user details for list display
 export interface MemberListItem extends Member {
-  user: MemberUser;
+  user: MemberUser | null;
 }
 
 // Member with full details including organization

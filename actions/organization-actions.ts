@@ -1,17 +1,16 @@
 /// actions/organization-actions.ts - COMPLETE FIX
 "use server";
 import { db } from "@/db";
-import { organizations, members } from "@/db/schema";
+import { organizations, members, users, technicians, interpretingDoctors } from "@/db/schema";
 import { eq, sql, and, desc, asc } from "drizzle-orm";
 import { generateId } from "better-auth";
 import { z } from "zod";
 import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
 import { ServerActionResponse } from "@/types/server-actions.types";
-import { isSuperAdmin } from "@/lib/permissions/healthcare-access-control";
+import { isSuperAdmin, isFiveAmAdmin } from "@/lib/permissions/healthcare-access-control";
 import { ListDataResult, Organization } from "@/types";
 import { organizationDataSchema, OrganizationInput } from "@/schemas";
 import { ExistingMetadata } from "@/types/action.types";
-
 // FIXED: Server schema matches form schema exactly
 
 
@@ -601,5 +600,331 @@ export async function checkSlugAvailability(
   } catch (error) {
     console.error("Slug check error:", error);
     return { available: false };
+  }
+}
+/**
+ * ✅ NEW: Get organizations for user creation - shows orgs current user can create users in
+ */
+export async function getOrganizationsForUserCreation(
+  currentUserId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("🏢 Getting organizations for user creation by user:", currentUserId);
+
+    const session = await getServerSession();
+    if (!session?.user) {
+      throw new Error("Authentication required");
+    }
+
+    const currentUserRole = session.user.role ?? "";
+    
+    // System admin and 5AM admin can see all organizations
+    if (isSuperAdmin(currentUserRole) || isFiveAmAdmin(currentUserRole)) {
+      const allOrganizations = await db
+        .select({
+          id: organizations.id,
+          name: organizations.name,
+          slug: organizations.slug,
+          metadata: organizations.metadata,
+          createdAt: organizations.createdAt,
+        })
+        .from(organizations)
+        .orderBy(asc(organizations.name));
+
+      console.log(`✅ System/5AM admin - Found ${allOrganizations.length} organizations`);
+
+      return {
+        success: true,
+        data: allOrganizations.map(org => ({
+          ...org,
+          type: (org.metadata as any)?.type || "client",
+          canCreateUsers: true,
+        })),
+      };
+    }
+
+    // Client admins can only see their own organization
+    const userMemberships = await db
+      .select({
+        organizationId: members.organizationId,
+        role: members.role,
+        organization: {
+          id: organizations.id,
+          name: organizations.name,
+          slug: organizations.slug,
+          metadata: organizations.metadata,
+          createdAt: organizations.createdAt,
+        },
+      })
+      .from(members)
+      .leftJoin(organizations, eq(members.organizationId, organizations.id))
+      .where(eq(members.userId, currentUserId));
+
+    // Filter for organizations where user has admin rights
+    const adminOrganizations = userMemberships
+      .filter(membership => membership.role === "client_admin" && membership.organization)
+      .map(membership => ({
+        ...membership.organization,
+        type: (membership.organization?.metadata as any)?.type || "client",
+        canCreateUsers: true,
+      }));
+
+    console.log(`✅ Client admin - Found ${adminOrganizations.length} organizations`);
+
+    return {
+      success: true,
+      data: adminOrganizations,
+    };
+    
+  } catch (error) {
+    console.error("❌ Error getting organizations for user creation:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get organizations for user creation",
+    };
+  }
+}
+
+/**
+ * ✅ NEW: Get organization with enhanced metadata for forms
+ */
+export async function getOrganizationWithMetadata(
+  organizationId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("🔍 Getting organization with metadata:", organizationId);
+
+    const session = await getServerSession();
+    if (!session?.user) {
+      throw new Error("Authentication required");
+    }
+
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+
+    if (!organization) {
+      return {
+        success: false,
+        error: "Organization not found",
+      };
+    }
+
+    const metadata = organization.metadata as any || {};
+    
+    // Enhanced organization data with type and capabilities
+    const enhancedOrg = {
+      ...organization,
+      type: metadata.type || "client",
+      isActive: metadata.isActive ?? true,
+      capabilities: {
+        canCreateUsers: metadata.type === "admin" || metadata.type === "client",
+        canManageMembers: true,
+        canViewReports: true,
+      },
+      availableRoles: getRolesByOrganizationType(metadata.type || "client"),
+    };
+
+    console.log("✅ Organization with metadata found:", enhancedOrg.name);
+    
+    return {
+      success: true,
+      data: enhancedOrg,
+    };
+    
+  } catch (error) {
+    console.error("❌ Error getting organization with metadata:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get organization details",
+    };
+  }
+}
+
+/**
+ * ✅ HELPER: Get roles by organization type (moved from utils)
+ */
+function getRolesByOrganizationType(orgType: "admin" | "client"): Array<{value: string, label: string, description: string}> {
+  if (orgType === "admin") {
+    return [
+      {
+        value: "system_admin",
+        label: "System Admin",
+        description: "Full platform administration access"
+      },
+      {
+        value: "five_am_admin", 
+        label: "5AM Admin",
+        description: "Organization management without user impersonation"
+      },
+      {
+        value: "five_am_agent",
+        label: "5AM Agent", 
+        description: "Limited access to assigned client organizations"
+      }
+    ];
+  }
+  
+  // Client organization roles
+  return [
+    {
+      value: "client_admin",
+      label: "Client Admin",
+      description: "Client organization admin managing facility operations"
+    },
+    {
+      value: "front_desk",
+      label: "Front Desk",
+      description: "Patient scheduling and check-in management"
+    },
+    {
+      value: "technician", 
+      label: "Technician",
+      description: "Procedure execution and device management"
+    },
+    {
+      value: "interpreting_doctor",
+      label: "Interpreting Doctor",
+      description: "Medical interpretation and report review"
+    }
+  ];
+}
+
+/**
+ * ✅ NEW: Check if user can create users in organization
+ */
+export async function canUserCreateInOrganization(
+  currentUserRole: string,
+  targetOrgId: string,
+  currentUserId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("🔐 Checking user creation permissions:", { currentUserRole, targetOrgId, currentUserId });
+
+    // System admin and 5AM admin can create users in any organization
+    if (isSuperAdmin(currentUserRole) || isFiveAmAdmin(currentUserRole)) {
+      return {
+        success: true,
+        data: { canCreate: true, reason: "System/5AM admin privileges" },
+      };
+    }
+
+    // Check if user is client admin of the target organization
+    const membership = await db
+      .select()
+      .from(members)
+      .where(
+        and(
+          eq(members.userId, currentUserId),
+          eq(members.organizationId, targetOrgId),
+          eq(members.role, "client_admin")
+        )
+      )
+      .limit(1);
+
+    if (membership.length > 0) {
+      return {
+        success: true,
+        data: { canCreate: true, reason: "Client admin of target organization" },
+      };
+    }
+
+    return {
+      success: true,
+      data: { canCreate: false, reason: "Insufficient permissions for this organization" },
+    };
+    
+  } catch (error) {
+    console.error("❌ Error checking user creation permissions:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to check permissions",
+    };
+  }
+}
+
+/**
+ * ✅ NEW: Get organization summary stats
+ */
+export async function getOrganizationStats(
+  organizationId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("📊 Getting organization stats:", organizationId);
+
+    await requireSuperAdmin();
+
+    // Get member count
+    const [memberStats] = await db
+      .select({
+        totalMembers: sql<number>`count(*)`,
+        activeMembers: sql<number>`count(*) filter (where ${users.banned} is null or ${users.banned} = false)`,
+      })
+      .from(members)
+      .leftJoin(users, eq(members.userId, users.id))
+      .where(eq(members.organizationId, organizationId));
+
+    // Get role breakdown
+    const roleBreakdown = await db
+      .select({
+        role: members.role,
+        count: sql<number>`count(*)`,
+      })
+      .from(members)
+      .where(eq(members.organizationId, organizationId))
+      .groupBy(members.role);
+
+    // Get technician count
+    const [technicianCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(technicians)
+      .where(
+        and(
+          eq(technicians.organizationId, organizationId),
+          eq(technicians.isActive, true)
+        )
+      );
+
+    // Get interpreting doctor count  
+    const [doctorCount] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(interpretingDoctors)
+      .where(
+        and(
+          eq(interpretingDoctors.organizationId, organizationId),
+          eq(interpretingDoctors.isActive, true)
+        )
+      );
+
+    const stats = {
+      members: {
+        total: memberStats.totalMembers || 0,
+        active: memberStats.activeMembers || 0,
+        byRole: roleBreakdown.reduce((acc, role) => {
+          acc[role.role] = role.count;
+          return acc;
+        }, {} as Record<string, number>),
+      },
+      professionals: {
+        technicians: technicianCount.count || 0,
+        interpretingDoctors: doctorCount.count || 0,
+      },
+    };
+
+    console.log("✅ Organization stats retrieved:", stats);
+
+    return {
+      success: true,
+      data: stats,
+    };
+    
+  } catch (error) {
+    console.error("❌ Error getting organization stats:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get organization statistics",
+    };
   }
 }

@@ -491,6 +491,10 @@ export function isSuperAdmin(userRole: string): boolean {
   return userRole === HEALTHCARE_ROLES.SYSTEM_ADMIN;
 }
 
+export function isFiveAmAdmin(userRole: string): boolean {
+  return userRole === HEALTHCARE_ROLES.FIVE_AM_ADMIN;
+}
+
 /**
  * Check if user has admin privileges in any organization
  * Used for general admin access checks
