@@ -59,13 +59,13 @@ export interface TechnicianListItem {
     id: string;
     name: string;
     slug: string | null;
-  };
+  } | null; // Changed to allow null
   user?: {
     id: string;
     name: string | null;
     email: string;
     emailVerified: boolean;
-  };
+  } | null; // Changed to allow null
 }
 
 export interface GetTechniciansListParams {
@@ -260,9 +260,16 @@ export async function getTechniciansList(
 
     console.log(`✅ Found ${results.length} technicians (${totalCount} total)`);
 
+    // Transform results to match TechnicianListItem interface
+    const transformedResults: TechnicianListItem[] = results.map(result => ({
+      ...result,
+      organization: result.organization || undefined, // Convert null to undefined
+      user: result.user || undefined, // Convert null to undefined
+    }));
+
     return {
       success: true,
-      data: results,
+      data: transformedResults,
       pagination: {
         page: params.page,
         pageSize: params.pageSize,
@@ -278,6 +285,15 @@ export async function getTechniciansList(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to list technicians",
+      data: [], // Add required data property
+      pagination: { // Add required pagination property
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        totalCount: 0,
+      },
     };
   }
 }

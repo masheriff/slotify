@@ -55,13 +55,13 @@ export interface InterpretingDoctorListItem {
     id: string;
     name: string;
     slug: string | null;
-  };
+  } | null; // Changed to allow null
   user?: {
     id: string;
     name: string | null;
     email: string;
     emailVerified: boolean;
-  };
+  } | null; // Changed to allow null
 }
 
 export interface GetInterpretingDoctorsListParams {
@@ -616,9 +616,16 @@ export async function getInterpretingDoctorsList(
 
     console.log(`✅ Found ${results.length} interpreting doctors (${totalCount} total)`);
 
+    // Transform results to match InterpretingDoctorListItem interface
+    const transformedResults: InterpretingDoctorListItem[] = results.map(result => ({
+      ...result,
+      organization: result.organization || undefined, // Convert null to undefined
+      user: result.user || undefined, // Convert null to undefined
+    }));
+
     return {
       success: true,
-      data: results,
+      data: transformedResults,
       pagination: {
         page: params.page,
         pageSize: params.pageSize,
@@ -629,4 +636,20 @@ export async function getInterpretingDoctorsList(
       },
     };
     
-  } catch (
+  } catch (error) {
+    console.error("❌ Error getting interpreting doctors list:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to list interpreting doctors",
+      data: [], // Add required data property
+      pagination: { // Add required pagination property
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPreviousPage: false,
+        totalCount: 0,
+      },
+    };
+  }
+}
