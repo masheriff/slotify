@@ -25,7 +25,7 @@ export async function sendMagicLinkAction(formData: MagicLinkSignInInput) {
     await auth.api.signInMagicLink({
       body: {
         email,
-        callbackURL: "/dashboard", // Redirect to dashboard after successful login
+        callbackURL: "/5am-corp/admin/dashboard", // Redirect to dashboard after successful login
       },
       headers: {
         // Pass reCAPTCHA token to the server-side API call
