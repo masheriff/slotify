@@ -1,4 +1,4 @@
-// actions/technician-actions.ts - Phase 2 Professional Technician Actions
+// actions/technician-actions.ts - Phase 2 Professional Technician Actions - PROPERLY TYPED
 "use server";
 
 import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
@@ -10,18 +10,77 @@ import { revalidatePath } from "next/cache";
 import { ServerActionResponse } from "@/types/server-actions.types";
 import { ListDataResult } from "@/types/list-page.types";
 
-// Import enum validation at the top
-import { 
-  validateTechnicianEnums, 
-  isValidFacilitySpecialty, 
-  isValidCertificationLevel, 
-  isValidEmploymentStatus,
-  type FacilitySpecialty,
-  type CertificationLevel,
-  type EmploymentStatus
-} from "@/lib/utils/enum-validation";
+// Exact enum types from your database schema
+type FacilitySpecialty = 
+  | "mri"
+  | "ct_scan"
+  | "ultrasound"
+  | "x_ray"
+  | "mammography"
+  | "nuclear_medicine"
+  | "pet_scan"
+  | "bone_density"
+  | "echocardiogram"
+  | "stress_testing"
+  | "blood_work"
+  | "urine_analysis"
+  | "biopsy"
+  | "endoscopy"
+  | "colonoscopy"
+  | "ekg"
+  | "holter_monitoring"
+  | "sleep_study"
+  | "physical_therapy"
+  | "occupational_therapy"
+  | "dialysis"
+  | "chemotherapy"
+  | "radiation_therapy";
 
-// Update the technician profile data interface
+type CertificationLevel = 
+  | "entry_level"
+  | "certified"
+  | "advanced"
+  | "specialist"
+  | "lead"
+  | "supervisor";
+
+type EmploymentStatus = 
+  | "full_time"
+  | "part_time"
+  | "contract"
+  | "per_diem"
+  | "temp";
+
+// Validation functions
+const VALID_SPECIALTIES: FacilitySpecialty[] = [
+  "mri", "ct_scan", "ultrasound", "x_ray", "mammography", "nuclear_medicine",
+  "pet_scan", "bone_density", "echocardiogram", "stress_testing", "blood_work",
+  "urine_analysis", "biopsy", "endoscopy", "colonoscopy", "ekg", "holter_monitoring",
+  "sleep_study", "physical_therapy", "occupational_therapy", "dialysis",
+  "chemotherapy", "radiation_therapy"
+];
+
+const VALID_CERTIFICATION_LEVELS: CertificationLevel[] = [
+  "entry_level", "certified", "advanced", "specialist", "lead", "supervisor"
+];
+
+const VALID_EMPLOYMENT_STATUSES: EmploymentStatus[] = [
+  "full_time", "part_time", "contract", "per_diem", "temp"
+];
+
+function isValidSpecialty(value: string): value is FacilitySpecialty {
+  return VALID_SPECIALTIES.includes(value as FacilitySpecialty);
+}
+
+function isValidCertificationLevel(value: string): value is CertificationLevel {
+  return VALID_CERTIFICATION_LEVELS.includes(value as CertificationLevel);
+}
+
+function isValidEmploymentStatus(value: string): value is EmploymentStatus {
+  return VALID_EMPLOYMENT_STATUSES.includes(value as EmploymentStatus);
+}
+
+// Technician interfaces
 export interface TechnicianProfileData {
   firstName: string;
   middleName?: string;
@@ -34,9 +93,9 @@ export interface TechnicianProfileData {
   state?: string;
   code?: string;
   licenseNumber?: string;
-  specialty: FacilitySpecialty; // Now properly typed
-  certificationLevel: CertificationLevel;
-  employmentStatus: EmploymentStatus;
+  specialty: FacilitySpecialty; // Properly typed
+  certificationLevel: CertificationLevel; // Properly typed
+  employmentStatus: EmploymentStatus; // Properly typed
   isActive?: boolean;
 }
 
@@ -59,13 +118,13 @@ export interface TechnicianListItem {
     id: string;
     name: string;
     slug: string | null;
-  } | null; // Changed to allow null
+  } | null;
   user?: {
     id: string;
     name: string | null;
     email: string;
     emailVerified: boolean;
-  } | null; // Changed to allow null
+  } | null;
 }
 
 export interface GetTechniciansListParams {
@@ -79,6 +138,308 @@ export interface GetTechniciansListParams {
   certificationLevel?: string;
   employmentStatus?: string;
   isActive?: boolean;
+}
+
+/**
+ * ✅ CREATE: Create technician profile
+ */
+export async function createTechnician(
+  profileData: TechnicianProfileData,
+  userId: string,
+  organizationId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("👨‍⚕️ Creating technician profile:", { profileData, userId, organizationId });
+
+    // Get current user for audit trail
+    const session = await getServerSession();
+    if (!session?.user) {
+      throw new Error("Authentication required");
+    }
+
+    await requireSuperAdmin();
+
+    // Validate required fields
+    if (!profileData.firstName || !profileData.lastName || !profileData.specialty) {
+      return {
+        success: false,
+        error: "First name, last name, and specialty are required",
+      };
+    }
+
+    // Validate enum values
+    if (!isValidSpecialty(profileData.specialty)) {
+      return {
+        success: false,
+        error: `Invalid specialty: ${profileData.specialty}. Must be one of: ${VALID_SPECIALTIES.join(", ")}`,
+      };
+    }
+
+    if (!isValidCertificationLevel(profileData.certificationLevel)) {
+      return {
+        success: false,
+        error: `Invalid certification level: ${profileData.certificationLevel}. Must be one of: ${VALID_CERTIFICATION_LEVELS.join(", ")}`,
+      };
+    }
+
+    if (!isValidEmploymentStatus(profileData.employmentStatus)) {
+      return {
+        success: false,
+        error: `Invalid employment status: ${profileData.employmentStatus}. Must be one of: ${VALID_EMPLOYMENT_STATUSES.join(", ")}`,
+      };
+    }
+
+    // Check if technician already exists for this user/organization
+    const existingTechnician = await db
+      .select()
+      .from(technicians)
+      .where(
+        and(
+          eq(technicians.userId, userId),
+          eq(technicians.organizationId, organizationId)
+        )
+      )
+      .limit(1);
+
+    if (existingTechnician.length > 0) {
+      return {
+        success: false,
+        error: "Technician profile already exists for this user in this organization",
+      };
+    }
+
+    // Create technician profile
+    const technicianId = generateId();
+    const [newTechnician] = await db
+      .insert(technicians)
+      .values({
+        id: technicianId,
+        organizationId,
+        userId,
+        firstName: profileData.firstName,
+        middleName: profileData.middleName || null,
+        lastName: profileData.lastName,
+        phone: profileData.phone || null,
+        email: profileData.email || null,
+        addressLine1: profileData.addressLine1 || null,
+        addressLine2: profileData.addressLine2 || null,
+        city: profileData.city || null,
+        state: profileData.state || null,
+        code: profileData.code || null,
+        licenseNumber: profileData.licenseNumber || null,
+        specialty: profileData.specialty, // Now properly typed
+        certificationLevel: profileData.certificationLevel,
+        employmentStatus: profileData.employmentStatus,
+        isActive: profileData.isActive ?? true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: session.user.id,
+        updatedBy: session.user.id,
+      })
+      .returning();
+
+    console.log("✅ Technician profile created successfully:", newTechnician);
+
+    revalidatePath("/5am-corp/admin/technicians");
+    revalidatePath(`/[orgSlug]/staff/technicians`, 'page');
+
+    return {
+      success: true,
+      data: newTechnician,
+      message: "Technician profile created successfully",
+    };
+    
+  } catch (error) {
+    console.error("❌ Error creating technician:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to create technician profile",
+    };
+  }
+}
+
+/**
+ * ✅ UPDATE: Update technician profile
+ */
+export async function updateTechnician(
+  technicianId: string,
+  profileData: Partial<TechnicianProfileData>
+): Promise<ServerActionResponse> {
+  try {
+    console.log("✏️ Updating technician:", { technicianId, profileData });
+
+    const session = await getServerSession();
+    if (!session?.user) {
+      throw new Error("Authentication required");
+    }
+
+    await requireSuperAdmin();
+
+    // Check if technician exists
+    const [existingTechnician] = await db
+      .select()
+      .from(technicians)
+      .where(eq(technicians.id, technicianId))
+      .limit(1);
+
+    if (!existingTechnician) {
+      return {
+        success: false,
+        error: "Technician not found",
+      };
+    }
+
+    // Validate enum values if provided
+    if (profileData.specialty && !isValidSpecialty(profileData.specialty)) {
+      return {
+        success: false,
+        error: `Invalid specialty: ${profileData.specialty}. Must be one of: ${VALID_SPECIALTIES.join(", ")}`,
+      };
+    }
+
+    if (profileData.certificationLevel && !isValidCertificationLevel(profileData.certificationLevel)) {
+      return {
+        success: false,
+        error: `Invalid certification level: ${profileData.certificationLevel}. Must be one of: ${VALID_CERTIFICATION_LEVELS.join(", ")}`,
+      };
+    }
+
+    if (profileData.employmentStatus && !isValidEmploymentStatus(profileData.employmentStatus)) {
+      return {
+        success: false,
+        error: `Invalid employment status: ${profileData.employmentStatus}. Must be one of: ${VALID_EMPLOYMENT_STATUSES.join(", ")}`,
+      };
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      updatedAt: new Date(),
+      updatedBy: session.user.id,
+    };
+
+    // Only update provided fields
+    if (profileData.firstName !== undefined) updateData.firstName = profileData.firstName;
+    if (profileData.middleName !== undefined) updateData.middleName = profileData.middleName;
+    if (profileData.lastName !== undefined) updateData.lastName = profileData.lastName;
+    if (profileData.phone !== undefined) updateData.phone = profileData.phone;
+    if (profileData.email !== undefined) updateData.email = profileData.email;
+    if (profileData.addressLine1 !== undefined) updateData.addressLine1 = profileData.addressLine1;
+    if (profileData.addressLine2 !== undefined) updateData.addressLine2 = profileData.addressLine2;
+    if (profileData.city !== undefined) updateData.city = profileData.city;
+    if (profileData.state !== undefined) updateData.state = profileData.state;
+    if (profileData.code !== undefined) updateData.code = profileData.code;
+    if (profileData.licenseNumber !== undefined) updateData.licenseNumber = profileData.licenseNumber;
+    if (profileData.specialty !== undefined) updateData.specialty = profileData.specialty;
+    if (profileData.certificationLevel !== undefined) updateData.certificationLevel = profileData.certificationLevel;
+    if (profileData.employmentStatus !== undefined) updateData.employmentStatus = profileData.employmentStatus;
+    if (profileData.isActive !== undefined) updateData.isActive = profileData.isActive;
+
+    // Update technician
+    const [updatedTechnician] = await db
+      .update(technicians)
+      .set(updateData)
+      .where(eq(technicians.id, technicianId))
+      .returning();
+
+    if (!updatedTechnician) {
+      return {
+        success: false,
+        error: "Failed to update technician",
+      };
+    }
+
+    console.log("✅ Technician updated successfully:", updatedTechnician);
+
+    revalidatePath("/5am-corp/admin/technicians");
+    revalidatePath(`/[orgSlug]/staff/technicians`, 'page');
+
+    return {
+      success: true,
+      data: updatedTechnician,
+      message: "Technician updated successfully",
+    };
+    
+  } catch (error) {
+    console.error("❌ Error updating technician:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update technician",
+    };
+  }
+}
+
+/**
+ * ✅ READ: Get technician by ID
+ */
+export async function getTechnicianById(
+  technicianId: string
+): Promise<ServerActionResponse> {
+  try {
+    console.log("🔍 Getting technician by ID:", technicianId);
+
+    await requireSuperAdmin();
+
+    const result = await db
+      .select({
+        id: technicians.id,
+        organizationId: technicians.organizationId,
+        userId: technicians.userId,
+        firstName: technicians.firstName,
+        middleName: technicians.middleName,
+        lastName: technicians.lastName,
+        phone: technicians.phone,
+        email: technicians.email,
+        addressLine1: technicians.addressLine1,
+        addressLine2: technicians.addressLine2,
+        city: technicians.city,
+        state: technicians.state,
+        code: technicians.code,
+        licenseNumber: technicians.licenseNumber,
+        specialty: technicians.specialty,
+        certificationLevel: technicians.certificationLevel,
+        employmentStatus: technicians.employmentStatus,
+        isActive: technicians.isActive,
+        createdAt: technicians.createdAt,
+        updatedAt: technicians.updatedAt,
+        organization: {
+          id: organizations.id,
+          name: organizations.name,
+          slug: organizations.slug,
+        },
+        user: {
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          emailVerified: users.emailVerified,
+        },
+      })
+      .from(technicians)
+      .leftJoin(organizations, eq(technicians.organizationId, organizations.id))
+      .leftJoin(users, eq(technicians.userId, users.id))
+      .where(eq(technicians.id, technicianId))
+      .limit(1);
+
+    if (!result[0]) {
+      return {
+        success: false,
+        error: "Technician not found",
+      };
+    }
+
+    console.log("✅ Technician found:", result[0]);
+
+    return {
+      success: true,
+      data: result[0],
+    };
+    
+  } catch (error) {
+    console.error("❌ Error getting technician by ID:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to get technician details",
+    };
+  }
 }
 
 /**
@@ -167,8 +528,8 @@ export async function getTechniciansList(
         );
       }
 
-      // Validate enum filters with proper type safety
-      if (params.specialty && isValidFacilitySpecialty(params.specialty)) {
+      // Enum filters with proper type safety
+      if (params.specialty && isValidSpecialty(params.specialty)) {
         conditions.push(eq(technicians.specialty, params.specialty));
       }
 
@@ -372,277 +733,3 @@ export async function deleteTechnician(
     };
   }
 }
-
-/**
- * ✅ CREATE: Create technician profile
- */
-export async function createTechnician(
-  profileData: TechnicianProfileData,
-  userId: string,
-  organizationId: string
-): Promise<ServerActionResponse> {
-  try {
-    console.log("👨‍⚕️ Creating technician profile:", { profileData, userId, organizationId });
-
-    // Get current user for audit trail
-    const session = await getServerSession();
-    if (!session?.user) {
-      throw new Error("Authentication required");
-    }
-
-    await requireSuperAdmin();
-
-    // Validate required fields and enums
-    if (!profileData.firstName || !profileData.lastName || !profileData.specialty) {
-      return {
-        success: false,
-        error: "First name, last name, and specialty are required",
-      };
-    }
-
-    // Validate enum values
-    const enumValidation = validateTechnicianEnums({
-      specialty: profileData.specialty,
-      certificationLevel: profileData.certificationLevel,
-      employmentStatus: profileData.employmentStatus,
-    });
-
-    if (!enumValidation.isValid) {
-      return {
-        success: false,
-        error: `Invalid enum values: ${enumValidation.errors.join(", ")}`,
-      };
-    }
-
-    // Check if technician already exists for this user/organization
-    const existingTechnician = await db
-      .select()
-      .from(technicians)
-      .where(
-        and(
-          eq(technicians.userId, userId),
-          eq(technicians.organizationId, organizationId)
-        )
-      )
-      .limit(1);
-
-    if (existingTechnician.length > 0) {
-      return {
-        success: false,
-        error: "Technician profile already exists for this user in this organization",
-      };
-    }
-
-    // Create technician profile
-    const technicianId = generateId();
-    const [newTechnician] = await db
-      .insert(technicians)
-      .values({
-        id: technicianId,
-        organizationId,
-        userId,
-        firstName: profileData.firstName,
-        middleName: profileData.middleName || null,
-        lastName: profileData.lastName,
-        phone: profileData.phone || null,
-        email: profileData.email || null,
-        addressLine1: profileData.addressLine1 || null,
-        addressLine2: profileData.addressLine2 || null,
-        city: profileData.city || null,
-        state: profileData.state || null,
-        code: profileData.code || null,
-        licenseNumber: profileData.licenseNumber || null,
-        specialty: profileData.specialty, // Now properly typed
-        certificationLevel: profileData.certificationLevel || "entry_level",
-        employmentStatus: profileData.employmentStatus || "full_time",
-        isActive: profileData.isActive ?? true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        createdBy: session.user.id,
-        updatedBy: session.user.id,
-      })
-      .returning();
-
-    console.log("✅ Technician profile created successfully:", newTechnician);
-
-    revalidatePath("/5am-corp/admin/technicians");
-    revalidatePath(`/[orgSlug]/staff/technicians`, 'page');
-
-    return {
-      success: true,
-      data: newTechnician,
-      message: "Technician profile created successfully",
-    };
-    
-  } catch (error) {
-    console.error("❌ Error creating technician:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create technician profile",
-    };
-  }
-}
-
-/**
- * ✅ UPDATE: Update technician profile
- */
-export async function updateTechnician(
-  technicianId: string,
-  profileData: Partial<TechnicianProfileData>
-): Promise<ServerActionResponse> {
-  try {
-    console.log("✏️ Updating technician:", { technicianId, profileData });
-
-    const session = await getServerSession();
-    if (!session?.user) {
-      throw new Error("Authentication required");
-    }
-
-    await requireSuperAdmin();
-
-    // Check if technician exists
-    const [existingTechnician] = await db
-      .select()
-      .from(technicians)
-      .where(eq(technicians.id, technicianId))
-      .limit(1);
-
-    if (!existingTechnician) {
-      return {
-        success: false,
-        error: "Technician not found",
-      };
-    }
-
-    // Prepare update data
-    const updateData: any = {
-      updatedAt: new Date(),
-      updatedBy: session.user.id,
-    };
-
-    // Only update provided fields
-    if (profileData.firstName !== undefined) updateData.firstName = profileData.firstName;
-    if (profileData.middleName !== undefined) updateData.middleName = profileData.middleName;
-    if (profileData.lastName !== undefined) updateData.lastName = profileData.lastName;
-    if (profileData.phone !== undefined) updateData.phone = profileData.phone;
-    if (profileData.email !== undefined) updateData.email = profileData.email;
-    if (profileData.addressLine1 !== undefined) updateData.addressLine1 = profileData.addressLine1;
-    if (profileData.addressLine2 !== undefined) updateData.addressLine2 = profileData.addressLine2;
-    if (profileData.city !== undefined) updateData.city = profileData.city;
-    if (profileData.state !== undefined) updateData.state = profileData.state;
-    if (profileData.code !== undefined) updateData.code = profileData.code;
-    if (profileData.licenseNumber !== undefined) updateData.licenseNumber = profileData.licenseNumber;
-    if (profileData.specialty !== undefined) updateData.specialty = profileData.specialty;
-    if (profileData.certificationLevel !== undefined) updateData.certificationLevel = profileData.certificationLevel;
-    if (profileData.employmentStatus !== undefined) updateData.employmentStatus = profileData.employmentStatus;
-    if (profileData.isActive !== undefined) updateData.isActive = profileData.isActive;
-
-    // Update technician
-    const [updatedTechnician] = await db
-      .update(technicians)
-      .set(updateData)
-      .where(eq(technicians.id, technicianId))
-      .returning();
-
-    if (!updatedTechnician) {
-      return {
-        success: false,
-        error: "Failed to update technician",
-      };
-    }
-
-    console.log("✅ Technician updated successfully:", updatedTechnician);
-
-    revalidatePath("/5am-corp/admin/technicians");
-    revalidatePath(`/[orgSlug]/staff/technicians`, 'page');
-
-    return {
-      success: true,
-      data: updatedTechnician,
-      message: "Technician updated successfully",
-    };
-    
-  } catch (error) {
-    console.error("❌ Error updating technician:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update technician",
-    };
-  }
-}
-
-/**
- * ✅ READ: Get technician by ID
- */
-export async function getTechnicianById(
-  technicianId: string
-): Promise<ServerActionResponse> {
-  try {
-    console.log("🔍 Getting technician by ID:", technicianId);
-
-    await requireSuperAdmin();
-
-    const result = await db
-      .select({
-        id: technicians.id,
-        organizationId: technicians.organizationId,
-        userId: technicians.userId,
-        firstName: technicians.firstName,
-        middleName: technicians.middleName,
-        lastName: technicians.lastName,
-        phone: technicians.phone,
-        email: technicians.email,
-        addressLine1: technicians.addressLine1,
-        addressLine2: technicians.addressLine2,
-        city: technicians.city,
-        state: technicians.state,
-        code: technicians.code,
-        licenseNumber: technicians.licenseNumber,
-        specialty: technicians.specialty,
-        certificationLevel: technicians.certificationLevel,
-        employmentStatus: technicians.employmentStatus,
-        isActive: technicians.isActive,
-        createdAt: technicians.createdAt,
-        updatedAt: technicians.updatedAt,
-        organization: {
-          id: organizations.id,
-          name: organizations.name,
-          slug: organizations.slug,
-        },
-        user: {
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          emailVerified: users.emailVerified,
-        },
-      })
-      .from(technicians)
-      .leftJoin(organizations, eq(technicians.organizationId, organizations.id))
-      .leftJoin(users, eq(technicians.userId, users.id))
-      .where(eq(technicians.id, technicianId))
-      .limit(1);
-
-    if (!result[0]) {
-      return {
-        success: false,
-        error: "Technician not found",
-      };
-    }
-
-    console.log("✅ Technician found:", result[0]);
-
-    return {
-      success: true,
-      data: result[0],
-    };
-    
-  } catch (error) {
-    console.error("❌ Error getting technician by ID:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to get technician details",
-    };
-  }
-}
-
-/**
