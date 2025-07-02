@@ -6,7 +6,7 @@ import { eq, and, ilike, or, desc, asc, sql } from 'drizzle-orm';
 import { generateId } from 'better-auth';
 import { db } from '@/db';
 import { users, members, organizations } from '@/db/schema/auth-schema';
-import { requireSuperAdmin, getServerSession } from '@/lib/auth-server';
+import { getServerSession } from '@/lib/auth-server';
 import { isSuperAdmin, isFiveAmAdmin } from '@/lib/permissions/healthcare-access-control';
 import { 
   userCreateSchema, 
@@ -18,8 +18,7 @@ import {
 import { 
   type UserListItem,
   type GetUsersListParams,
-  type OrganizationOption,
-  ADMIN_ORG_ROLES
+  OrganizationWithType
 } from '@/types/users.types';
 import { ServerActionResponse } from '@/types/server-actions.types';
 import { ListDataResult } from '@/types/list-page.types';
@@ -27,9 +26,9 @@ import {
   canCreateRole, 
   canEditUser, 
   canBanUser, 
-  canImpersonateUser,
-  validateRoleAssignment 
+  canImpersonateUser as canImpersonateUserUtil,
 } from '@/utils/users.utils';
+import { OrganizationMetadata } from '@/types/organization.types';
 
 /**
  * Get current user with role validation
@@ -599,7 +598,7 @@ export async function impersonateUser(userId: string): Promise<ServerActionRespo
     }
 
     // Check permissions (only super admins can impersonate)
-    if (!canImpersonateUser(currentUser.role as any, targetUser.role as any)) {
+    if (!canImpersonateUserUtil(currentUser.role as any, targetUser.role as any)) {
       return {
         success: false,
         error: 'You do not have permission to impersonate this user',
@@ -722,52 +721,50 @@ export async function getUserById(userId: string): Promise<ServerActionResponse<
 }
 
 /**
- * Get all organizations for user assignment - FIXED RETURN TYPES
+ * Get organizations for user creation/editing - FIXED RETURN TYPES
  */
-export async function getOrganizationsForUserCreation(): Promise<ServerActionResponse<OrganizationOption[]>> {
+export async function getOrganizationsForUserCreation(): Promise<OrganizationWithType[]> {
   try {
-    console.log("🏢 Getting organizations for user creation");
+    console.log("🔍 Getting organizations for user creation");
 
     const currentUser = await getCurrentUser();
-
-    // Super admins and admins can assign to any organization
+    
+    // Check permissions
     if (!isSuperAdmin(currentUser.role ?? "") && !isFiveAmAdmin(currentUser.role ?? "")) {
-      return {
-        success: false,
-        error: "Insufficient permissions to create users",
-      };
+      throw new Error("Insufficient permissions to view organizations");
     }
-      
-    const orgs = await db
+
+    const result = await db
       .select({
         id: organizations.id,
         name: organizations.name,
         slug: organizations.slug,
         metadata: organizations.metadata,
+        createdAt: organizations.createdAt,
       })
       .from(organizations)
-      .orderBy(asc(organizations.name));
+      .orderBy(organizations.name);
 
-    const organizationOptions: OrganizationOption[] = orgs.map(org => ({
-      id: org.id,
-      name: org.name,
-      slug: org.slug,
-      type: (org.metadata as any)?.type || 'client',
-    }));
+    const organizationsWithType: OrganizationWithType[] = result.map(org => {
+      const metadata = org.metadata as OrganizationMetadata;
+      return {
+        id: org.id,
+        name: org.name,
+        slug: org.slug,
+        metadata: {
+          ...metadata,
+          type: metadata?.type || 'client',
+          isActive: metadata?.isActive !== false,
+        },
+        createdAt: org.createdAt,
+      };
+    });
 
-    console.log("✅ Organizations retrieved for user creation");
-
-    return {
-      success: true,
-      data: organizationOptions,
-    };
+    console.log("✅ getOrganizationsForUserCreation completed successfully");
+    return organizationsWithType;
 
   } catch (error) {
-    console.error('❌ Error getting organizations for user creation:', error);
-    
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to get organizations',
-    };
+    console.error("❌ Error in getOrganizationsForUserCreation:", error);
+    throw error;
   }
 }

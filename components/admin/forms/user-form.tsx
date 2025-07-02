@@ -1,9 +1,11 @@
+// components/admin/forms/user-form.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +15,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,7 +27,13 @@ import {
   SelectGroup,
   SelectLabel,
 } from '@/components/ui/select';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  Card, 
+  CardContent, 
+  CardDescription, 
+  CardHeader, 
+  CardTitle 
+} from '@/components/ui/card';
 
 import { userFormSchema, type UserFormInput } from '@/schemas/users.schemas';
 import { createUser, updateUser, getUserById, getOrganizationsForUserCreation } from '@/actions/users.actions';
@@ -34,9 +43,11 @@ import {
   ADMIN_ORG_ROLES,
   CLIENT_ORG_ROLES 
 } from '@/types/users.types';
-import { getRolesByOrganizationType, getRoleLabel, getOrganizationTypeLabel } from '@/utils';
+import { getRoleLabel, getRolesByOrganizationType } from '@/utils/users.utils';
+import { getOrganizationTypeLabel } from '@/utils/organization.utils';
 
 export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps) {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [organizations, setOrganizations] = useState<OrganizationWithType[]>([]);
   const [selectedOrgType, setSelectedOrgType] = useState<'admin' | 'client' | null>(null);
@@ -72,15 +83,24 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
     if (mode === 'edit' && userId) {
       async function loadUser() {
         try {
-          const user = await getUserById(userId as string);
-          if (user && user.organizations.length > 0) {
-            const primaryOrg = user.organizations[0];
+          const result = await getUserById(userId as string);
+          if (result.success && result.data) {
+            const userData = result.data;
+            
+            // Set form values
             form.reset({
-              name: user.name || '',
-              email: user.email || '',
-              organizationId: primaryOrg.organization.id,
-              role: primaryOrg.member.role as any,
+              name: userData.name || '',
+              email: userData.email || '',
+              organizationId: userData.organization?.id || '',
+              role: userData.role as any,
             });
+
+            // Set selected organization type
+            if (userData.organization) {
+              setSelectedOrgType(userData.organization.type);
+            }
+          } else {
+            toast.error('Failed to load user data');
           }
         } catch (error) {
           toast.error('Failed to load user data');
@@ -130,7 +150,18 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
 
       if (result.success) {
         toast.success(result.message);
-        onSuccess?.();
+        
+        if (onSuccess) {
+          onSuccess();
+        } else {
+          // Navigate back to users list or to user details
+          if (mode === 'create') {
+            router.push('/5am-corp/admin/users');
+          } else {
+            router.push(`/5am-corp/admin/users/${userId}`);
+          }
+          router.refresh();
+        }
         
         if (mode === 'create') {
           form.reset();
@@ -163,132 +194,158 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
         <CardTitle>
           {mode === 'create' ? 'Create New User' : 'Edit User'}
         </CardTitle>
+        <CardDescription>
+          {mode === 'create' 
+            ? 'Add a new user to the system with the appropriate role and organization access.'
+            : 'Update user information and access permissions.'
+          }
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Enter full name" 
-                      {...field} 
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email Address</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="email"
-                      placeholder="Enter email address" 
-                      {...field} 
-                      disabled={isLoading}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="organizationId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Organization</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    value={field.value}
-                    disabled={isLoading}
-                  >
+            {/* Basic Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Basic Information</h3>
+              
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Name</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an organization" />
-                      </SelectTrigger>
+                      <Input 
+                        placeholder="Enter full name" 
+                        {...field} 
+                        disabled={isLoading}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {organizations.map((org) => (
-                        <SelectItem key={org.id} value={org.id}>
-                          <div className="flex flex-col">
-                            <span>{org.name}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {getOrganizationTypeLabel(org.metadata.type)}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    value={field.value}
-                    disabled={isLoading || !selectedOrgType}
-                  >
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email Address</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue 
-                          placeholder={
-                            selectedOrgType 
-                              ? "Select a role" 
-                              : "Select an organization first"
-                          } 
-                        />
-                      </SelectTrigger>
+                      <Input 
+                        type="email"
+                        placeholder="user@example.com" 
+                        {...field} 
+                        disabled={isLoading}
+                      />
                     </FormControl>
-                    <SelectContent>
-                      {selectedOrgType === 'admin' && adminRoles.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>Admin Organization Roles</SelectLabel>
-                          {adminRoles.map((role) => (
-                            <SelectItem key={role} value={role}>
-                              {getRoleLabel(role)}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      )}
-                      
-                      {selectedOrgType === 'client' && clientRoles.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>Client Organization Roles</SelectLabel>
-                          {clientRoles.map((role) => (
-                            <SelectItem key={role} value={role}>
-                              {getRoleLabel(role)}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormDescription>
+                      This will be used for login and system notifications.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
+            {/* Organization & Role */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Organization & Access</h3>
+              
+              <FormField
+                control={form.control}
+                name="organizationId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Organization</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={isLoading}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an organization" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {organizations.map((org) => (
+                          <SelectItem key={org.id} value={org.id}>
+                            <div className="flex flex-col">
+                              <span>{org.name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {getOrganizationTypeLabel(org.metadata.type)}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      The organization this user will have access to.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Role</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      value={field.value}
+                      disabled={isLoading || !selectedOrgType}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue 
+                            placeholder={
+                              selectedOrgType 
+                                ? "Select a role" 
+                                : "Select an organization first"
+                            } 
+                          />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {selectedOrgType === 'admin' && adminRoles.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>Admin Organization Roles</SelectLabel>
+                            {adminRoles.map((role) => (
+                              <SelectItem key={role} value={role}>
+                                {getRoleLabel(role)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                        
+                        {selectedOrgType === 'client' && clientRoles.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>Client Organization Roles</SelectLabel>
+                            {clientRoles.map((role) => (
+                              <SelectItem key={role} value={role}>
+                                {getRoleLabel(role)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      The user's role determines their permissions within the organization.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Form Actions */}
             <div className="flex gap-4 pt-4">
               <Button type="submit" disabled={isLoading} className="flex-1">
                 {isLoading ? 'Processing...' : mode === 'create' ? 'Create User' : 'Update User'}
@@ -297,7 +354,13 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => onSuccess?.()} 
+                onClick={() => {
+                  if (onSuccess) {
+                    onSuccess();
+                  } else {
+                    router.back();
+                  }
+                }}
                 disabled={isLoading}
               >
                 Cancel
