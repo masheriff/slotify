@@ -1,7 +1,7 @@
 // app/admin/organizations/[id]/members/page.tsx - UPDATED
-import { getMembersList } from "@/actions/member-actions";
+import { getMembersList } from "@/actions/member.actions";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
-import { getOrganizationById } from "@/actions/organization-actions";
+import { getOrganizationById } from "@/actions/organization.actions";
 import { FilterablePageHeader } from "@/components/common/filterable-page-header";
 import { DataTable } from "@/components/common/data-table";
 import { memberColumns } from "@/components/table-configs/member-columns";

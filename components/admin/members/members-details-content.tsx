@@ -26,7 +26,7 @@ import {
 import { formatDistanceToNow, format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getMemberRoleLabel, getMemberStatusColor, getMemberStatusLabel, MemberDetailsContentProps } from "@/types/member.types";
-import { getMemberRoleColor } from "@/lib/utils/member-utils";
+import { getMemberRoleColor } from "@/utils/member.utils";
 
 // Type for the data returned by getMemberById
 

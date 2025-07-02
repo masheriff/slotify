@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { AlertCircle, CheckCircle, Send } from "lucide-react";
-import { sendMagicLinkAction } from "@/actions/login-actions";
+import { sendMagicLinkAction } from "@/actions/login.actions";
 import { useLoadingControl } from "@/lib/with-loading";
 import { LoginFormData, loginSchema, MagicLinkSignInInput } from "@/schemas";
 

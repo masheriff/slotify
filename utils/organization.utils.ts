@@ -16,8 +16,8 @@ export function getOrganizationStatusColor(isActive: boolean) {
     : "border-red-200 bg-red-50 text-red-700";
 }
 
-export function getOrganizationTypeLabel(type: string) {
-  return type === "admin" ? "Admin Organization" : "Client Organization";
+export function getOrganizationTypeLabel(type: 'admin' | 'client'): string {
+  return type === 'admin' ? 'Admin Organization' : 'Client Organization';
 }
 
 export function getOrganizationStatusLabel(isActive: boolean) {

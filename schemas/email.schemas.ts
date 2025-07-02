@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
 // Email validation schema
-export const emailSchema = z.string().email('Invalid email address');
+export const emailSchema = z
+  .string()
+  .min(1, 'Email is required')
+  .email('Please enter a valid email address');
 
 export const multipleEmailsSchema = z
   .array(z.string().email('Invalid email address'))

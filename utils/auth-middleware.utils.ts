@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { members, organizations, users } from "@/db/schema";
 import { OrganizationMetadata } from "@/types";
 import { eq } from "drizzle-orm";
-import { HEALTHCARE_ROLES } from "../permissions/healthcare-permissions-constants";
+import { HEALTHCARE_ROLES } from "../lib/permissions/healthcare-permissions-constants";
 
 /**
  * Helper function to check if user has any active organization

@@ -28,7 +28,7 @@ import {
   getOrganizationStatusColor,
   getOrganizationTypeLabel,
   getOrganizationStatusLabel,
-} from "@/lib/utils/organization-utils";
+} from "@/utils/organization.utils";
 import { OrganizationDetailsContentProps, OrganizationMetadata } from "@/types";
 import Image from "next/image";
 

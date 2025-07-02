@@ -23,7 +23,7 @@ import {
   canEditUser,
   canBanUser,
   canImpersonateUser
-} from "@/lib/utils/users-utils";
+} from "@/utils/users.utils";
 
 export const userColumns: ColumnDef<UserListItem>[] = [
   {

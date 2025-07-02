@@ -108,15 +108,6 @@ export interface BaseListItem {
   updatedAt?: Date | string;
 }
 
-export interface OrganizationPageHeaderProps {
-  mode: "create" | "edit" | "view";
-  organizationName?: string;
-  onSave?: () => void;
-  isLoading?: boolean;
-  showBackButton?: boolean;
-  backUrl?: string;
-}
-
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {

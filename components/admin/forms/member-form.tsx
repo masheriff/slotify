@@ -37,8 +37,8 @@ import {
   getMemberById,
   updateMemberRole,
   inviteUserToOrganization,
-} from "@/actions/member-actions";
-import { getOrganizationById } from "@/actions/organization-actions";
+} from "@/actions/member.actions";
+import { getOrganizationById } from "@/actions/organization.actions";
 import {
   getErrorMessage,
   ServerActionResponse,

@@ -1,4 +1,4 @@
-import { handlePostAuthRouting } from "@/actions/auth-routing-actions";
+import { handlePostAuthRouting } from "@/actions/auth-routing.actions";
 
 export default async function AuthCallbackPage() {
   console.log("📍 Auth callback page accessed");

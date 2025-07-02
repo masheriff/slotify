@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 import {
   sendMagicLinkEmail,
   sendOrganizationInvitationEmail,
-} from "@/actions/email-actions";
+} from "@/actions/email.actions";
 import {
   accounts,
   invitations,
@@ -27,7 +27,7 @@ import {
 } from "@/db/schema";
 import { nextCookies } from "better-auth/next-js";
 import { ac, healthcareRoles } from "./permissions/healthcare-access-control";
-import { checkUserHasActiveOrganization, getUserOrganizationInfo } from "./utils/auth-middleware-utils";
+import { checkUserHasActiveOrganization, getUserOrganizationInfo } from "../utils/auth-middleware.utils";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {

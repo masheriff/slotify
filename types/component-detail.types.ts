@@ -3,48 +3,7 @@
 import { ReactNode } from 'react';
 import { Organization } from '@/types/organization.types';
 import { BreadcrumbItem } from './component.types';
-
-// Member details component props
-export interface MemberDetailsContentProps {
-  member: MemberDetails;
-  organization: Organization;
-  organizationId: string;
-  memberId: string;
-}
-
-// Member details data structure (from getMemberById)
-export interface MemberDetails {
-  id: string;
-  userId: string;
-  organizationId: string;
-  role: string;
-  createdAt: Date | string;
-  user: {
-    id: string;
-    name: string | null;
-    email: string;
-    image: string | null;
-    emailVerified: boolean;
-    createdAt: Date | string;
-    updatedAt: Date | string | null;
-    banned: boolean | null;
-    banReason: string | null;
-    banExpires: Date | string | null;
-  };
-  organization: {
-    id: string;
-    name: string;
-    slug: string | null;
-  };
-}
-
-// Organization details component props
-export interface OrganizationDetailsContentProps {
-  organization: Organization;
-  organizationId: string;
-  memberCount?: number;
-  recentActivity?: ActivityItem[];
-}
+import { MemberDetails } from './member.types';
 
 // Activity item for organization details
 export interface ActivityItem {

@@ -34,7 +34,7 @@ import {
   ADMIN_ORG_ROLES,
   CLIENT_ORG_ROLES 
 } from '@/types/users.types';
-import { getRolesByOrganizationType, getRoleLabel, getOrganizationTypeLabel } from '@/lib/utils/users-utils';
+import { getRolesByOrganizationType, getRoleLabel, getOrganizationTypeLabel } from '@/utils';
 
 export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps) {
   const [isLoading, setIsLoading] = useState(false);

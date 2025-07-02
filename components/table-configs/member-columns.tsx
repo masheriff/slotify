@@ -23,7 +23,7 @@ import {
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import { getMemberRoleLabel, MemberListItem } from "@/types/member.types";
-import { removeMemberFromOrganization } from "@/actions/member-actions";
+import { removeMemberFromOrganization } from "@/actions/member.actions";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/types";
 import {
@@ -32,7 +32,7 @@ import {
   getMemberRoleColor,
   getMemberStatusColor,
   getMemberStatusLabel,
-} from "@/lib/utils/member-utils";
+} from "@/utils/member.utils";
 
 // Actions Cell Component with Navigation
 function MemberActionsCell({ member }: { member: MemberListItem }) {

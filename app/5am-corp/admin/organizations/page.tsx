@@ -10,7 +10,7 @@ import { FilterablePageHeader } from "@/components/common/filterable-page-header
 import { DataTable } from "@/components/common/data-table";
 import { organizationColumns } from "@/components/table-configs/organization-columns";
 import { organizationFilterConfig } from "@/components/admin/forms/organization-filters-config";
-import { listOrganizations } from "@/actions/organization-actions";
+import { listOrganizations } from "@/actions/organization.actions";
 import { getCurrentUser } from "@/lib/auth-server";
 import { Organization } from "@/types";
 import { OrganizationsPageProps } from "@/types/page.types";

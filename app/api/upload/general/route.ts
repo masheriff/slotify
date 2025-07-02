@@ -1,6 +1,6 @@
 // app/api/upload/general/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { uploadGeneralFile } from "@/actions/file-upload-actions"
+import { uploadGeneralFile } from "@/actions/file-upload.actions"
 
 export async function POST(request: NextRequest) {
   try {

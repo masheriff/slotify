@@ -23,7 +23,7 @@ import {
   getOrganizationStatusLabel,
   getOrganizationTypeColor,
   getOrganizationTypeLabel,
-} from "@/lib/utils/organization-utils";
+} from "@/utils/organization.utils";
 import Image from "next/image";
 
 // Actions Cell Component with Navigation

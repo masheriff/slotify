@@ -5,7 +5,7 @@ import { emailSender } from "@/lib/email/email-sender";
 import {
   formatRecipientName,
   sanitizeEmailContent,
-} from "@/lib/utils/email-utils";
+} from "@/utils/email.utils";
 import { welcomeEmailSchema, notificationEmailSchema, bulkNotificationSchema, magicLinkEmailSchema, organizationInvitationEmailSchema } from "@/schemas";
 import { EmailSendResult } from "@/types/email.types";
 

@@ -39,12 +39,6 @@ export function getRoleLabel(role: UserRole): string {
   return roleLabels[role] || role;
 }
 
-/**
- * Get organization type label
- */
-export function getOrganizationTypeLabel(type: 'admin' | 'client'): string {
-  return type === 'admin' ? 'Admin Organization' : 'Client Organization';
-}
 
 /**
  * Check if a role is an admin organization role

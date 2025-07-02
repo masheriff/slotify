@@ -1,5 +1,5 @@
 // app/admin/organizations/[id]/page.tsx
-import { getOrganizationById } from "@/actions/organization-actions";
+import { getOrganizationById } from "@/actions/organization.actions";
 import { OrganizationDetailsContent } from "@/components/admin/organization/organization-details-content";
 import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
 import { getErrorMessage, OrganizationDetailsPageProps } from "@/types";

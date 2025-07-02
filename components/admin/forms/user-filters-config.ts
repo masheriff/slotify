@@ -1,7 +1,7 @@
 // components/admin/forms/user-filters-config.ts
 import { FilterConfig } from "@/types/component.types";
 import { ADMIN_ORG_ROLES, CLIENT_ORG_ROLES } from "@/types/users.types";
-import { getRoleLabel } from "@/lib/utils/users-utils";
+import { getRoleLabel } from "@/utils/users.utils";
 
 export const userFilterConfig: FilterConfig[] = [
   {

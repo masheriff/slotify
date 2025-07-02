@@ -39,8 +39,8 @@ import {
   createOrganization,
   updateOrganization,
   getOrganizationById,
-} from "@/actions/organization-actions";
-import { deleteFile } from "@/actions/file-upload-actions";
+} from "@/actions/organization.actions";
+import { deleteFile } from "@/actions/file-upload.actions";
 import {
   getErrorMessage,
   ServerActionError,

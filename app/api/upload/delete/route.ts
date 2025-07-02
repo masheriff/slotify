@@ -1,6 +1,6 @@
 // app/api/upload/delete/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { deleteFile } from "@/actions/file-upload-actions"
+import { deleteFile } from "@/actions/file-upload.actions"
 
 export async function DELETE(request: NextRequest) {
   try {

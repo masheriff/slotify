@@ -1,6 +1,6 @@
 // app/api/upload/organization-logo/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { uploadOrganizationLogo } from "@/actions/file-upload-actions"
+import { uploadOrganizationLogo } from "@/actions/file-upload.actions"
 
 export async function POST(request: NextRequest) {
   try {

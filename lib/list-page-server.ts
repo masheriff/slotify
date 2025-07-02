@@ -4,10 +4,10 @@ import { redirect } from "next/navigation";
 import { ListDataResult, ListParams, ListPageConfig } from "@/types/list-page.types";
 
 /**
- * Parse and validate search parameters for list pages
+ * Parse and validate search parameters for list pages - FIXED VERSION
  */
 export async function parseListParams(
-  searchParams: Promise<Record<string, string | undefined>> | Record<string, string | undefined>,
+  searchParams: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>,
   config: ListPageConfig = {}
 ): Promise<ListParams> {
   const {
@@ -20,23 +20,31 @@ export async function parseListParams(
   } = config;
 
   // Handle both Promise and direct object
-  const params = await Promise.resolve(searchParams);
+  const rawParams = await Promise.resolve(searchParams);
+  
+  // Helper function to extract string value from searchParams
+  const getStringParam = (value: string | string[] | undefined): string | undefined => {
+    if (Array.isArray(value)) {
+      return value[0]; // Take first value if array
+    }
+    return value;
+  };
   
   // Parse page with bounds checking
-  const page = Math.max(1, parseInt(params.page || '1', 10));
+  const page = Math.max(1, parseInt(getStringParam(rawParams.page) || '1', 10));
   
   // Parse page size with bounds checking
   const pageSize = Math.min(
     maxPageSize,
-    Math.max(1, parseInt(params.pageSize || defaultPageSize.toString(), 10))
+    Math.max(1, parseInt(getStringParam(rawParams.pageSize) || defaultPageSize.toString(), 10))
   );
   
   // Parse search query
-  const searchQuery = (params.search || '').trim();
+  const searchQuery = (getStringParam(rawParams.search) || '').trim();
   
   // Parse and validate sort parameters
-  let sortBy = params.sortBy || defaultSort;
-  let sortDirection = (params.sortDirection || defaultSortDirection) as 'asc' | 'desc';
+  let sortBy = getStringParam(rawParams.sortBy) || defaultSort;
+  let sortDirection = (getStringParam(rawParams.sortDirection) || defaultSortDirection) as 'asc' | 'desc';
   
   // Validate sort column if allowedSortColumns is specified
   if (allowedSortColumns.length > 0 && !allowedSortColumns.includes(sortBy)) {
@@ -51,14 +59,15 @@ export async function parseListParams(
   
   // Parse filters - only include non-empty values
   const filters: Record<string, string> = {};
-  Object.entries(params).forEach(([key, value]) => {
+  Object.entries(rawParams).forEach(([key, value]) => {
     // Skip standard pagination/search/sort params
     if (['page', 'pageSize', 'search', 'sortBy', 'sortDirection'].includes(key)) {
       return;
     }
     
-    if (value && value.trim()) {
-      filters[key] = value.trim();
+    const stringValue = getStringParam(value);
+    if (stringValue && stringValue.trim()) {
+      filters[key] = stringValue.trim();
     }
   });
   
@@ -76,6 +85,26 @@ export async function parseListParams(
     sortDirection,
     filters,
   };
+}
+
+// Alternative helper function for easier migration:
+/**
+ * Convert Next.js 15 searchParams to compatible format
+ */
+export function normalizeSearchParams(
+  searchParams: Record<string, string | string[] | undefined>
+): Record<string, string | undefined> {
+  const normalized: Record<string, string | undefined> = {};
+  
+  Object.entries(searchParams).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      normalized[key] = value[0]; // Take first value
+    } else {
+      normalized[key] = value;
+    }
+  });
+  
+  return normalized;
 }
 
 /**

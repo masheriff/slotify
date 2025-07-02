@@ -1,12 +1,9 @@
 // schemas/users.schemas.ts
 import { z } from 'zod';
 import { ADMIN_ORG_ROLES, CLIENT_ORG_ROLES } from '@/types/users.types';
+import { emailSchema } from './email.schemas';
 
 // Base schemas
-export const emailSchema = z
-  .string()
-  .min(1, 'Email is required')
-  .email('Please enter a valid email address');
 
 export const nameSchema = z
   .string()
