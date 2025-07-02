@@ -594,17 +594,21 @@ export async function unbanUser(userId: string): Promise<ServerActionResponse> {
 }
 
 /**
- * Impersonate a user (Super Admin only) - FIXED RETURN TYPES
+ * Impersonate a user - COMPLETED IMPLEMENTATION
  */
-export async function impersonateUser(userId: string): Promise<ServerActionResponse> {
+export async function impersonateUser(formData: FormData): Promise<ServerActionResponse<{ impersonatedUserId: string }>> {
   try {
-    console.log("👤 Impersonating user");
+    console.log("🔄 Starting user impersonation process");
+
+    // Validate input
+    const validatedData = userImpersonateSchema.parse({
+      id: formData.get('id'),
+    });
 
     const currentUser = await getCurrentUser();
-    
-    const validatedData = userImpersonateSchema.parse({ id: userId });
+    console.log("👤 Current user attempting impersonation:", currentUser.email);
 
-    // Get target user
+    // Get target user details
     const [targetUser] = await db
       .select()
       .from(users)
@@ -634,10 +638,24 @@ export async function impersonateUser(userId: string): Promise<ServerActionRespo
       };
     }
 
-    // TODO: Implement Better Auth impersonation
-    // This would typically involve creating a new session with impersonatedBy field
-    
-    console.log("✅ User impersonation initiated");
+    // IMPLEMENTATION: Use Better Auth impersonation API
+    const impersonationResult = await auth.api.impersonateUser({
+      body: { userId: targetUser.id },
+      headers: await headers()
+    });
+
+    if (!impersonationResult) {
+      return {
+        success: false,
+        error: 'Failed to start impersonation session',
+      };
+    }
+
+    console.log("✅ User impersonation successful:", {
+      originalUser: currentUser.email,
+      targetUser: targetUser.email,
+      targetUserId: targetUser.id
+    });
 
     return {
       success: true,
