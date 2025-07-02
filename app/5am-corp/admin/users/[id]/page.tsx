@@ -1,4 +1,4 @@
-// app/5am-corp/admin/users/[userId]/page.tsx
+// app/5am-corp/admin/users/[id]/page.tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ListPageWrapper } from "@/components/common/list-page-wrapper";
@@ -9,13 +9,15 @@ import { getUserById } from "@/actions/users.actions";
 
 interface UserDetailsPageProps {
   params: {
-    userId: string;
+    // FIXED: Changed from userId to id to match folder structure [id]
+    id: string;
   };
 }
 
 export async function generateMetadata({ params }: UserDetailsPageProps): Promise<Metadata> {
   try {
-    const result = await getUserById(params.userId);
+    // FIXED: Use params.id instead of params.userId
+    const result = await getUserById(params.id);
     
     if (result.success && result.data) {
       return {
@@ -52,11 +54,12 @@ export default async function UserDetailsPage({ params }: UserDetailsPageProps) 
       );
     }
 
-    // Get user data
-    const result = await getUserById(params.userId);
+    // Get user data - FIXED: Use params.id instead of params.userId
+    const result = await getUserById(params.id);
     
     if (!result.success || !result.data) {
-      console.error("User not found:", params.userId);
+      // FIXED: Log the correct parameter name
+      console.error("User not found:", params.id);
       notFound();
     }
 
@@ -70,14 +73,15 @@ export default async function UserDetailsPage({ params }: UserDetailsPageProps) 
           { label: userData.name ?? "Unknown User", current: true },
         ]}
       >
+        {/* FIXED: Pass params.id instead of params.userId */}
         <UserDetailsContent 
           user={userData}
-          userId={params.userId}
+          userId={params.id}
         />
       </ListPageWrapper>
     );
   } catch (error) {
-    console.error("❌ [users/[userId]] Page render error:", error);
+    console.error("❌ [users/[id]] Page render error:", error);
 
     return (
       <ListPageWrapper

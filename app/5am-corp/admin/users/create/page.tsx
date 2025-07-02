@@ -38,12 +38,8 @@ export default async function CreateUserPage() {
         ]}
       >
         <div className="max-w-4xl mx-auto">
-          <UserForm 
-            mode="create" 
-            onSuccess={() => {
-              // Redirect will be handled by the form component
-            }}
-          />
+          {/* FIXED: Removed onSuccess prop to avoid Server Component -> Client Component function passing */}
+          <UserForm mode="create" />
         </div>
       </ListPageWrapper>
     );

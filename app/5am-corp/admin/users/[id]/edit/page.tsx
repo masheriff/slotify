@@ -1,4 +1,4 @@
-// app/5am-corp/admin/users/[userId]/edit/page.tsx
+// app/5am-corp/admin/users/[id]/edit/page.tsx
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ListPageWrapper } from "@/components/common/list-page-wrapper";
@@ -9,13 +9,15 @@ import { getUserById } from "@/actions/users.actions";
 
 interface EditUserPageProps {
   params: {
-    userId: string;
+    // FIXED: Changed from userId to id to match folder structure [id]
+    id: string;
   };
 }
 
 export async function generateMetadata({ params }: EditUserPageProps): Promise<Metadata> {
   try {
-    const result = await getUserById(params.userId);
+    // FIXED: Use params.id instead of params.userId
+    const result = await getUserById(params.id);
     
     if (result.success && result.data) {
       return {
@@ -52,11 +54,12 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
       );
     }
 
-    // Get user data
-    const result = await getUserById(params.userId);
+    // Get user data - FIXED: Use params.id instead of params.userId
+    const result = await getUserById(params.id);
     
     if (!result.success || !result.data) {
-      console.error("User not found:", params.userId);
+      // FIXED: Log the correct parameter name
+      console.error("User not found:", params.id);
       notFound();
     }
 
@@ -67,23 +70,22 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
         breadcrumbs={[
           { label: "Admin", href: "/5am-corp/admin" },
           { label: "Users", href: "/5am-corp/admin/users" },
-          { label: userData.name ?? "Unknown User", href: `/5am-corp/admin/users/${params.userId}` },
+          // FIXED: Use params.id in the breadcrumb link
+          { label: userData.name ?? "Unknown User", href: `/5am-corp/admin/users/${params.id}` },
           { label: "Edit", current: true },
         ]}
       >
         <div className="max-w-4xl mx-auto">
+          {/* FIXED: Removed onSuccess prop and use params.id */}
           <UserForm 
             mode="edit" 
-            userId={params.userId}
-            onSuccess={() => {
-              // Redirect will be handled by the form component
-            }}
+            userId={params.id}
           />
         </div>
       </ListPageWrapper>
     );
   } catch (error) {
-    console.error("❌ [users/[userId]/edit] Page render error:", error);
+    console.error("❌ [users/[id]/edit] Page render error:", error);
 
     return (
       <ListPageWrapper

@@ -46,7 +46,15 @@ import {
 import { getRoleLabel, getRolesByOrganizationType } from '@/utils/users.utils';
 import { getOrganizationTypeLabel } from '@/utils/organization.utils';
 
-export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps) {
+// FIXED: Updated props interface to make onSuccess optional
+interface UserFormPropsFixed {
+  mode: 'create' | 'edit';
+  userId?: string;
+  onSuccess?: () => void; // Made optional
+  initialData?: UserFormInput;
+}
+
+export function UserForm({ mode, userId, onSuccess, initialData }: UserFormPropsFixed) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [organizations, setOrganizations] = useState<OrganizationWithType[]>([]);
@@ -151,10 +159,11 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
       if (result.success) {
         toast.success(result.message);
         
+        // FIXED: Check if onSuccess is provided before calling it
         if (onSuccess) {
           onSuccess();
         } else {
-          // Navigate back to users list or to user details
+          // Default navigation behavior when no onSuccess callback is provided
           if (mode === 'create') {
             router.push('/5am-corp/admin/users');
           } else {
@@ -197,99 +206,93 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
         <CardDescription>
           {mode === 'create' 
             ? 'Add a new user to the system with the appropriate role and organization access.'
-            : 'Update user information and access permissions.'
-          }
+            : 'Update user information and permissions.'}
         </CardDescription>
       </CardHeader>
+      
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Basic Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Basic Information</h3>
-              
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Full Name</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Enter full name" 
-                        {...field} 
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email Address</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="email"
-                        placeholder="user@example.com" 
-                        {...field} 
-                        disabled={isLoading}
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      This will be used for login and system notifications.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            {/* Organization & Role */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Organization & Access</h3>
-              
-              <FormField
-                control={form.control}
-                name="organizationId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Organization</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value}
+            {/* User Name */}
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Enter user's full name" 
+                      {...field}
                       disabled={isLoading}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an organization" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {organizations.map((org) => (
-                          <SelectItem key={org.id} value={org.id}>
-                            <div className="flex flex-col">
-                              <span>{org.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {getOrganizationTypeLabel(org.metadata.type)}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      The organization this user will have access to.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    The user's display name in the system.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
+            {/* Email */}
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="email" 
+                      placeholder="user@example.com" 
+                      {...field}
+                      disabled={isLoading}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    This email will be used for login and notifications.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Organization */}
+            <FormField
+              control={form.control}
+              name="organizationId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Organization</FormLabel>
+                  <Select 
+                    onValueChange={field.onChange} 
+                    defaultValue={field.value}
+                    disabled={isLoading}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an organization" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {organizations.map((org) => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name} ({getOrganizationTypeLabel(org.metadata.type)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    The organization this user will belong to.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Role */}
+            <div className="space-y-4">
               <FormField
                 control={form.control}
                 name="role"
@@ -298,7 +301,7 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
                     <FormLabel>Role</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      value={field.value}
+                      defaultValue={field.value}
                       disabled={isLoading || !selectedOrgType}
                     >
                       <FormControl>
@@ -355,6 +358,7 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
                 type="button" 
                 variant="outline" 
                 onClick={() => {
+                  // FIXED: Check if onSuccess exists before calling, otherwise use router.back()
                   if (onSuccess) {
                     onSuccess();
                   } else {
