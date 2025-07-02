@@ -194,7 +194,7 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
           setSelectedOrgType(null);
         }
       } else {
-        console.error('Form submission failed:', result.error);
+        // console.error('Form submission failed:', result.error);
         toast.error(getErrorMessage(result.message || result.error || 'Failed to save user'));
       }
     } catch (error) {

@@ -29,6 +29,8 @@ import {
   canImpersonateUser as canImpersonateUserUtil,
 } from '@/utils/users.utils';
 import { OrganizationMetadata } from '@/types/organization.types';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
 
 /**
  * Get current user with role validation
@@ -215,7 +217,7 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
 }
 
 /**
- * Create a new user - FIXED RETURN TYPES
+ * Create a new user - UPDATED WITH MAGIC LINK
  */
 export async function createUser(formData: FormData): Promise<ServerActionResponse> {
   try {
@@ -282,6 +284,25 @@ export async function createUser(formData: FormData): Promise<ServerActionRespon
       role: validatedData.role,
       createdAt: new Date(),
     });
+
+    // Send magic link for sign in
+    try {
+      console.log("📧 Sending magic link to new user:", validatedData.email);
+      
+      await auth.api.signInMagicLink({
+        body: {
+          email: validatedData.email,
+          callbackURL: "/auth/callback", // Redirect to dashboard after successful login
+        },
+        headers: await headers()
+      });
+
+      console.log("✅ Magic link sent successfully to:", validatedData.email);
+    } catch (magicLinkError) {
+      console.error("❌ Error sending magic link:", magicLinkError);
+      // Note: We still consider user creation successful even if magic link fails
+      // The user exists and can request a new magic link later
+    }
 
     revalidatePath('/5am-corp/admin/users');
     
