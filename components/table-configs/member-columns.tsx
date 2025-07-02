@@ -56,7 +56,11 @@ function MemberActionsCell({ member }: { member: MemberListItem }) {
   const handleRemoveMember = async () => {
     if (
       !confirm(
-        `Are you sure you want to remove ${member.user.name || member.user.email} from this organization?`
+        `Are you sure you want to remove ${
+          member.user
+            ? member.user.name || member.user.email
+            : "this member"
+        } from this organization?`
       )
     ) {
       return;
@@ -114,36 +118,60 @@ function MemberActionsCell({ member }: { member: MemberListItem }) {
 // ✅ UPDATED TO USE MEMBERLISTITEM DOMAIN TYPE
 export const memberColumns: ColumnDef<MemberListItem>[] = [
   // User Info (Avatar, Name, Email)
-  {
-    id: "user",
-    header: "Member",
+    {
+    id: "avatar",
+    header: "Avatar",
+    enableSorting: false,
     cell: ({ row }) => {
       const member = row.original;
       const user = member.user;
-      const initials = user.name
+      const initials = user && user.name
         ? user.name
             .split(" ")
             .map((n) => n[0])
             .join("")
             .slice(0, 2)
             .toUpperCase()
-        : user.email.slice(0, 2).toUpperCase();
+        : user && user.email
+        ? user.email.slice(0, 2).toUpperCase()
+        : "";
 
       return (
-        <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
             <AvatarImage
-              src={user.image || undefined}
-              alt={user.name || user.email}
+              src={user?.image || undefined}
+              alt={user?.name || user?.email || ""}
             />
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
+      );
+    },
+  },
+  {
+    id: "user",
+    header: "Member",
+    cell: ({ row }) => {
+      const member = row.original;
+      const user = member.user;
+      const initials = user && user.name
+        ? user.name
+            .split(" ")
+            .map((n) => n[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase()
+        : user && user.email
+        ? user.email.slice(0, 2).toUpperCase()
+        : "";
+
+      return (
+        <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <div className="font-medium text-sm truncate">
-              {user.name || "No name"}
+              {user?.name || "No name"}
             </div>
             <div className="text-xs text-muted-foreground truncate">
-              {user.email}
+              {user?.email ?? ""}
             </div>
           </div>
         </div>
@@ -188,7 +216,7 @@ export const memberColumns: ColumnDef<MemberListItem>[] = [
     header: "Email Verified",
     cell: ({ row }) => {
       const member = row.original;
-      const isVerified = member.user.emailVerified;
+      const isVerified = member.user?.emailVerified ?? false;
 
       return (
         <Badge className={getMemberEmailVerifiedColor(isVerified)}>

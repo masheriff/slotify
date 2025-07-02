@@ -219,21 +219,21 @@ export function getUserStatus(user: ExtendedUser | UserListItem): {
       return {
         status: 'active',
         label: 'Active (Ban Expired)',
-        className: 'bg-yellow-100 text-yellow-800',
+        className: 'border-yellow-200 bg-yellow-50 text-yellow-700800',
       };
     }
     
     return {
       status: 'banned',
       label: user.banExpires ? 'Temporarily Banned' : 'Banned',
-      className: 'bg-red-100 text-red-800',
+      className: 'border-red-200 bg-red-50 text-red-700',
     };
   }
 
   return {
     status: 'active',
     label: 'Active',
-    className: 'bg-green-100 text-green-800',
+    className: 'border-green-200 bg-green-50 text-green-700',
   };
 }
 

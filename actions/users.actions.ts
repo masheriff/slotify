@@ -155,6 +155,7 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
         
         userMap.set(row.user.id, {
           id: row.user.id,
+          image:row.user.image,
           name: row.user.name,
           email: row.user.email,
           role: row.user.role,
@@ -681,6 +682,7 @@ export async function getUserById(userId: string): Promise<ServerActionResponse<
     
     const user: UserListItem = {
       id: result.user.id,
+      image: result.user.image,
       name: result.user.name,
       email: result.user.email,
       role: result.user.role,

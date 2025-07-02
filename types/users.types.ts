@@ -23,6 +23,7 @@ export type UserRole = AdminOrgRole | ClientOrgRole;
 // User List Item for data tables (matches other modules pattern)
 export interface UserListItem {
   id: string;
+  image: string | null;
   name: string | null;
   email: string;
   role: string | null;
