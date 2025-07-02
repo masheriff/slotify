@@ -9,6 +9,9 @@ export type ServerActionError =
   | Array<string>
 
 export interface ServerActionResponse<T = any> {
+  email: string;
+  name: string;
+  organizations: any;
   success: boolean
   error?: ServerActionError
   data?: T

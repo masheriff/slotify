@@ -19,3 +19,4 @@ export * from './page.types';
 export * from './component.types';
 export * from './form.types';
 export * from './dialog.types';
+export * from './users.types'
