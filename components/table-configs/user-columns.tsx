@@ -2,7 +2,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { MoreHorizontal, Edit, Ban, UserCheck, User } from "lucide-react";
+import { MoreHorizontal, Edit, Ban, UserCheck, User, Eye } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -166,6 +166,12 @@ export const userColumns: ColumnDef<UserListItem>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href={`/5am-corp/admin/users/${user.id}`}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  View User
+                </Link>
+              </DropdownMenuItem>
             {canEdit && (
               <DropdownMenuItem asChild>
                 <Link href={`/5am-corp/admin/users/${user.id}/edit`}>
@@ -177,7 +183,7 @@ export const userColumns: ColumnDef<UserListItem>[] = [
 
             {canBan && userStatus.status === "active" && (
               <DropdownMenuItem className="text-destructive focus:text-destructive">
-                <Ban className="mr-2 h-4 w-4" />
+                <Ban className="text-destructive mr-2 h-4 w-4" />
                 Ban User
               </DropdownMenuItem>
             )}
@@ -193,7 +199,7 @@ export const userColumns: ColumnDef<UserListItem>[] = [
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-orange-600 focus:text-orange-600">
-                  <User className="mr-2 h-4 w-4" />
+                  <User className="text-orange-600 mr-2 h-4 w-4" />
                   Impersonate User
                 </DropdownMenuItem>
               </>

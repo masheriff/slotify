@@ -22,11 +22,15 @@ import {
   UserCheck,
   Eye,
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { UserListItem, UserRole } from "@/types/users.types";
-import { getRoleLabel } from "@/utils/users.utils";
-import { getOrganizationTypeLabel } from "@/utils/organization.utils";
+import { getRoleLabel, getUserStatus } from "@/utils/users.utils";
+import {
+  getOrganizationTypeColor,
+  getOrganizationTypeLabel,
+} from "@/utils/organization.utils";
+import { getMemberRoleColor } from "@/utils/member.utils";
 
 interface UserDetailsContentProps {
   user: UserListItem;
@@ -34,6 +38,7 @@ interface UserDetailsContentProps {
 }
 
 export function UserDetailsContent({ user, userId }: UserDetailsContentProps) {
+  const userStatus = getUserStatus(user);
   const router = useRouter();
 
   const handleEdit = () => {
@@ -46,24 +51,6 @@ export function UserDetailsContent({ user, userId }: UserDetailsContentProps) {
     }
   };
 
-  const getUserStatusColor = (banned: boolean | null) => {
-    return banned 
-      ? "bg-red-100 text-red-800 border-red-200" 
-      : "bg-green-100 text-green-800 border-green-200";
-  };
-
-  const getUserStatusLabel = (banned: boolean | null) => {
-    return banned ? "Banned" : "Active";
-  };
-
-  const getRoleColor = (role: string | null) => {
-    if (role === "system_admin") return "bg-purple-100 text-purple-800 border-purple-200";
-    if (role === "five_am_admin") return "bg-blue-100 text-blue-800 border-blue-200";
-    if (role === "five_am_agent") return "bg-cyan-100 text-cyan-800 border-cyan-200";
-    if (role === "client_admin") return "bg-orange-100 text-orange-800 border-orange-200";
-    return "bg-gray-100 text-gray-800 border-gray-200";
-  };
-
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -72,25 +59,27 @@ export function UserDetailsContent({ user, userId }: UserDetailsContentProps) {
           <Avatar className="h-12 w-12">
             <AvatarImage src={user.image || ""} alt={user.name ?? undefined} />
             <AvatarFallback>
-              {(user.name ?? "").split(' ').map(n => n[0]).join('').toUpperCase()}
+              {(user.name ?? "")
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {user.name}
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">{user.name}</h1>
             <div className="flex items-center gap-2 mt-1">
-              <Badge className={getRoleColor(user.role)}>
+              <Badge className={getMemberRoleColor(user.role ?? "")}>
                 <Shield className="h-3 w-3 mr-1" />
                 {getRoleLabel(user.role as UserRole)}
               </Badge>
-              <Badge className={getUserStatusColor(user.banned)}>
-                {user.banned ? (
+              <Badge className={userStatus.className}>
+                {userStatus.status === "banned" ? (
                   <Ban className="h-3 w-3 mr-1" />
                 ) : (
                   <UserCheck className="h-3 w-3 mr-1" />
                 )}
-                {getUserStatusLabel(user.banned)}
+                {userStatus.label}
               </Badge>
             </div>
           </div>
@@ -121,33 +110,33 @@ export function UserDetailsContent({ user, userId }: UserDetailsContentProps) {
         <Card>
           <CardHeader>
             <CardTitle>Basic Information</CardTitle>
-            <CardDescription>
-              Core details about the user
-            </CardDescription>
+            <CardDescription>Core details about the user</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-start gap-2">
+                <Mail className="h-4 w-4 mt-[2px] text-muted-foreground" />
                 <div>
                   <p className="font-medium">Email</p>
                   <p className="text-muted-foreground">{user.email}</p>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-2">
-                <User className="h-4 w-4 text-muted-foreground" />
+
+              <div className="flex items-start gap-2">
+                <User className="h-4 w-4  mt-[2px] text-muted-foreground" />
                 <div>
                   <p className="font-medium">Full Name</p>
                   <p className="text-muted-foreground">{user.name}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-start gap-2">
+                <Shield className="h-4 w-4  mt-[2px] text-muted-foreground" />
                 <div>
                   <p className="font-medium">Role</p>
-                  <p className="text-muted-foreground">{getRoleLabel(user.role as UserRole)}</p>
+                  <Badge className={getMemberRoleColor(user.role ?? "")}>
+                    {getRoleLabel(user.role as UserRole)}
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -165,17 +154,21 @@ export function UserDetailsContent({ user, userId }: UserDetailsContentProps) {
           <CardContent className="space-y-4">
             {user.organization ? (
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Building className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-start gap-2">
+                  <Building className="h-4 w-4  mt-[5px] text-muted-foreground" />
                   <div>
                     <p className="font-medium">Organization</p>
-                    <p className="text-muted-foreground">{user.organization.name}</p>
+                    <p className="text-muted-foreground">
+                      {user.organization.name}
+                    </p>
                   </div>
                 </div>
-                
+
                 <div>
                   <p className="font-medium">Organization Type</p>
-                  <Badge variant="outline" className="mt-1">
+                  <Badge
+                    className={getOrganizationTypeColor(user.organization.type)}
+                  >
                     {getOrganizationTypeLabel(user.organization.type)}
                   </Badge>
                 </div>
@@ -184,6 +177,9 @@ export function UserDetailsContent({ user, userId }: UserDetailsContentProps) {
                   <div>
                     <p className="font-medium">Member Since</p>
                     <p className="text-muted-foreground">
+                      {format(new Date(user.member.createdAt), "MMM dd, yyyy")}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
                       {formatDistanceToNow(new Date(user.member.createdAt), {
                         addSuffix: true,
                       })}
@@ -212,18 +208,20 @@ export function UserDetailsContent({ user, userId }: UserDetailsContentProps) {
             <div className="space-y-3">
               <div>
                 <p className="font-medium">Account Status</p>
-                <Badge className={getUserStatusColor(user.banned)}>
-                  {getUserStatusLabel(user.banned)}
+                <Badge className={userStatus.className}>
+                  {userStatus.label}
                 </Badge>
               </div>
-              
+
               {user.banned && user.banReason && (
                 <div>
                   <p className="font-medium">Ban Reason</p>
-                  <p className="text-muted-foreground text-sm">{user.banReason}</p>
+                  <p className="text-muted-foreground text-sm">
+                    {user.banReason}
+                  </p>
                 </div>
               )}
-              
+
               {user.banned && user.banExpires && (
                 <div>
                   <p className="font-medium">Ban Expires</p>
@@ -248,10 +246,13 @@ export function UserDetailsContent({ user, userId }: UserDetailsContentProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+              <div className="flex items-start gap-2">
+                <Calendar className="h-4 w-4 mt-[5px] text-muted-foreground" />
                 <div>
                   <p className="font-medium">Created</p>
+                  <p className="text-muted-foreground">
+                    {format(new Date(user.createdAt), "MMM dd, yyyy")}
+                  </p>
                   <p className="text-muted-foreground text-sm">
                     {formatDistanceToNow(new Date(user.createdAt), {
                       addSuffix: true,
@@ -259,12 +260,15 @@ export function UserDetailsContent({ user, userId }: UserDetailsContentProps) {
                   </p>
                 </div>
               </div>
-              
+
               {user.updatedAt && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                <div className="flex items-start gap-2">
+                  <Calendar className="h-4 w-4 mt-[5px] text-muted-foreground" />
                   <div>
                     <p className="font-medium">Last Updated</p>
+                    <p className="text-muted-foreground">
+                      {format(new Date(user.updatedAt), "MMM dd, yyyy")}
+                    </p>
                     <p className="text-muted-foreground text-sm">
                       {formatDistanceToNow(new Date(user.updatedAt), {
                         addSuffix: true,

@@ -1,4 +1,4 @@
-// components/admin/forms/user-form.tsx
+// components/admin/forms/user-form.tsx - FIXED VERSION
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -45,18 +45,19 @@ import {
 } from '@/types/users.types';
 import { getRoleLabel, getRolesByOrganizationType } from '@/utils/users.utils';
 import { getOrganizationTypeLabel } from '@/utils/organization.utils';
+import { getErrorMessage } from "@/types";
 
-// FIXED: Updated props interface to make onSuccess optional
 interface UserFormPropsFixed {
   mode: 'create' | 'edit';
   userId?: string;
-  onSuccess?: () => void; // Made optional
+  onSuccess?: () => void;
   initialData?: UserFormInput;
 }
 
 export function UserForm({ mode, userId, onSuccess, initialData }: UserFormPropsFixed) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [organizations, setOrganizations] = useState<OrganizationWithType[]>([]);
   const [selectedOrgType, setSelectedOrgType] = useState<'admin' | 'client' | null>(null);
 
@@ -79,6 +80,7 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
         const orgs = await getOrganizationsForUserCreation();
         setOrganizations(orgs as unknown as OrganizationWithType[]);
       } catch (error) {
+        console.error('Error loading organizations:', error);
         toast.error('Failed to load organizations');
       }
     }
@@ -86,16 +88,18 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
     loadOrganizations();
   }, []);
 
-  // Load user data for edit mode
+  // FIXED: Load user data for edit mode with proper organization type setting
   useEffect(() => {
     if (mode === 'edit' && userId) {
       async function loadUser() {
+        setIsLoadingUser(true);
         try {
           const result = await getUserById(userId as string);
           if (result.success && result.data) {
             const userData = result.data;
+            console.log('Loaded user data:', userData);
             
-            // Set form values
+            // FIXED: Set form values properly
             form.reset({
               name: userData.name || '',
               email: userData.email || '',
@@ -103,15 +107,21 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
               role: userData.role as any,
             });
 
-            // Set selected organization type
+            // FIXED: Set selected organization type after form is populated
             if (userData.organization) {
-              setSelectedOrgType(userData.organization.type);
+              const orgType = userData.organization.type;
+              console.log('Setting organization type:', orgType);
+              setSelectedOrgType(orgType);
             }
           } else {
+            console.error('Failed to load user:', result.error);
             toast.error('Failed to load user data');
           }
         } catch (error) {
+          console.error('Error loading user:', error);
           toast.error('Failed to load user data');
+        } finally {
+          setIsLoadingUser(false);
         }
       }
 
@@ -121,26 +131,34 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
     }
   }, [mode, userId, initialData, form]);
 
-  // Update selected organization type when organization changes
+  // FIXED: Update selected organization type when organization changes
   useEffect(() => {
-    if (watchedOrganizationId) {
+    if (watchedOrganizationId && organizations.length > 0) {
       const selectedOrg = organizations.find(org => org.id === watchedOrganizationId);
       if (selectedOrg) {
-        const orgType = selectedOrg.metadata.type;
+        const orgType = selectedOrg.metadata?.type || selectedOrg.metadata.type;
+        console.log('Organization changed, setting type:', orgType);
         setSelectedOrgType(orgType);
-        // Reset role when organization changes
+        
+        // FIXED: Only reset role if this is not during initial load
+        if (!isLoadingUser) {
+          form.setValue('role', '' as any);
+        }
+      }
+    } else if (!watchedOrganizationId) {
+      setSelectedOrgType(null);
+      if (!isLoadingUser) {
         form.setValue('role', '' as any);
       }
-    } else {
-      setSelectedOrgType(null);
-      form.setValue('role', '' as any);
     }
-  }, [watchedOrganizationId, organizations, form]);
+  }, [watchedOrganizationId, organizations, form, isLoadingUser]);
 
   async function onSubmit(data: UserFormInput) {
     setIsLoading(true);
     
     try {
+      console.log('Submitting form data:', data);
+      
       const formData = new FormData();
       
       if (mode === 'edit' && userId) {
@@ -159,11 +177,10 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
       if (result.success) {
         toast.success(result.message);
         
-        // FIXED: Check if onSuccess is provided before calling it
         if (onSuccess) {
           onSuccess();
         } else {
-          // Default navigation behavior when no onSuccess callback is provided
+          // Default navigation behavior
           if (mode === 'create') {
             router.push('/5am-corp/admin/users');
           } else {
@@ -177,9 +194,11 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
           setSelectedOrgType(null);
         }
       } else {
-        toast.error(result.message);
+        console.error('Form submission failed:', result.error);
+        toast.error(getErrorMessage(result.message || result.error || 'Failed to save user'));
       }
     } catch (error) {
+      console.error('Form submission error:', error);
       toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -196,6 +215,22 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
   const clientRoles = availableRoles.filter(role => 
     Object.values(CLIENT_ORG_ROLES).includes(role as any)
   );
+
+  // Show loading state for edit mode
+  if (mode === 'edit' && isLoadingUser) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-center py-8">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+              <p className="text-sm text-muted-foreground">Loading user data...</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
@@ -258,7 +293,7 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
               )}
             />
 
-            {/* Organization */}
+            {/* Organization - FIXED: Use value instead of defaultValue */}
             <FormField
               control={form.control}
               name="organizationId"
@@ -267,7 +302,7 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
                   <FormLabel>Organization</FormLabel>
                   <Select 
                     onValueChange={field.onChange} 
-                    defaultValue={field.value}
+                    value={field.value} // FIXED: Use value instead of defaultValue
                     disabled={isLoading}
                   >
                     <FormControl>
@@ -278,7 +313,7 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
                     <SelectContent>
                       {organizations.map((org) => (
                         <SelectItem key={org.id} value={org.id}>
-                          {org.name} ({getOrganizationTypeLabel(org.metadata.type)})
+                          {org.name} ({getOrganizationTypeLabel(org.metadata?.type || org.metadata.type)})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -291,7 +326,7 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
               )}
             />
 
-            {/* Role */}
+            {/* Role - FIXED: Use value instead of defaultValue */}
             <div className="space-y-4">
               <FormField
                 control={form.control}
@@ -301,7 +336,7 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
                     <FormLabel>Role</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      defaultValue={field.value}
+                      value={field.value} // FIXED: Use value instead of defaultValue
                       disabled={isLoading || !selectedOrgType}
                     >
                       <FormControl>
@@ -358,7 +393,6 @@ export function UserForm({ mode, userId, onSuccess, initialData }: UserFormProps
                 type="button" 
                 variant="outline" 
                 onClick={() => {
-                  // FIXED: Check if onSuccess exists before calling, otherwise use router.back()
                   if (onSuccess) {
                     onSuccess();
                   } else {
