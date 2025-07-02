@@ -4,7 +4,7 @@
 import { use } from "react";
 import { useRouter } from "next/navigation";
 import { OrganizationForm } from "@/components/admin/forms/organization-form";
-import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
+import { ListPageWrapper } from "@/components/common/list-page-wrapper";
 import { EditOrganizationPageProps } from "@/types";
 
 

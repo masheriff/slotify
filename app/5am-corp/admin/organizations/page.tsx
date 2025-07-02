@@ -5,7 +5,7 @@ import {
   logListPageMetrics,
   validateListPageAccess,
 } from "@/lib/list-page-server";
-import { ListPageWrapper } from "@/components/layouts/list-page-wrapper";
+import { ListPageWrapper } from "@/components/common/list-page-wrapper";
 import { FilterablePageHeader } from "@/components/common/filterable-page-header";
 import { DataTable } from "@/components/common/data-table";
 import { organizationColumns } from "@/components/table-configs/organization-columns";
