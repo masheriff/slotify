@@ -5,14 +5,30 @@ import { AlertTriangle, User, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export function ImpersonationBanner() {
   const { data, refetch } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   
-  if (!data?.session?.impersonatedBy) {
+  const isImpersonating = Boolean(data?.session?.impersonatedBy);
+  
+  // Manage CSS class for body margin
+  useEffect(() => {
+    if (isImpersonating) {
+      document.body.classList.add('impersonation-active');
+    } else {
+      document.body.classList.remove('impersonation-active');
+    }
+    
+    // Cleanup when component unmounts
+    return () => {
+      document.body.classList.remove('impersonation-active');
+    };
+  }, [isImpersonating]);
+  
+  if (!isImpersonating) {
     return null;
   }
   
@@ -46,7 +62,7 @@ export function ImpersonationBanner() {
   };
 
   return (
-    <div className="fixed z-50 flex items-center w-full h-[40px] bg-gradient-to-r from-orange-500 to-red-500 text-white">
+    <div className="fixed top-0 left-0 z-50 flex items-center w-full h-[40px] bg-gradient-to-r from-orange-500 to-red-500 text-white">
       <div className="container mx-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -60,7 +76,7 @@ export function ImpersonationBanner() {
               </span>
               <span className="text-sm opacity-90">
                 You are acting as{" "}
-                <strong>{data.user.name || data.user.email}</strong>
+                <strong>{data?.user.name || data?.user.email}</strong>
               </span>
             </div>
           </div>
