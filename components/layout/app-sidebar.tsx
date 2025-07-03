@@ -12,9 +12,9 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { useActiveOrganization, useSession } from "@/lib/auth-client";
-import Image from "next/image";
 import { getNavItemsAccordingToUserRole } from "@/utils/nav-items.utils";
 import { UserRole } from "@/types";
+import { OrganizationLogo } from "./organization-logo";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: organization } = useActiveOrganization();
@@ -24,26 +24,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader className="flex items-center gap-2 p-4">
-        <div className="flex items-center w-full">
-          {organization?.logo ? (
-            <Image
-              src={organization?.logo}
-              alt={`${organization?.name} logo`}
-              width={0}
-              height={0}
-              quality={100}
-              priority
-              unoptimized
-              className="h-14 w-auto"
-            />
-          ) : (
-            <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
-              <span className="text-xs font-medium text-muted-foreground">
-                {organization?.name.substring(0, 2).toUpperCase()}
-              </span>
-            </div>
-          )}
-        </div>
+        <OrganizationLogo logo={organization?.logo ?? undefined} name={organization?.name} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={getNavItemsAccordingToUserRole(role as UserRole)} />
