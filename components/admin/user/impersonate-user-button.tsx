@@ -19,6 +19,7 @@ import { impersonateUser } from "@/actions/users.actions";
 import { UserListItem } from "@/types/users.types";
 import { getErrorMessage } from "@/types";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 
 interface ImpersonateUserButtonProps {
   user: UserListItem;
@@ -32,6 +33,7 @@ export function ImpersonateUserButton({
   onSuccess 
 }: ImpersonateUserButtonProps) {
   const router = useRouter();
+  const { data, refetch } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -54,6 +56,14 @@ export function ImpersonateUserButton({
       if (result.success) {
         toast.success(`Now impersonating ${user.name || user.email}`);
         setIsOpen(false);
+        
+        // Force session refresh to get updated impersonation data
+        console.log("🔄 Refreshing session after impersonation start...");
+        await refetch();
+        console.log("✅ Session refreshed successfully");
+        
+        // Small delay to ensure session data propagates
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         // Redirect to user's organization dashboard
         if (user.organization?.slug) {

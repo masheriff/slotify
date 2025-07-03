@@ -5,21 +5,43 @@ import { AlertTriangle, User, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
+import { useState } from "react";
 
 export function ImpersonationBanner() {
-  const { data } = useSession();
+  const { data, refetch } = useSession();
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  
   if (!data?.session?.impersonatedBy) {
     return null;
   }
+  
   const handleStopImpersonation = async () => {
-    const result = await stopImpersonation();
+    setIsLoading(true);
+    
+    try {
+      const result = await stopImpersonation();
 
-    if (result.success) {
-      toast.success("Stopped impersonation");
-      router.push("/5am-corp/admin/users");
-    } else {
-      toast.error("Failed to stop impersonation");
+      if (result.success) {
+        toast.success("Stopped impersonation");
+        
+        // Force session refresh to clear impersonation data
+        console.log("🔄 Refreshing session after impersonation stop...");
+        await refetch();
+        console.log("✅ Session refreshed successfully");
+        
+        // Small delay to ensure session data propagates
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        router.push("/5am-corp/admin/users");
+      } else {
+        toast.error("Failed to stop impersonation");
+      }
+    } catch (error) {
+      console.error('Stop impersonation error:', error);
+      toast.error('An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -47,10 +69,11 @@ export function ImpersonationBanner() {
             variant="secondary"
             size="xs"
             onClick={handleStopImpersonation}
+            disabled={isLoading}
             className="bg-white text-orange-600 hover:bg-orange-50 hover:text-orange-700 font-medium shadow-sm border border-orange-200"
           >
             <X className="h-4 w-4 mr-2" />
-            Stop Impersonation
+            {isLoading ? "Stopping..." : "Stop Impersonation"}
           </Button>
         </div>
       </div>
