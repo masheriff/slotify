@@ -6,7 +6,6 @@ import NextTopLoader from "nextjs-toploader";
 import { Toaster } from "@/components/ui/sonner";
 import { initializeJobs } from "@/lib/startup/jobs";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
-import { AuthStoreProvider } from "@/components/providers/auth-store-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +36,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthStoreProvider>
           {/* Page navigation loading */}
           <NextTopLoader color="#2563eb" height={3} showSpinner={false} />
 
@@ -50,7 +48,6 @@ export default function RootLayout({
           <Toaster position="top-right" />
 
           {children}
-        </AuthStoreProvider>
       </body>
     </html>
   );

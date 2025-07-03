@@ -14,15 +14,17 @@ import {
 import { getNavItemsAccordingToUserRole } from "@/utils/nav-items.utils";
 import { UserRole } from "@/types";
 import { OrganizationLogo } from "./organization-logo";
-import { useAuthStore } from "@/stores/auth-store";
+import { useActiveOrganization, useSession } from "@/lib/auth-client";
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // Get data from global store - no API calls!
-  const { user, organization } = useAuthStore();
-  console.log(user);
+
+  const {data:session} = useSession();
+  const {data:organization} = useActiveOrganization();
 
 
-  const role = user?.role as UserRole;
+
+  const role = session?.user.role as UserRole;
 
   // Memoize navigation items
   const navItems = React.useMemo(() => 
@@ -42,7 +44,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navItems} />
       </SidebarContent>
       <SidebarFooter>
-        {user && <NavUser user={user} />}
+        {session && <NavUser user={session.user} />}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
