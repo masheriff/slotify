@@ -6,6 +6,9 @@ import { redirect } from "next/navigation";
 import { HEALTHCARE_ROLES } from "./permissions/healthcare-permissions-constants";
 import { isSuperAdmin, isAdmin } from "./permissions/healthcare-access-control";
 import { User } from "@/types";
+import { organizations } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
 
 export async function getServerSession() {
   try {
@@ -242,4 +245,31 @@ export async function getCurrentUser() {
     console.error("Failed to get current user:", error);
     return null;
   }
+}
+
+export async function getServerOrganization(orgSlug?: string) {
+  const session = await getServerSession();
+  if (!session?.user) return null;
+
+  // If orgSlug provided, get that specific organization
+  if (orgSlug) {
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.slug, orgSlug))
+      .limit(1);
+    return org || null;
+  }
+
+  // Otherwise get user's active organization
+  if (session.session.activeOrganizationId) {
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, session.session.activeOrganizationId))
+      .limit(1);
+    return org || null;
+  }
+
+  return null;
 }

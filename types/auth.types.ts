@@ -1,3 +1,5 @@
+import { UserRole } from "./users.types";
+
 // types/auth.types.ts
 export interface User {
   id: string;
@@ -5,7 +7,7 @@ export interface User {
   email: string;
   emailVerified: boolean;
   image?: string;
-  role?: string;
+  role?: UserRole;
   banned?: boolean;
   banReason?: string;
   banExpires?: Date;

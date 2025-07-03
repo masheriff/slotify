@@ -1,6 +1,4 @@
-// components/layout/app-sidebar.tsx
 "use client";
-
 import * as React from "react";
 import { NavMain } from "@/components/layout/nav-main";
 import { NavUser } from "@/components/layout/nav-user";
@@ -12,25 +10,23 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { getNavItemsAccordingToUserRole } from "@/utils/nav-items.utils";
-import { UserRole } from "@/types";
+import { Organization, User, UserRole } from "@/types";
 import { OrganizationLogo } from "./organization-logo";
-import { useActiveOrganization, useSession } from "@/lib/auth-client";
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  // Get data from global store - no API calls!
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  user: User; // Replace with your User type
+  organization: Organization; // Replace with your Organization type
+  userRole: UserRole;
+}
 
-  const {data:session} = useSession();
-  const {data:organization} = useActiveOrganization();
-
-
-
-  const role = session?.user.role as UserRole;
-
-  // Memoize navigation items
-  const navItems = React.useMemo(() => 
-    getNavItemsAccordingToUserRole(role), 
-    [role]
-  );
+export function AppSidebar({ 
+  user, 
+  organization, 
+  userRole, 
+  ...props 
+}: AppSidebarProps) {
+  // No more client-side hooks - all data comes from props
+  const navItems = getNavItemsAccordingToUserRole(userRole);
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -44,7 +40,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={navItems} />
       </SidebarContent>
       <SidebarFooter>
-        {session && <NavUser user={session.user} />}
+        <NavUser user={user} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
