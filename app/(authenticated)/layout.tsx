@@ -1,7 +1,7 @@
-// import { requireAdmin } from "@/lib/auth-server";
+// import { requireSuperAdmin } from "@/lib/auth-server";
 import { AppSidebarProvider } from "@/components/layout/app-sidebar-provider";
 
-export default async function ClientOrgLayout({
+export default async function AutheticatedLayout({
   children,
 }: {
   children: React.ReactNode;
