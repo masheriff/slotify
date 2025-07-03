@@ -32,7 +32,7 @@ import { signOut } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
-export function AdminNavUser() {
+export function NavUser() {
   const { isMobile } = useSidebar()
   const { data: session } = useSession()
   const router = useRouter()

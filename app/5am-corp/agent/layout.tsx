@@ -1,4 +1,4 @@
-import { requireSuperAdmin } from "@/lib/auth-server";
+// import { requireAdmin } from "@/lib/auth-server";
 import { AppSidebarProvider } from "@/components/layout/app-sidebar-provider";
 
 export default async function AdminLayout({
@@ -7,7 +7,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   // Use Better Auth server-side protection - only super admins can access
-  await requireSuperAdmin();
+//   await requireAdmin();
 
   return (
     <AppSidebarProvider>

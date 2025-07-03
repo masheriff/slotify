@@ -1,14 +1,19 @@
-
 // actions/auth-routing-actions.ts
-'use server';
+"use server";
 
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { members, organizations, agentOrganizationAssignments } from "@/db/schema";
+import {
+  members,
+  organizations,
+  agentOrganizationAssignments,
+} from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { HEALTHCARE_ROLES } from "@/lib/permissions/healthcare-permissions-constants";
 import { OrganizationMetadata } from "@/types";
 import { getServerSession } from "@/lib/auth-server";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 /**
  * Server action to handle post-authentication routing
@@ -19,7 +24,7 @@ export async function handlePostAuthRouting() {
 
   // Get the current authenticated session
   const session = await getServerSession();
-  
+  console.log(session, "session form auth routing");
   if (!session?.user) {
     console.error("❌ No authenticated session found");
     redirect("/login?error=no_session");
@@ -28,7 +33,9 @@ export async function handlePostAuthRouting() {
   const userId = session.user.id;
   const userEmail = session.user.email;
 
-  console.log(`🏠 Determining home route for user: ${userEmail} (ID: ${userId})`);
+  console.log(
+    `🏠 Determining home route for user: ${userEmail} (ID: ${userId})`
+  );
 
   // Get user's organization membership (single org per user)
   let membership;
@@ -46,7 +53,10 @@ export async function handlePostAuthRouting() {
       .where(eq(members.userId, userId))
       .limit(1);
   } catch (dbError) {
-    console.error(`❌ Database error while fetching membership for ${userEmail}:`, dbError);
+    console.error(
+      `❌ Database error while fetching membership for ${userEmail}:`,
+      dbError
+    );
     redirect("/error?type=database_error");
   }
 
@@ -55,14 +65,23 @@ export async function handlePostAuthRouting() {
     redirect("/error?type=no_organization");
   }
 
+  try {
+    await auth.api.setActiveOrganization({
+      body: { organizationId: membership.organizationId },
+      headers: await headers(),
+    });
+  } catch (error) {
+    console.log("Failed to set current Org Id");
+  }
+
   const role = membership.memberRole;
   const orgMetadata = membership.organizationMetadata as OrganizationMetadata;
-  
+
   console.log(`📋 User membership details:`, {
     organization: membership.organizationName,
     role: role,
     orgType: orgMetadata?.type,
-    slug: membership.organizationSlug
+    slug: membership.organizationSlug,
   });
 
   // Determine redirect URL based on role and organization type
@@ -78,23 +97,33 @@ export async function handlePostAuthRouting() {
     case HEALTHCARE_ROLES.FIVE_AM_AGENT:
       redirectUrl = "/5am-corp/agent/dashboard";
       console.log(`👥 Agent user redirecting to: ${redirectUrl}`);
-      
+
       // Optional: Log agent assignments for debugging
       try {
         const agentAssignments = await db
-          .select({ 
+          .select({
             clientOrgId: agentOrganizationAssignments.clientOrganizationId,
-            clientOrgName: organizations.name 
+            clientOrgName: organizations.name,
           })
           .from(agentOrganizationAssignments)
-          .leftJoin(organizations, eq(agentOrganizationAssignments.clientOrganizationId, organizations.id))
+          .leftJoin(
+            organizations,
+            eq(
+              agentOrganizationAssignments.clientOrganizationId,
+              organizations.id
+            )
+          )
           .where(eq(agentOrganizationAssignments.agentUserId, userId));
-        
-        console.log(`📊 Agent has ${agentAssignments.length} client assignments:`, 
-          agentAssignments.map(a => a.clientOrgName)
+
+        console.log(
+          `📊 Agent has ${agentAssignments.length} client assignments:`,
+          agentAssignments.map((a) => a.clientOrgName)
         );
       } catch (assignmentError) {
-        console.warn(`⚠️ Could not fetch agent assignments for ${userEmail}:`, assignmentError);
+        console.warn(
+          `⚠️ Could not fetch agent assignments for ${userEmail}:`,
+          assignmentError
+        );
       }
       break;
 
@@ -120,14 +149,18 @@ export async function handlePostAuthRouting() {
 
     default:
       console.warn(`⚠️ Unknown role: ${role}, using fallback routing`);
-      
+
       // Fallback logic based on organization type
       if (orgMetadata?.type === "client" && membership.organizationSlug) {
         redirectUrl = `/${membership.organizationSlug}/dashboard`;
-        console.log(`🏥 Unknown client role, redirecting to org dashboard: ${redirectUrl}`);
+        console.log(
+          `🏥 Unknown client role, redirecting to org dashboard: ${redirectUrl}`
+        );
       } else {
         redirectUrl = "/dashboard";
-        console.log(`❓ Unknown role and org type, redirecting to generic dashboard`);
+        console.log(
+          `❓ Unknown role and org type, redirecting to generic dashboard`
+        );
       }
       break;
   }

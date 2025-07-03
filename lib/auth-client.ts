@@ -9,6 +9,6 @@ export const authClient = createAuthClient({
   plugins: [adminClient(), organizationClient(), magicLinkClient()],
 });
 
-export const { signOut, useSession } = authClient;
+export const { signOut, useSession, useActiveOrganization } = authClient;
 export const admin = authClient.admin;
 export const organization = authClient.organization;

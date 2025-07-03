@@ -132,3 +132,15 @@ export interface FileUploadProps {
   value?: string; // Current file URL/path
   disabled?: boolean;
 }
+
+export interface SubNavItems {
+  title: string;
+  url: string;
+}
+export interface NavItems {
+  title: string;
+  url: string;
+  icon?: LucideIcon;
+  isActive?: boolean;
+  items?: SubNavItems[];
+}

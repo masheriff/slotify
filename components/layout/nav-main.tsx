@@ -18,7 +18,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 
-export function AdminNavMain({
+export function NavMain({
   items,
 }: {
   items: {
