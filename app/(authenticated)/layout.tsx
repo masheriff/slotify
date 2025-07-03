@@ -1,3 +1,4 @@
+
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { getServerSession, getServerOrganization } from "@/lib/auth-server";

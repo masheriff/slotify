@@ -14,8 +14,8 @@ import { Organization, User, UserRole } from "@/types";
 import { OrganizationLogo } from "./organization-logo";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  user: User; // Replace with your User type
-  organization: Organization; // Replace with your Organization type
+  user: User;
+  organization: Organization;
   userRole: UserRole;
 }
 
@@ -25,7 +25,6 @@ export function AppSidebar({
   userRole, 
   ...props 
 }: AppSidebarProps) {
-  // No more client-side hooks - all data comes from props
   const navItems = getNavItemsAccordingToUserRole(userRole);
 
   return (

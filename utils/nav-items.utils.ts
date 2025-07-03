@@ -1,3 +1,4 @@
+// utils/nav-items.utils.ts (Enhanced version with proper URLs)
 import { NavItems, UserRole } from "@/types";
 import {
   LayoutDashboard,
@@ -10,9 +11,9 @@ import {
 const system_admin_nav_items: NavItems[] = [
   {
     title: "Dashboard",
-    url: "/admin",
+    url: "/dashboard",
     icon: LayoutDashboard,
-    isActive: true,
+    isActive: false,
   },
   {
     title: "Organizations",
@@ -46,19 +47,66 @@ const system_admin_nav_items: NavItems[] = [
     icon: Settings2,
   },
 ];
-const five_am_admin_nav_items: NavItems[] = [];
-const five_am_agent_nav_items: NavItems[] = [];
-const client_admin_nav_items: NavItems[] = [];
-const front_desk_nav_items: NavItems[] = [];
+
+const five_am_admin_nav_items: NavItems[] = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Organizations",
+    url: "/5am-corp/admin/organizations",
+    icon: Building,
+    items: [
+      { title: "All Organizations", url: "/5am-corp/admin/organizations" },
+      {
+        title: "Create Organization",
+        url: "/5am-corp/admin/organizations/create",
+      },
+    ],
+  },
+];
+
+const five_am_agent_nav_items: NavItems[] = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
+];
+
+const client_admin_nav_items: NavItems[] = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
+];
+
+const front_desk_nav_items: NavItems[] = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
+];
+
 const technician_nav_items: NavItems[] = [
   {
     title: "Dashboard",
-    url: "/admin",
+    url: "/dashboard",
     icon: LayoutDashboard,
-    isActive: true,
   },
 ];
-const interpreting_doctor_nav_items: NavItems[] = [];
+
+const interpreting_doctor_nav_items: NavItems[] = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
+  },
+];
 
 export function getNavItemsAccordingToUserRole(userRole: UserRole): NavItems[] {
   const roleNavItems: Record<string, NavItems[]> = {
