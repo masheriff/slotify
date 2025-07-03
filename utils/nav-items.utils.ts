@@ -70,5 +70,5 @@ export function getNavItemsAccordingToUserRole(userRole: UserRole): NavItems[] {
     technician: technician_nav_items,
     interpreting_doctor: interpreting_doctor_nav_items,
   };
-  return roleNavItems[userRole] || system_admin_nav_items;
+  return roleNavItems[userRole] || [];
 }

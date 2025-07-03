@@ -17,7 +17,7 @@ import { impersonateUser } from "@/actions/users.actions";
 import { formatUserDisplayName } from "@/utils/users.utils";
 import { getErrorMessage } from "@/types";
 import { useRouter } from "next/navigation";
-import { useSession } from "@/lib/auth-client";
+import { organization, useSession } from "@/lib/auth-client";
 import type { UserListItem } from "@/types/users.types";
 
 interface ImpersonateUserDialogProps {
@@ -34,7 +34,7 @@ export function ImpersonateUserDialog({
   onSuccess,
 }: ImpersonateUserDialogProps) {
   const router = useRouter();
-  const { data, refetch } = useSession();
+  const { refetch } = useSession();
   const [isLoading, setIsLoading] = useState(false);
 
   const handleImpersonate = async () => {
@@ -57,6 +57,8 @@ export function ImpersonateUserDialog({
         
         // Small delay to ensure session data propagates
         await new Promise(resolve => setTimeout(resolve, 100));
+        
+        await organization.setActive({ organizationId: user.organization?.id })
         
         // Redirect to user's organization dashboard
         if (user.organization?.slug) {

@@ -31,14 +31,11 @@ import { useSession } from "@/lib/auth-client"
 import { signOut } from "@/lib/auth-client"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { User } from "better-auth"
 
-export function NavUser() {
+export function NavUser({user}:{user:User}) {
   const { isMobile } = useSidebar()
-  const { data: session } = useSession()
   const router = useRouter()
-
-  const user = session?.user
-
   const handleSignOut = async () => {
     try {
       await signOut()

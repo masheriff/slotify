@@ -1,11 +1,11 @@
 "use client";
 import { stopImpersonation } from "@/actions/impersonations";
-import { useSession } from "@/lib/auth-client";
+import { organization, useSession } from "@/lib/auth-client";
 import { AlertTriangle, User, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";;
 
 export function ImpersonationBanner() {
   const { data, refetch } = useSession();
@@ -48,6 +48,7 @@ export function ImpersonationBanner() {
         
         // Small delay to ensure session data propagates
         await new Promise(resolve => setTimeout(resolve, 100));
+
         
         router.push("/5am-corp/admin/users");
       } else {

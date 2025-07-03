@@ -30,7 +30,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={getNavItemsAccordingToUserRole(role as UserRole)} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser />
+        {user && (
+          <NavUser user={user} />
+        )}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
