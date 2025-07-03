@@ -37,11 +37,12 @@ import { BanUserDialog } from "@/components/dialogs/ban-user-dialog";
 import { unbanUser } from "@/actions/users.actions";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/types";
-import { ImpersonateUserButton } from "../admin/user/impersonate-user-button";
+import { ImpersonateUserDialog } from "../dialogs/impersonate-user-dialog";
 
 // Actions Cell Component with Ban Dialog Integration
 function UserActionsCell({ user }: { user: UserListItem }) {
   const [banDialogOpen, setBanDialogOpen] = useState(false);
+  const [impersonateDialogOpen, setImpersonateDialogOpen] = useState(false);
   const [isUnbanLoading, setIsUnbanLoading] = useState(false);
 
   // Mock current user role - in real app this would come from auth context
@@ -136,14 +137,12 @@ function UserActionsCell({ user }: { user: UserListItem }) {
           {canImpersonate && userStatus.status === "active" && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-orange-600 focus:text-orange-600" onSelect={(e) => e.preventDefault()} >
-                                <div className="w-full p-2">
-                  <ImpersonateUserButton
-                    user={user}
-                    currentUserRole={currentUserRole}
-                    onSuccess={handleImpersonateSuccess}
-                  />
-                </div>
+              <DropdownMenuItem 
+                className="text-orange-600 focus:text-orange-600"
+                onClick={() => setImpersonateDialogOpen(true)}
+              >
+                <UserCheck className="mr-2 h-4 w-4 text-orange-600" />
+                Impersonate User
               </DropdownMenuItem>
             </>
           )}
@@ -156,6 +155,14 @@ function UserActionsCell({ user }: { user: UserListItem }) {
         open={banDialogOpen}
         onOpenChange={setBanDialogOpen}
         onSuccess={handleBanSuccess}
+      />
+
+      {/* Impersonate User Dialog */}
+      <ImpersonateUserDialog
+        user={user}
+        open={impersonateDialogOpen}
+        onOpenChange={setImpersonateDialogOpen}
+        onSuccess={handleImpersonateSuccess}
       />
     </>
   );
