@@ -3,9 +3,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { GlobalLoadingIndicator } from "@/components/ui/global-loading";
 import NextTopLoader from "nextjs-toploader";
-import { Toaster } from "@/components/ui/sonner"
-import { initializeJobs } from '@/lib/startup/jobs';
+import { Toaster } from "@/components/ui/sonner";
+import { initializeJobs } from "@/lib/startup/jobs";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
+import { AuthStoreProvider } from "@/components/providers/auth-store-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,26 +28,29 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  if (typeof window === 'undefined') { // Server-side only
-  initializeJobs();
-}
+  if (typeof window === "undefined") {
+    // Server-side only
+    initializeJobs();
+  }
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* Page navigation loading */}
-        <NextTopLoader color="#2563eb" height={3} showSpinner={false} />
+        <AuthStoreProvider>
+          {/* Page navigation loading */}
+          <NextTopLoader color="#2563eb" height={3} showSpinner={false} />
 
-        {/* Global action loading indicator */}
-        <GlobalLoadingIndicator />
+          {/* Global action loading indicator */}
+          <GlobalLoadingIndicator />
 
-        <ImpersonationBanner />
+          <ImpersonationBanner />
 
-        {/* Toast notifications */}
-        <Toaster position="top-right"/>
+          {/* Toast notifications */}
+          <Toaster position="top-right" />
 
-        {children}
+          {children}
+        </AuthStoreProvider>
       </body>
     </html>
   );
