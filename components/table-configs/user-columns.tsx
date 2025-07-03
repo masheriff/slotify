@@ -37,6 +37,7 @@ import { BanUserDialog } from "@/components/dialogs/ban-user-dialog";
 import { unbanUser } from "@/actions/users.actions";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/types";
+import { ImpersonateUserButton } from "../admin/user/impersonate-user-button";
 
 // Actions Cell Component with Ban Dialog Integration
 function UserActionsCell({ user }: { user: UserListItem }) {
@@ -74,6 +75,11 @@ function UserActionsCell({ user }: { user: UserListItem }) {
   const handleBanSuccess = () => {
     // This will trigger a page refresh or refetch
     window.location.reload();
+  };
+  
+  const handleImpersonateSuccess = () => {
+    // Optional: Handle success callback
+    console.log('Impersonation started successfully from table');
   };
 
   if (!canEdit && !canBan && !canImpersonate) {
@@ -130,9 +136,14 @@ function UserActionsCell({ user }: { user: UserListItem }) {
           {canImpersonate && userStatus.status === "active" && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-orange-600 focus:text-orange-600">
-                <User className="text-orange-600 mr-2 h-4 w-4" />
-                Impersonate User
+              <DropdownMenuItem className="text-orange-600 focus:text-orange-600" onSelect={(e) => e.preventDefault()} >
+                                <div className="w-full p-2">
+                  <ImpersonateUserButton
+                    user={user}
+                    currentUserRole={currentUserRole}
+                    onSuccess={handleImpersonateSuccess}
+                  />
+                </div>
               </DropdownMenuItem>
             </>
           )}

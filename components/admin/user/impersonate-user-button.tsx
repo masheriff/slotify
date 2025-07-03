@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { impersonateUser } from "@/actions/users.actions";
 import { UserListItem } from "@/types/users.types";
 import { getErrorMessage } from "@/types";
+import { useRouter } from "next/navigation";
 
 interface ImpersonateUserButtonProps {
   user: UserListItem;
@@ -30,6 +31,7 @@ export function ImpersonateUserButton({
   currentUserRole, 
   onSuccess 
 }: ImpersonateUserButtonProps) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -55,9 +57,9 @@ export function ImpersonateUserButton({
         
         // Redirect to user's organization dashboard
         if (user.organization?.slug) {
-          window.location.href = `/${user.organization.slug}/dashboard`;
+          router.push(`/${user.organization.slug}/dashboard`);
         } else {
-          window.location.href = '/dashboard';
+          router.push('/dashboard');
         }
         
         onSuccess?.();

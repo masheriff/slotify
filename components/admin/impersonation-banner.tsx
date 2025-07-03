@@ -1,66 +1,59 @@
 "use client";
-import { useSession } from "@/lib/auth-client";
 import { stopImpersonation } from "@/actions/impersonations";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { User, X } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
+import { AlertTriangle, User, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-
-type SessionWithImpersonation = {
-  user: {
-    id: string;
-    name: string;
-    emailVerified: boolean;
-    email: string;
-    createdAt: Date;
-    updatedAt: Date;
-    image?: string | null;
-    banned?: boolean | null;
-    role?: string;
-    banReason?: string;
-    banExpires?: Date;
-    // ...add other user fields as needed
-  };
-  impersonatedBy?: string; // or the correct type if not string
-  // ...add other session fields as needed
-};
+import { Button } from "../ui/button";
 
 export function ImpersonationBanner() {
   const { data } = useSession();
-  const session = data as SessionWithImpersonation | undefined;
-  
-  // Check if currently impersonating using Better Auth session
-  if (!session?.impersonatedBy) {
+  const router = useRouter();
+  if (!data?.session?.impersonatedBy) {
     return null;
   }
-
   const handleStopImpersonation = async () => {
     const result = await stopImpersonation();
+
     if (result.success) {
       toast.success("Stopped impersonation");
-      window.location.reload(); // Refresh to update session
+      router.push("/5am-corp/admin/users");
     } else {
       toast.error("Failed to stop impersonation");
     }
   };
 
   return (
-    <Alert className="border-orange-200 bg-orange-50 mb-4">
-      <User className="h-4 w-4" />
-      <AlertDescription className="flex items-center justify-between">
-        <span>
-          You are impersonating <strong>{session.user.name}</strong> ({session.user.email})
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleStopImpersonation}
-          loadingKey="stop-impersonation"
-        >
-          <X className="h-4 w-4 mr-1" />
-          Stop Impersonation
-        </Button>
-      </AlertDescription>
-    </Alert>
+    <div className="fixed z-50 flex items-center w-full h-[40px] bg-gradient-to-r from-orange-500 to-red-500 text-white">
+      <div className="container mx-auto">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 animate-pulse" />
+              <User className="h-5 w-5" />
+            </div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+              <span className="font-semibold text-sm sm:text-base">
+                IMPERSONATION ACTIVE
+              </span>
+              <span className="text-sm opacity-90">
+                You are acting as{" "}
+                <strong>{data.user.name || data.user.email}</strong>
+              </span>
+            </div>
+          </div>
+
+          <Button
+            variant="secondary"
+            size="xs"
+            onClick={handleStopImpersonation}
+            className="bg-white text-orange-600 hover:bg-orange-50 hover:text-orange-700 font-medium shadow-sm border border-orange-200"
+          >
+            <X className="h-4 w-4 mr-2" />
+            Stop Impersonation
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
