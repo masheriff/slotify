@@ -1,4 +1,5 @@
 "use client";
+
 import * as React from "react";
 import { NavMain } from "@/components/layout/nav-main";
 import { NavUser } from "@/components/layout/nav-user";
@@ -12,20 +13,22 @@ import {
 import { getNavItemsAccordingToUserRole } from "@/utils/nav-items.utils";
 import { Organization, User, UserRole } from "@/types";
 import { OrganizationLogo } from "./organization-logo";
+import type { ServerNavState } from "@/utils/navigation-state.utils";
 
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   user: User;
   organization: Organization;
   userRole: UserRole;
+  initialNavState: ServerNavState;
 }
 
 export function AppSidebar({ 
   user, 
   organization, 
-  userRole, 
+  userRole,
+  initialNavState,
   ...props 
 }: AppSidebarProps) {
-  // Pass organization slug to get role-appropriate navigation
   const navItems = getNavItemsAccordingToUserRole(userRole, organization.slug);
 
   return (
@@ -37,7 +40,10 @@ export function AppSidebar({
         />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItems} />
+        <NavMain 
+          items={navItems} 
+          initialNavState={initialNavState}
+        />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} />

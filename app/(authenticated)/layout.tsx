@@ -5,6 +5,9 @@ import { getServerSession, getServerOrganization } from "@/lib/auth-server";
 import { OrganizationMetadata, UserRole } from "@/types";
 import { redirect } from "next/navigation";
 import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
+import { headers } from "next/headers";
+import { getNavItemsAccordingToUserRole } from "@/utils/nav-items.utils";
+import { calculateServerNavState } from "@/utils/navigation-state.utils";
 
 export default async function AuthenticatedLayout({
   children,
@@ -23,8 +26,19 @@ export default async function AuthenticatedLayout({
     redirect("/select-organization");
   }
 
+  // Get current pathname from headers
+  const headersList = headers();
+  const pathname = (await headersList).get("x-pathname") || "/";
+
+  // Calculate navigation state on server
+  const userRole = session.user.role as UserRole;
+  const navItems = getNavItemsAccordingToUserRole(userRole, organization.slug || undefined);
+  const initialNavState = await calculateServerNavState(pathname, navItems);
+
   // ✅ Server-side impersonation check to prevent flickering
   const isImpersonating = Boolean(session?.session?.impersonatedBy);
+
+
 
   return (
     <SidebarProvider>
@@ -44,6 +58,8 @@ export default async function AuthenticatedLayout({
           metadata: organization.metadata as OrganizationMetadata,
         }}
         userRole={session.user.role as UserRole}
+        initialNavState={initialNavState}
+
       />
       <SidebarInset>
         {/* ✅ Server-side rendered impersonation banner */}

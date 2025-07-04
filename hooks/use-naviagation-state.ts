@@ -1,125 +1,120 @@
-// hooks/use-navigation-state.ts
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useState, useTransition } from "react";
+import { isNavigationItemActive, shouldNavigationItemBeExpanded } from "@/utils/navigation.utils";
+import { saveUserExpandedItems } from "@/utils/navigation-state.utils";
+import type { ServerNavState, NavItem } from "@/utils/navigation-state.utils";
 
-const NAVIGATION_STATE_KEY = "sidebar_nav_state";
-
-interface NavigationState {
-  expandedItems: Set<string>;
-  activeItems: Set<string>;
+interface NavigationStateHookProps {
+  initialState: ServerNavState;
+  navItems: NavItem[];
 }
 
-export function useNavigationState() {
+export function useNavigationState({ initialState, navItems }: NavigationStateHookProps) {
   const pathname = usePathname();
-  const [navState, setNavState] = useState<NavigationState>({
-    expandedItems: new Set(),
-    activeItems: new Set(),
-  });
+  const [isPending, startTransition] = useTransition();
+  
+  // Initialize state from server-calculated values
+  const [userExpandedItems, setUserExpandedItems] = useState<Set<string>>(
+    initialState.userExpandedItems
+  );
+  
+  // Calculate current auto-expanded items based on pathname
+  const autoExpandedItems = calculateAutoExpandedItems(pathname, navItems);
+  
+  // Calculate current active items based on pathname
+  const activeItems = calculateActiveItems(pathname, navItems);
 
-  // Load navigation state from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(NAVIGATION_STATE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setNavState({
-          expandedItems: new Set(parsed.expandedItems || []),
-          activeItems: new Set(parsed.activeItems || []),
-        });
-      }
-    } catch (error) {
-      console.error("Failed to load navigation state:", error);
-    }
-  }, []);
-
-  // Save navigation state to localStorage
-  const saveNavState = (newState: NavigationState) => {
-    try {
-      localStorage.setItem(
-        NAVIGATION_STATE_KEY,
-        JSON.stringify({
-          expandedItems: Array.from(newState.expandedItems),
-          activeItems: Array.from(newState.activeItems),
-        })
-      );
-    } catch (error) {
-      console.error("Failed to save navigation state:", error);
-    }
-  };
-
-  // Check if item is active based on current pathname
-  const isItemActive = (url: string): boolean => {
-    if (url === pathname) return true;
-    
-    // For nested routes, check if pathname starts with the item URL
-    // but exclude exact matches to avoid false positives
-    if (pathname.startsWith(url) && pathname !== url) {
-      // Make sure we're not matching partial segments
-      const remainingPath = pathname.slice(url.length);
-      return remainingPath.startsWith('/') || remainingPath === '';
-    }
-    
-    return false;
-  };
-
-  // Check if item should be expanded (has active children)
-  const shouldBeExpanded = (item: any): boolean => {
-    if (!item.items || item.items.length === 0) return false;
-    
-    return item.items.some((subItem: any) => isItemActive(subItem.url));
-  };
-
-  // Update active items based on current pathname
-  useEffect(() => {
-    const newActiveItems = new Set<string>();
-    
-    // Add current pathname to active items
-    newActiveItems.add(pathname);
-    
-    setNavState(prevState => {
-      const newState = {
-        ...prevState,
-        activeItems: newActiveItems,
-      };
-      saveNavState(newState);
-      return newState;
-    });
+  // Check if item is active
+  const isItemActive = useCallback((url: string): boolean => {
+    return isNavigationItemActive(url, pathname);
   }, [pathname]);
 
-  // Toggle expansion state
-  const toggleExpansion = (itemTitle: string) => {
-    setNavState(prevState => {
-      const newExpandedItems = new Set(prevState.expandedItems);
+  // Check if item should be expanded (auto OR manually)
+  const isExpanded = useCallback((itemTitle: string): boolean => {
+    return autoExpandedItems.has(itemTitle) || userExpandedItems.has(itemTitle);
+  }, [autoExpandedItems, userExpandedItems]);
+
+  // Check if item should be auto-expanded (has active children)
+  const shouldBeExpanded = useCallback((item: NavItem): boolean => {
+    return shouldNavigationItemBeExpanded(item, pathname);
+  }, [pathname]);
+
+  // Toggle manual expansion state
+  const toggleExpansion = useCallback((itemTitle: string) => {
+    setUserExpandedItems(prev => {
+      const newSet = new Set(prev);
+      const isAutoExpanded = autoExpandedItems.has(itemTitle);
       
-      if (newExpandedItems.has(itemTitle)) {
-        newExpandedItems.delete(itemTitle);
+      if (newSet.has(itemTitle)) {
+        // If manually expanded, remove it
+        newSet.delete(itemTitle);
+      } else if (!isAutoExpanded) {
+        // If not auto-expanded and not manually expanded, add it
+        newSet.add(itemTitle);
       } else {
-        newExpandedItems.add(itemTitle);
+        // If auto-expanded but user wants to collapse, add to manual set
+        // This creates a "force collapsed" state that overrides auto-expansion
+        // We'll handle this in the isExpanded logic
+        newSet.add(`__collapsed__${itemTitle}`);
       }
       
-      const newState = {
-        ...prevState,
-        expandedItems: newExpandedItems,
-      };
+      // Save to cookie (non-blocking)
+      startTransition(() => {
+        saveUserExpandedItems(Array.from(newSet));
+      });
       
-      saveNavState(newState);
-      return newState;
+      return newSet;
     });
-  };
+  }, [autoExpandedItems]);
 
-  // Check if item is expanded
-  const isExpanded = (itemTitle: string): boolean => {
-    // Item should be expanded if manually expanded OR has active children
-    return navState.expandedItems.has(itemTitle);
-  };
+  // Enhanced isExpanded that handles force-collapsed state
+  const isExpandedEnhanced = useCallback((itemTitle: string): boolean => {
+    const isForceCollapsed = userExpandedItems.has(`__collapsed__${itemTitle}`);
+    if (isForceCollapsed) return false;
+    
+    return autoExpandedItems.has(itemTitle) || userExpandedItems.has(itemTitle);
+  }, [autoExpandedItems, userExpandedItems]);
 
   return {
     isItemActive,
     shouldBeExpanded,
-    isExpanded,
+    isExpanded: isExpandedEnhanced,
     toggleExpansion,
-    navState,
+    activeItems,
+    expandedItems: new Set([...autoExpandedItems, ...userExpandedItems]),
+    isPending, // For loading states during cookie updates
   };
+}
+
+// Helper functions
+function calculateAutoExpandedItems(pathname: string, navItems: NavItem[]): Set<string> {
+  const autoExpanded = new Set<string>();
+  
+  navItems.forEach(item => {
+    if (shouldNavigationItemBeExpanded(item, pathname)) {
+      autoExpanded.add(item.title);
+    }
+  });
+  
+  return autoExpanded;
+}
+
+function calculateActiveItems(pathname: string, navItems: NavItem[]): Set<string> {
+  const active = new Set<string>();
+  
+  navItems.forEach(item => {
+    if (isNavigationItemActive(item.url, pathname)) {
+      active.add(item.url);
+    }
+    
+    item.items?.forEach(subItem => {
+      if (isNavigationItemActive(subItem.url, pathname)) {
+        active.add(subItem.url);
+      }
+    });
+  });
+  
+  return active;
 }

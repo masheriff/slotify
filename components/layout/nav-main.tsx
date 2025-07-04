@@ -1,8 +1,6 @@
-// components/layout/nav-main.tsx (Enhanced version)
 "use client";
 
 import { ChevronRight, type LucideIcon } from "lucide-react";
-import { useEffect } from "react";
 import {
   Collapsible,
   CollapsibleContent,
@@ -18,6 +16,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
+import type { ServerNavState } from "@/utils/navigation-state.utils";
 import { useNavigationState } from "@/hooks/use-naviagation-state";
 
 interface NavItem {
@@ -31,13 +30,22 @@ interface NavItem {
   }[];
 }
 
-export function NavMain({ items }: { items: NavItem[] }) {
+interface NavMainProps {
+  items: NavItem[];
+  initialNavState: ServerNavState;
+}
+
+export function NavMain({ items, initialNavState }: NavMainProps) {
   const {
     isItemActive,
     shouldBeExpanded,
     isExpanded,
     toggleExpansion,
-  } = useNavigationState();
+    isPending,
+  } = useNavigationState({ 
+    initialState: initialNavState,
+    navItems: items 
+  });
 
   return (
     <SidebarGroup>
@@ -47,7 +55,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
           const hasSubItems = item.items && item.items.length > 0;
           const isMainItemActive = isItemActive(item.url);
           const hasActiveSubItems = hasSubItems && shouldBeExpanded(item);
-          const shouldExpand = isExpanded(item.title) || hasActiveSubItems;
+          const shouldExpand = isExpanded(item.title);
 
           if (hasSubItems) {
             return (
@@ -63,6 +71,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                     <SidebarMenuButton 
                       tooltip={item.title}
                       isActive={isMainItemActive || hasActiveSubItems}
+                      disabled={isPending} // Prevent rapid clicks during cookie updates
                     >
                       {item.icon && <item.icon />}
                       <span>{item.title}</span>
