@@ -88,7 +88,7 @@ const system_admin_nav_items: NavItems[] = [
       { title: "Appointments", url: "/5am-corp/admin/operations/appointments" },
       { title: "Bookings", url: "/5am-corp/admin/operations/bookings" },
       { title: "Interpretations", url: "/5am-corp/admin/operations/interpretations" },
-      { title: "Holter Devices Assignment", url: "/5am-corp/admin/operations/holter-devices-assignment" },
+      { title: "Holter Devices Assignments", url: "/5am-corp/admin/operations/holter-devices-assignments" },
     ],
   },
   {
@@ -152,7 +152,7 @@ const client_admin_nav_template: NavItems[] = [
       { title: "Appointments", url: "/{{orgSlug}}/operations/appointments" },
       { title: "Bookings", url: "/{{orgSlug}}/operations/bookings" },
       { title: "Interpretations", url: "/{{orgSlug}}/operations/interpretations" },
-      { title: "Holter Devices Assignment", url: "/{{orgSlug}}/operations/holter-devices-assignment" },
+      { title: "Holter Devices Assignments", url: "/{{orgSlug}}/operations/holter-devices-assignments" },
     ],
   },
   {
