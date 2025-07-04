@@ -118,37 +118,3 @@
     @apply bg-background text-foreground;
   }
 }
-/* Impersonation Banner Styles */
-@layer components {
-  /* When impersonation is active, add top margin to the main content areas */
-  .impersonation-active {
-    /* Add margin to direct children of body (excluding the banner itself) */
-    & > *:not(.fixed) {
-      margin-top: 40px;
-    }
-    
-    /* Handle specific layout components that might need margin */
-    & main,
-    & [data-slot="sidebar-inset"],
-    & .main-content,
-    & .page-content {
-      margin-top: 40px;
-    }
-    
-    /* Ensure fixed elements like the TopLoader don't get margin */
-    & > .fixed,
-    & > [style*="position: fixed"] {
-      margin-top: 0;
-    }
-  }
-  
-  /* Alternative approach using CSS custom properties for more flexibility */
-  .impersonation-active {
-    --impersonation-banner-height: 40px;
-  }
-  
-  /* You can also use this custom property in your components if needed */
-  .content-with-banner {
-    margin-top: var(--impersonation-banner-height, 0px);
-  }
-}

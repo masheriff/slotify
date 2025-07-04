@@ -1,11 +1,11 @@
 "use client";
 import { stopImpersonation } from "@/actions/impersonations";
-import { organization, useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import { AlertTriangle, User, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { useState, useEffect } from "react";;
+import { useState } from "react";;
 
 export function ImpersonationBanner() {
   const { data, refetch } = useSession();
@@ -13,20 +13,6 @@ export function ImpersonationBanner() {
   const [isLoading, setIsLoading] = useState(false);
   
   const isImpersonating = Boolean(data?.session?.impersonatedBy);
-  
-  // Manage CSS class for body margin
-  useEffect(() => {
-    if (isImpersonating) {
-      document.body.classList.add('impersonation-active');
-    } else {
-      document.body.classList.remove('impersonation-active');
-    }
-    
-    // Cleanup when component unmounts
-    return () => {
-      document.body.classList.remove('impersonation-active');
-    };
-  }, [isImpersonating]);
   
   if (!isImpersonating) {
     return null;
