@@ -1,4 +1,4 @@
-// app/5am-corp/admin/users/page.tsx
+// app/(authenticated)/5am-corp/admin/users/page.tsx - UPDATED WITH CURRENT USER
 import {
   parseListParams,
   handleListPageRedirect,
@@ -7,8 +7,7 @@ import {
 } from "@/lib/list-page-server";
 import { ListPageWrapper } from "@/components/common/list-page-wrapper";
 import { FilterablePageHeader } from "@/components/common/filterable-page-header";
-import { DataTable } from "@/components/common/data-table";
-import { userColumns } from "@/components/table-configs/user-columns";
+import { UsersDataTable } from "@/components/tables/users-data-table"; // NEW IMPORT
 import { userFilterConfig } from "@/components/admin/forms/user-filters-config";
 import { getUsersList } from "@/actions/users.actions";
 import { getCurrentUser } from "@/lib/auth-server";
@@ -34,8 +33,8 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
   try {
     // Parse list parameters using the organization pattern
     const params = await parseListParams(searchParams, LIST_CONFIG);
-    const user = await getCurrentUser();
-    const accessCheck = await validateListPageAccess(user ?? undefined);
+    const currentUser = await getCurrentUser(); // GET CURRENT USER
+    const accessCheck = await validateListPageAccess(currentUser ?? undefined);
 
     if (!accessCheck.success) {
       return (
@@ -105,9 +104,8 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
             filterConfig={userFilterConfig}
           />
 
-          {/* Clean data flow - no transformation needed */}
-          <DataTable
-            columns={userColumns}
+          {/* UPDATED: Use client wrapper component */}
+          <UsersDataTable
             data={result.data}
             pagination={result.pagination}
             sorting={{
@@ -115,7 +113,11 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
               sortDirection: params.sortDirection,
             }}
             emptyMessage="No users found. Create your first user to get started."
-            selectable={user?.role === "system_admin"}
+            selectable={currentUser?.role === "system_admin"}
+            currentUser={{
+              role: currentUser?.role || 'unknown',
+              organizationSlug: undefined, // No org slug for admin pages
+            }}
           />
         </div>
       </ListPageWrapper>

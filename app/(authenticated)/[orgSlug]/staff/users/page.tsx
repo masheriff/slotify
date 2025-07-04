@@ -7,14 +7,13 @@ import {
 } from "@/lib/list-page-server";
 import { ListPageWrapper } from "@/components/common/list-page-wrapper";
 import { FilterablePageHeader } from "@/components/common/filterable-page-header";
-import { DataTable } from "@/components/common/data-table";
-import { userColumns } from "@/components/table-configs/user-columns";
+import { UsersDataTable } from "@/components/tables/users-data-table"; // UPDATED IMPORT
 import { getUsersList } from "@/actions/users.actions";
 import { getCurrentUser } from "@/lib/auth-server";
 import { getOrganizationBySlug } from "@/actions/organization.actions";
 import { type UserListItem } from "@/types/users.types";
-import { clientOrgUserFilterConfig } from "@/components/client/forms/clinet-org-user-filters-config";
 import { HEALTHCARE_ROLES } from "@/lib/permissions/healthcare-permissions-constants";
+import { clientOrgUserFilterConfig } from "@/components/client/forms/clinet-org-user-filters-config";
 
 interface ClientOrgUsersPageProps {
   params: Promise<{ orgSlug: string }>;
@@ -148,8 +147,7 @@ export default async function ClientOrgUsersPage({
             filterConfig={clientOrgUserFilterConfig}
           />
 
-          <DataTable
-            columns={userColumns}
+          <UsersDataTable
             data={result.data}
             pagination={result.pagination}
             sorting={{
@@ -158,6 +156,10 @@ export default async function ClientOrgUsersPage({
             }}
             emptyMessage="No staff members found. Add your first team member to get started."
             selectable={false} // Client admins don't need bulk actions
+            currentUser={{
+              role: currentUser?.role || 'unknown',
+              organizationSlug: orgSlug, // Pass org slug for correct URLs
+            }}
           />
         </div>
       </ListPageWrapper>
