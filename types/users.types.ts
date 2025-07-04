@@ -128,6 +128,7 @@ export interface GetUsersListParams {
   role?: string;
   organizationId?: string;
   status?: 'active' | 'banned';
+  createdAfter?: string; 
 }
 
 // Organization with type for role filtering

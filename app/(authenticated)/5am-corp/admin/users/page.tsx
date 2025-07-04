@@ -9,9 +9,10 @@ import { ListPageWrapper } from "@/components/common/list-page-wrapper";
 import { FilterablePageHeader } from "@/components/common/filterable-page-header";
 import { UsersDataTable } from "@/components/tables/users-data-table"; // NEW IMPORT
 import { userFilterConfig } from "@/components/admin/forms/user-filters-config";
-import { getUsersList } from "@/actions/users.actions";
+import { getUsersList, getOrganizationsForUserCreation } from "@/actions/users.actions";
 import { getCurrentUser } from "@/lib/auth-server";
 import { type UserListItem } from "@/types/users.types";
+import { FilterConfig } from "@/types";
 
 interface UsersPageProps {
   searchParams: Record<string, string | string[] | undefined>;
@@ -48,6 +49,28 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       );
     }
 
+    // Fetch organizations for the filter
+    let enhancedFilterConfig: FilterConfig[] = [...userFilterConfig];
+    
+    try {
+      const organizations = await getOrganizationsForUserCreation();
+      
+      // Find the organization filter and populate its options
+      const orgFilterIndex = enhancedFilterConfig.findIndex(filter => filter.key === "organization");
+      if (orgFilterIndex !== -1) {
+        enhancedFilterConfig[orgFilterIndex] = {
+          ...enhancedFilterConfig[orgFilterIndex],
+          options: organizations.map(org => ({
+            value: org.id,
+            label: org.name,
+          })),
+        };
+      }
+    } catch (error) {
+      console.error("❌ Failed to fetch organizations for filter:", error);
+      // Continue without organization filter options if fetch fails
+    }
+
     // Fetch users data using the consistent action pattern
     const result = await getUsersList({
       page: params.page,
@@ -58,6 +81,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
       role: params.filters.role || undefined,
       organizationId: params.filters.organization || undefined,
       status: params.filters.status as 'active' | 'banned' | undefined,
+      createdAfter: params.filters.createdAfter || undefined,
     });
 
     if (!result.success) {
@@ -101,7 +125,7 @@ export default async function UsersPage({ searchParams }: UsersPageProps) {
             description="Manage system users and their permissions"
             createButtonText="Create User"
             createHref="/5am-corp/admin/users/create"
-            filterConfig={userFilterConfig}
+            filterConfig={enhancedFilterConfig}
           />
 
           {/* UPDATED: Use client wrapper component */}

@@ -99,6 +99,7 @@ export default async function ClientOrgUsersPage({
       sortDirection: listParams.sortDirection || undefined,
       role: listParams.filters.role || undefined,
       status: listParams.filters.status as 'active' | 'banned' | undefined,
+      createdAfter: listParams.filters.createdAfter || undefined,
     });
 
     if (!result.success) {

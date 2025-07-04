@@ -1,45 +1,49 @@
 // actions/users.actions.ts - COMPLETE CORRECTED VERSION
-'use server';
+"use server";
 
-import { revalidatePath } from 'next/cache';
-import { eq, and, ilike, or, desc, asc, sql } from 'drizzle-orm';
-import { generateId } from 'better-auth';
-import { db } from '@/db';
-import { users, members, organizations } from '@/db/schema/auth-schema';
-import { getServerSession } from '@/lib/auth-server';
-import { isSuperAdmin, isFiveAmAdmin, isClientAdmin } from '@/lib/permissions/healthcare-access-control';
-import { 
-  userCreateSchema, 
-  userUpdateSchema, 
-  userBanSchema, 
+import { revalidatePath } from "next/cache";
+import { eq, and, ilike, or, desc, asc, sql } from "drizzle-orm";
+import { generateId } from "better-auth";
+import { db } from "@/db";
+import { users, members, organizations } from "@/db/schema/auth-schema";
+import { getServerSession } from "@/lib/auth-server";
+import {
+  isSuperAdmin,
+  isFiveAmAdmin,
+  isClientAdmin,
+} from "@/lib/permissions/healthcare-access-control";
+import {
+  userCreateSchema,
+  userUpdateSchema,
+  userBanSchema,
   userUnbanSchema,
-  userImpersonateSchema 
-} from '@/schemas/users.schemas';
-import { 
+  userImpersonateSchema,
+} from "@/schemas/users.schemas";
+import {
   type UserListItem,
   type GetUsersListParams,
-  OrganizationWithType
-} from '@/types/users.types';
-import { ServerActionResponse } from '@/types/server-actions.types';
-import { ListDataResult } from '@/types/list-page.types';
-import { 
-  canCreateRole, 
-  canEditUser, 
-  canBanUser, 
+  OrganizationWithType,
+} from "@/types/users.types";
+import { ServerActionResponse } from "@/types/server-actions.types";
+import { ListDataResult } from "@/types/list-page.types";
+import {
+  canCreateRole,
+  canEditUser,
+  canBanUser,
   canImpersonateUser as canImpersonateUserUtil,
-} from '@/utils/users.utils';
-import { OrganizationMetadata } from '@/types/organization.types';
-import { auth } from '@/lib/auth';
-import { headers } from 'next/headers';
+} from "@/utils/users.utils";
+import { OrganizationMetadata } from "@/types/organization.types";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 /**
  * Get current user with role validation
  */
 async function getCurrentUser() {
   const session = await getServerSession();
-  
+
   if (!session?.user) {
-    throw new Error('Authentication required');
+    throw new Error("Authentication required");
   }
 
   return session.user;
@@ -48,13 +52,19 @@ async function getCurrentUser() {
 /**
  * List users with filters and pagination - FIXED RETURN TYPES
  */
-export async function getUsersList(params: GetUsersListParams): Promise<ListDataResult<UserListItem>> {
+export async function getUsersList(
+  params: GetUsersListParams
+): Promise<ListDataResult<UserListItem>> {
   try {
     console.log("📋 Starting getUsersList with params:", params);
 
     // Only super admins and admins can list users
     const currentUser = await getCurrentUser();
-    if (!isSuperAdmin(currentUser.role ?? "") && !isFiveAmAdmin(currentUser.role ?? "") && !isClientAdmin(currentUser.role ?? "")) {
+    if (
+      !isSuperAdmin(currentUser.role ?? "") &&
+      !isFiveAmAdmin(currentUser.role ?? "") &&
+      !isClientAdmin(currentUser.role ?? "")
+    ) {
       return {
         success: false,
         data: [],
@@ -73,7 +83,7 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
     // Build query conditions - Create fresh conditions array each time
     const buildConditions = () => {
       const conditions = [];
-      
+
       if (params.search) {
         conditions.push(
           or(
@@ -91,10 +101,39 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
         conditions.push(eq(members.organizationId, params.organizationId));
       }
 
-      if (params.status === 'banned') {
+      if (params.status === "banned") {
         conditions.push(eq(users.banned, true));
-      } else if (params.status === 'active') {
-        conditions.push(or(eq(users.banned, false), sql`${users.banned} IS NULL`));
+      } else if (params.status === "active") {
+        conditions.push(
+          or(eq(users.banned, false), sql`${users.banned} IS NULL`)
+        );
+      }
+
+      if (params.createdAfter) {
+        try {
+          // Convert the date string to a Date object
+          const createdAfterDate = new Date(params.createdAfter);
+
+          // Validate the date
+          if (!isNaN(createdAfterDate.getTime())) {
+            conditions.push(sql`${users.createdAt} >= ${createdAfterDate}`);
+            console.log(
+              "📅 Filtering users created after:",
+              createdAfterDate.toISOString()
+            );
+          } else {
+            console.warn(
+              "⚠️ Invalid createdAfter date format:",
+              params.createdAfter
+            );
+          }
+        } catch (error) {
+          console.error(
+            "❌ Error parsing createdAfter date:",
+            params.createdAfter,
+            error
+          );
+        }
       }
 
       return conditions.length > 0 ? and(...conditions) : undefined;
@@ -115,19 +154,23 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
     // Get paginated results with fresh query conditions
     const dataWhereClause = buildConditions();
     const offset = (params.page - 1) * params.pageSize;
-    
-    const sortBy = params.sortBy || 'createdAt';
-    const sortDirection = params.sortDirection || 'desc';
-    
+
+    const sortBy = params.sortBy || "createdAt";
+    const sortDirection = params.sortDirection || "desc";
+
     let orderClause;
-    if (sortBy === 'name') {
-      orderClause = sortDirection === 'asc' ? asc(users.name) : desc(users.name);
-    } else if (sortBy === 'email') {
-      orderClause = sortDirection === 'asc' ? asc(users.email) : desc(users.email);
-    } else if (sortBy === 'role') {
-      orderClause = sortDirection === 'asc' ? asc(users.role) : desc(users.role);
+    if (sortBy === "name") {
+      orderClause =
+        sortDirection === "asc" ? asc(users.name) : desc(users.name);
+    } else if (sortBy === "email") {
+      orderClause =
+        sortDirection === "asc" ? asc(users.email) : desc(users.email);
+    } else if (sortBy === "role") {
+      orderClause =
+        sortDirection === "asc" ? asc(users.role) : desc(users.role);
     } else {
-      orderClause = sortDirection === 'asc' ? asc(users.createdAt) : desc(users.createdAt);
+      orderClause =
+        sortDirection === "asc" ? asc(users.createdAt) : desc(users.createdAt);
     }
 
     const dataQuery = db
@@ -149,14 +192,14 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
 
     // Group results by user ID to handle multiple organization memberships
     const userMap = new Map<string, UserListItem>();
-    
+
     results.forEach((row) => {
       if (!userMap.has(row.user.id)) {
-        const orgType = (row.organization?.metadata as any)?.type || 'client';
-        
+        const orgType = (row.organization?.metadata as any)?.type || "client";
+
         userMap.set(row.user.id, {
           id: row.user.id,
-          image:row.user.image,
+          image: row.user.image,
           name: row.user.name,
           email: row.user.email,
           role: row.user.role,
@@ -165,17 +208,21 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
           banExpires: row.user.banExpires,
           createdAt: row.user.createdAt,
           updatedAt: row.user.updatedAt,
-          organization: row.organization ? {
-            id: row.organization.id,
-            name: row.organization.name,
-            slug: row.organization.slug,
-            type: orgType,
-          } : null,
-          member: row.member ? {
-            id: row.member.id,
-            role: row.member.role,
-            createdAt: row.member.createdAt,
-          } : null,
+          organization: row.organization
+            ? {
+                id: row.organization.id,
+                name: row.organization.name,
+                slug: row.organization.slug,
+                type: orgType,
+              }
+            : null,
+          member: row.member
+            ? {
+                id: row.member.id,
+                role: row.member.role,
+                createdAt: row.member.createdAt,
+              }
+            : null,
         });
       }
     });
@@ -197,7 +244,6 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
         totalCount,
       },
     };
-
   } catch (error) {
     console.error("❌ Error in getUsersList:", error);
     return {
@@ -219,14 +265,19 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
 /**
  * Create a new user - UPDATED WITH MAGIC LINK
  */
-export async function createUser(formData: FormData): Promise<ServerActionResponse> {
+export async function createUser(
+  formData: FormData
+): Promise<ServerActionResponse> {
   try {
     console.log("🔧 Creating user");
 
     const currentUser = await getCurrentUser();
-    
+
     // Check permissions
-    if (!isSuperAdmin(currentUser.role ?? "") && !isFiveAmAdmin(currentUser.role ?? "")) {
+    if (
+      !isSuperAdmin(currentUser.role ?? "") &&
+      !isFiveAmAdmin(currentUser.role ?? "")
+    ) {
       return {
         success: false,
         error: "Insufficient permissions to create users",
@@ -234,10 +285,10 @@ export async function createUser(formData: FormData): Promise<ServerActionRespon
     }
 
     const rawData = {
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
-      organizationId: formData.get('organizationId') as string,
-      role: formData.get('role') as string,
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      organizationId: formData.get("organizationId") as string,
+      role: formData.get("role") as string,
     };
 
     const validatedData = userCreateSchema.parse(rawData);
@@ -260,21 +311,24 @@ export async function createUser(formData: FormData): Promise<ServerActionRespon
     if (existingUser.length > 0) {
       return {
         success: false,
-        error: 'User with this email already exists',
+        error: "User with this email already exists",
       };
     }
 
     // Create user
     const userId = generateId();
-    const [newUser] = await db.insert(users).values({
-      id: userId,
-      name: validatedData.name,
-      email: validatedData.email,
-      role: validatedData.role,
-      emailVerified: false,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }).returning();
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        id: userId,
+        name: validatedData.name,
+        email: validatedData.email,
+        role: validatedData.role,
+        emailVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
 
     // Create organization membership
     await db.insert(members).values({
@@ -288,13 +342,13 @@ export async function createUser(formData: FormData): Promise<ServerActionRespon
     // Send magic link for sign in
     try {
       console.log("📧 Sending magic link to new user:", validatedData.email);
-      
+
       await auth.api.signInMagicLink({
         body: {
           email: validatedData.email,
           callbackURL: "/auth/callback", // Redirect to dashboard after successful login
         },
-        headers: await headers()
+        headers: await headers(),
       });
 
       console.log("✅ Magic link sent successfully to:", validatedData.email);
@@ -304,19 +358,18 @@ export async function createUser(formData: FormData): Promise<ServerActionRespon
       // The user exists and can request a new magic link later
     }
 
-    revalidatePath('/5am-corp/admin/users');
-    
+    revalidatePath("/5am-corp/admin/users");
+
     console.log("✅ User created successfully");
 
     return {
       success: true,
-      message: 'User created successfully. Magic link sent to user email.',
+      message: "User created successfully. Magic link sent to user email.",
       data: { userId: newUser.id },
     };
-
   } catch (error) {
-    console.error('❌ Error creating user:', error);
-    
+    console.error("❌ Error creating user:", error);
+
     if (error instanceof Error) {
       return {
         success: false,
@@ -326,7 +379,7 @@ export async function createUser(formData: FormData): Promise<ServerActionRespon
 
     return {
       success: false,
-      error: 'Failed to create user',
+      error: "Failed to create user",
     };
   }
 }
@@ -334,18 +387,20 @@ export async function createUser(formData: FormData): Promise<ServerActionRespon
 /**
  * Update an existing user - FIXED RETURN TYPES
  */
-export async function updateUser(formData: FormData): Promise<ServerActionResponse> {
+export async function updateUser(
+  formData: FormData
+): Promise<ServerActionResponse> {
   try {
     console.log("✏️ Updating user");
 
     const currentUser = await getCurrentUser();
-    
+
     const rawData = {
-      id: formData.get('id') as string,
-      name: formData.get('name') as string,
-      email: formData.get('email') as string,
-      organizationId: formData.get('organizationId') as string,
-      role: formData.get('role') as string,
+      id: formData.get("id") as string,
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      organizationId: formData.get("organizationId") as string,
+      role: formData.get("role") as string,
     };
 
     const validatedData = userUpdateSchema.parse(rawData);
@@ -360,7 +415,7 @@ export async function updateUser(formData: FormData): Promise<ServerActionRespon
     if (!targetUser) {
       return {
         success: false,
-        error: 'User not found',
+        error: "User not found",
       };
     }
 
@@ -368,12 +423,15 @@ export async function updateUser(formData: FormData): Promise<ServerActionRespon
     if (!canEditUser(currentUser.role as any, targetUser.role as any)) {
       return {
         success: false,
-        error: 'You do not have permission to edit this user',
+        error: "You do not have permission to edit this user",
       };
     }
 
     // If role is being changed, validate it
-    if (validatedData.role && !canCreateRole(currentUser.role as any, validatedData.role)) {
+    if (
+      validatedData.role &&
+      !canCreateRole(currentUser.role as any, validatedData.role)
+    ) {
       return {
         success: false,
         error: `You do not have permission to assign the role: ${validatedData.role}`,
@@ -389,7 +447,8 @@ export async function updateUser(formData: FormData): Promise<ServerActionRespon
     if (validatedData.email) updateData.email = validatedData.email;
     if (validatedData.role) updateData.role = validatedData.role;
 
-    await db.update(users)
+    await db
+      .update(users)
       .set(updateData)
       .where(eq(users.id, validatedData.id));
 
@@ -401,39 +460,42 @@ export async function updateUser(formData: FormData): Promise<ServerActionRespon
         .where(eq(members.userId, validatedData.id))
         .limit(1);
 
-      if (validatedData.organizationId && (!existingMember.length || existingMember[0].organizationId !== validatedData.organizationId)) {
+      if (
+        validatedData.organizationId &&
+        (!existingMember.length ||
+          existingMember[0].organizationId !== validatedData.organizationId)
+      ) {
         // Delete old member relationship
-        await db.delete(members)
-          .where(eq(members.userId, validatedData.id));
+        await db.delete(members).where(eq(members.userId, validatedData.id));
 
         // Create new member relationship
         await db.insert(members).values({
           id: generateId(),
           userId: validatedData.id,
           organizationId: validatedData.organizationId,
-          role: validatedData.role || targetUser.role || 'member',
+          role: validatedData.role || targetUser.role || "member",
           createdAt: new Date(),
         });
       } else if (validatedData.role) {
         // Update existing member role
-        await db.update(members)
+        await db
+          .update(members)
           .set({ role: validatedData.role })
           .where(eq(members.userId, validatedData.id));
       }
     }
 
-    revalidatePath('/5am-corp/admin/users');
-    
+    revalidatePath("/5am-corp/admin/users");
+
     console.log("✅ User updated successfully");
 
     return {
       success: true,
-      message: 'User updated successfully',
+      message: "User updated successfully",
     };
-
   } catch (error) {
-    console.error('❌ Error updating user:', error);
-    
+    console.error("❌ Error updating user:", error);
+
     if (error instanceof Error) {
       return {
         success: false,
@@ -443,7 +505,7 @@ export async function updateUser(formData: FormData): Promise<ServerActionRespon
 
     return {
       success: false,
-      error: 'Failed to update user',
+      error: "Failed to update user",
     };
   }
 }
@@ -451,17 +513,20 @@ export async function updateUser(formData: FormData): Promise<ServerActionRespon
 /**
  * Ban a user - FIXED RETURN TYPES
  */
-export async function banUser(formData: FormData): Promise<ServerActionResponse> {
+export async function banUser(
+  formData: FormData
+): Promise<ServerActionResponse> {
   try {
     console.log("🚫 Banning user");
 
     const currentUser = await getCurrentUser();
-    
+
     const rawData = {
-      id: formData.get('id') as string,
-      banReason: formData.get('banReason') as string,
-      banExpires: formData.get('banExpires') ? 
-        new Date(formData.get('banExpires') as string) : undefined,
+      id: formData.get("id") as string,
+      banReason: formData.get("banReason") as string,
+      banExpires: formData.get("banExpires")
+        ? new Date(formData.get("banExpires") as string)
+        : undefined,
     };
 
     const validatedData = userBanSchema.parse(rawData);
@@ -476,7 +541,7 @@ export async function banUser(formData: FormData): Promise<ServerActionResponse>
     if (!targetUser) {
       return {
         success: false,
-        error: 'User not found',
+        error: "User not found",
       };
     }
 
@@ -484,12 +549,13 @@ export async function banUser(formData: FormData): Promise<ServerActionResponse>
     if (!canBanUser(currentUser.role as any, targetUser.role as any)) {
       return {
         success: false,
-        error: 'You do not have permission to ban this user',
+        error: "You do not have permission to ban this user",
       };
     }
 
     // Ban user
-    await db.update(users)
+    await db
+      .update(users)
       .set({
         banned: true,
         banReason: validatedData.banReason,
@@ -498,18 +564,17 @@ export async function banUser(formData: FormData): Promise<ServerActionResponse>
       })
       .where(eq(users.id, validatedData.id));
 
-    revalidatePath('/5am-corp/admin/users');
-    
+    revalidatePath("/5am-corp/admin/users");
+
     console.log("✅ User banned successfully");
 
     return {
       success: true,
-      message: 'User banned successfully',
+      message: "User banned successfully",
     };
-
   } catch (error) {
-    console.error('❌ Error banning user:', error);
-    
+    console.error("❌ Error banning user:", error);
+
     if (error instanceof Error) {
       return {
         success: false,
@@ -519,7 +584,7 @@ export async function banUser(formData: FormData): Promise<ServerActionResponse>
 
     return {
       success: false,
-      error: 'Failed to ban user',
+      error: "Failed to ban user",
     };
   }
 }
@@ -532,7 +597,7 @@ export async function unbanUser(userId: string): Promise<ServerActionResponse> {
     console.log("✅ Unbanning user");
 
     const currentUser = await getCurrentUser();
-    
+
     const validatedData = userUnbanSchema.parse({ id: userId });
 
     // Get target user
@@ -545,7 +610,7 @@ export async function unbanUser(userId: string): Promise<ServerActionResponse> {
     if (!targetUser) {
       return {
         success: false,
-        error: 'User not found',
+        error: "User not found",
       };
     }
 
@@ -553,12 +618,13 @@ export async function unbanUser(userId: string): Promise<ServerActionResponse> {
     if (!canBanUser(currentUser.role as any, targetUser.role as any)) {
       return {
         success: false,
-        error: 'You do not have permission to unban this user',
+        error: "You do not have permission to unban this user",
       };
     }
 
     // Unban user
-    await db.update(users)
+    await db
+      .update(users)
       .set({
         banned: false,
         banReason: null,
@@ -567,18 +633,17 @@ export async function unbanUser(userId: string): Promise<ServerActionResponse> {
       })
       .where(eq(users.id, validatedData.id));
 
-    revalidatePath('/5am-corp/admin/users');
-    
+    revalidatePath("/5am-corp/admin/users");
+
     console.log("✅ User unbanned successfully");
 
     return {
       success: true,
-      message: 'User unbanned successfully',
+      message: "User unbanned successfully",
     };
-
   } catch (error) {
-    console.error('❌ Error unbanning user:', error);
-    
+    console.error("❌ Error unbanning user:", error);
+
     if (error instanceof Error) {
       return {
         success: false,
@@ -588,7 +653,7 @@ export async function unbanUser(userId: string): Promise<ServerActionResponse> {
 
     return {
       success: false,
-      error: 'Failed to unban user',
+      error: "Failed to unban user",
     };
   }
 }
@@ -596,13 +661,15 @@ export async function unbanUser(userId: string): Promise<ServerActionResponse> {
 /**
  * Impersonate a user - COMPLETED IMPLEMENTATION
  */
-export async function impersonateUser(formData: FormData): Promise<ServerActionResponse<{ impersonatedUserId: string }>> {
+export async function impersonateUser(
+  formData: FormData
+): Promise<ServerActionResponse<{ impersonatedUserId: string }>> {
   try {
     console.log("🔄 Starting user impersonation process");
 
     // Validate input
     const validatedData = userImpersonateSchema.parse({
-      id: formData.get('id'),
+      id: formData.get("id"),
     });
 
     const currentUser = await getCurrentUser();
@@ -618,15 +685,17 @@ export async function impersonateUser(formData: FormData): Promise<ServerActionR
     if (!targetUser) {
       return {
         success: false,
-        error: 'User not found',
+        error: "User not found",
       };
     }
 
     // Check permissions (only super admins can impersonate)
-    if (!canImpersonateUserUtil(currentUser.role as any, targetUser.role as any)) {
+    if (
+      !canImpersonateUserUtil(currentUser.role as any, targetUser.role as any)
+    ) {
       return {
         success: false,
-        error: 'You do not have permission to impersonate this user',
+        error: "You do not have permission to impersonate this user",
       };
     }
 
@@ -634,38 +703,37 @@ export async function impersonateUser(formData: FormData): Promise<ServerActionR
     if (targetUser.banned) {
       return {
         success: false,
-        error: 'Cannot impersonate a banned user',
+        error: "Cannot impersonate a banned user",
       };
     }
 
     // IMPLEMENTATION: Use Better Auth impersonation API
     const impersonationResult = await auth.api.impersonateUser({
       body: { userId: targetUser.id },
-      headers: await headers()
+      headers: await headers(),
     });
 
     if (!impersonationResult) {
       return {
         success: false,
-        error: 'Failed to start impersonation session',
+        error: "Failed to start impersonation session",
       };
     }
 
     console.log("✅ User impersonation successful:", {
       originalUser: currentUser.email,
       targetUser: targetUser.email,
-      targetUserId: targetUser.id
+      targetUserId: targetUser.id,
     });
 
     return {
       success: true,
-      message: 'Impersonation started successfully',
+      message: "Impersonation started successfully",
       data: { impersonatedUserId: targetUser.id },
     };
-
   } catch (error) {
-    console.error('❌ Error impersonating user:', error);
-    
+    console.error("❌ Error impersonating user:", error);
+
     if (error instanceof Error) {
       return {
         success: false,
@@ -675,7 +743,7 @@ export async function impersonateUser(formData: FormData): Promise<ServerActionR
 
     return {
       success: false,
-      error: 'Failed to impersonate user',
+      error: "Failed to impersonate user",
     };
   }
 }
@@ -683,14 +751,19 @@ export async function impersonateUser(formData: FormData): Promise<ServerActionR
 /**
  * Get user by ID - FIXED RETURN TYPES
  */
-export async function getUserById(userId: string): Promise<ServerActionResponse<UserListItem>> {
+export async function getUserById(
+  userId: string
+): Promise<ServerActionResponse<UserListItem>> {
   try {
     console.log("🔍 Getting user by ID:", userId);
 
     const currentUser = await getCurrentUser();
-    
+
     // Check permissions
-    if (!isSuperAdmin(currentUser.role ?? "") && !isFiveAmAdmin(currentUser.role ?? "")) {
+    if (
+      !isSuperAdmin(currentUser.role ?? "") &&
+      !isFiveAmAdmin(currentUser.role ?? "")
+    ) {
       return {
         success: false,
         error: "Insufficient permissions to view user details",
@@ -712,12 +785,12 @@ export async function getUserById(userId: string): Promise<ServerActionResponse<
     if (!result) {
       return {
         success: false,
-        error: 'User not found',
+        error: "User not found",
       };
     }
 
-    const orgType = (result.organization?.metadata as any)?.type || 'client';
-    
+    const orgType = (result.organization?.metadata as any)?.type || "client";
+
     const user: UserListItem = {
       id: result.user.id,
       image: result.user.image,
@@ -729,32 +802,35 @@ export async function getUserById(userId: string): Promise<ServerActionResponse<
       banExpires: result.user.banExpires,
       createdAt: result.user.createdAt,
       updatedAt: result.user.updatedAt,
-      organization: result.organization ? {
-        id: result.organization.id,
-        name: result.organization.name,
-        slug: result.organization.slug,
-        type: orgType,
-      } : null,
-      member: result.member ? {
-        id: result.member.id,
-        role: result.member.role,
-        createdAt: result.member.createdAt,
-      } : null,
+      organization: result.organization
+        ? {
+            id: result.organization.id,
+            name: result.organization.name,
+            slug: result.organization.slug,
+            type: orgType,
+          }
+        : null,
+      member: result.member
+        ? {
+            id: result.member.id,
+            role: result.member.role,
+            createdAt: result.member.createdAt,
+          }
+        : null,
     };
 
     console.log("✅ User found:", user.name);
-    
+
     return {
       success: true,
       data: user,
     };
-
   } catch (error) {
-    console.error('❌ Error getting user by ID:', error);
-    
+    console.error("❌ Error getting user by ID:", error);
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to get user',
+      error: error instanceof Error ? error.message : "Failed to get user",
     };
   }
 }
@@ -762,14 +838,19 @@ export async function getUserById(userId: string): Promise<ServerActionResponse<
 /**
  * Get organizations for user creation/editing - FIXED RETURN TYPES
  */
-export async function getOrganizationsForUserCreation(): Promise<OrganizationWithType[]> {
+export async function getOrganizationsForUserCreation(): Promise<
+  OrganizationWithType[]
+> {
   try {
     console.log("🔍 Getting organizations for user creation");
 
     const currentUser = await getCurrentUser();
-    
+
     // Check permissions
-    if (!isSuperAdmin(currentUser.role ?? "") && !isFiveAmAdmin(currentUser.role ?? "")) {
+    if (
+      !isSuperAdmin(currentUser.role ?? "") &&
+      !isFiveAmAdmin(currentUser.role ?? "")
+    ) {
       throw new Error("Insufficient permissions to view organizations");
     }
 
@@ -784,7 +865,7 @@ export async function getOrganizationsForUserCreation(): Promise<OrganizationWit
       .from(organizations)
       .orderBy(organizations.name);
 
-    const organizationsWithType: OrganizationWithType[] = result.map(org => {
+    const organizationsWithType: OrganizationWithType[] = result.map((org) => {
       const metadata = org.metadata as OrganizationMetadata;
       return {
         id: org.id,
@@ -792,7 +873,7 @@ export async function getOrganizationsForUserCreation(): Promise<OrganizationWit
         slug: org.slug,
         metadata: {
           ...metadata,
-          type: metadata?.type || 'client',
+          type: metadata?.type || "client",
           isActive: metadata?.isActive !== false,
         },
         createdAt: org.createdAt,
@@ -801,7 +882,6 @@ export async function getOrganizationsForUserCreation(): Promise<OrganizationWit
 
     console.log("✅ getOrganizationsForUserCreation completed successfully");
     return organizationsWithType;
-
   } catch (error) {
     console.error("❌ Error in getOrganizationsForUserCreation:", error);
     throw error;
