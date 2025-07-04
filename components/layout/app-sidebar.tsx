@@ -25,7 +25,8 @@ export function AppSidebar({
   userRole, 
   ...props 
 }: AppSidebarProps) {
-  const navItems = getNavItemsAccordingToUserRole(userRole);
+  // Pass organization slug to get role-appropriate navigation
+  const navItems = getNavItemsAccordingToUserRole(userRole, organization.slug);
 
   return (
     <Sidebar collapsible="icon" {...props}>
