@@ -5,20 +5,13 @@ import {
   Building,
   Users,
   FileText,
-  Settings2,
-  Stethoscope,
   Calendar,
-  MapPin,
   Activity,
   UserCheck,
-  UserPlus,
-  Briefcase,
   ClipboardList,
   Database,
-  HeartHandshake,
   Building2,
   MonitorSpeaker,
-  Zap,
 } from "lucide-react";
 
 // Helper function to build dynamic URLs for client organization roles
@@ -85,6 +78,7 @@ const system_admin_nav_items: NavItems[] = [
     url: "/5am-corp/admin/operations",
     icon: Activity,
     items: [
+      { title: "Patients", url: "/5am-corp/admin/operations/patients" },
       { title: "Appointments", url: "/5am-corp/admin/operations/appointments" },
       { title: "Bookings", url: "/5am-corp/admin/operations/bookings" },
       { title: "Interpretations", url: "/5am-corp/admin/operations/interpretations" },
@@ -140,7 +134,6 @@ const client_admin_nav_template: NavItems[] = [
       { title: "Users", url: "/{{orgSlug}}/staff/users" },
       { title: "Technicians", url: "/{{orgSlug}}/staff/technicians" },
       { title: "Interpreting Doctors", url: "/{{orgSlug}}/staff/interpreting-doctors" },
-      { title: "Referring Doctors", url: "/{{orgSlug}}/staff/referring-doctors" },
     ],
   },
   {
@@ -148,7 +141,6 @@ const client_admin_nav_template: NavItems[] = [
     url: "/{{orgSlug}}/operations",
     icon: Activity,
     items: [
-      { title: "Patients", url: "/{{orgSlug}}/operations/patients" },
       { title: "Appointments", url: "/{{orgSlug}}/operations/appointments" },
       { title: "Bookings", url: "/{{orgSlug}}/operations/bookings" },
       { title: "Interpretations", url: "/{{orgSlug}}/operations/interpretations" },
@@ -185,8 +177,8 @@ const front_desk_nav_template: NavItems[] = [
     icon: ClipboardList,
   },
   {
-    title: "Technicians",
-    url: "/{{orgSlug}}/front-desk/technicians",
+    title: "Interpretations",
+    url: "/{{orgSlug}}/front-desk/interpretations",
     icon: UserCheck,
   },
 ];
@@ -204,7 +196,7 @@ const technician_nav_template: NavItems[] = [
   },
   {
     title: "Holter Assignment",
-    url: "/{{orgSlug}}/technician/holter-assignment",
+    url: "/{{orgSlug}}/technician/holter-devices-assignment",
     icon: MonitorSpeaker,
   },
 ];
@@ -220,11 +212,11 @@ const interpreting_doctor_nav_template: NavItems[] = [
     url: "/{{orgSlug}}/doctor/interpretation-queue",
     icon: ClipboardList,
   },
-  {
-    title: "My Interpretations",
-    url: "/{{orgSlug}}/doctor/my-interpretations",
-    icon: Stethoscope,
-  },
+  // {
+  //   title: "My Interpretations",
+  //   url: "/{{orgSlug}}/doctor/my-interpretations",
+  //   icon: Stethoscope,
+  // },
 ];
 
 export function getNavItemsAccordingToUserRole(
