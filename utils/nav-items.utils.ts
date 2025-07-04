@@ -11,6 +11,14 @@ import {
   MapPin,
   Activity,
   UserCheck,
+  UserPlus,
+  Briefcase,
+  ClipboardList,
+  Database,
+  HeartHandshake,
+  Building2,
+  MonitorSpeaker,
+  Zap,
 } from "lucide-react";
 
 // Helper function to build dynamic URLs for client organization roles
@@ -66,7 +74,7 @@ const system_admin_nav_items: NavItems[] = [
   {
     title: "Staffs",
     url: "/5am-corp/admin/staffs",
-    icon: Users,
+    icon: UserCheck,
     items: [
       { title: "Technicians", url: "/5am-corp/admin/staffs/technicians" },
       { title: "Interpreting Doctors", url: "/5am-corp/admin/staffs/interpreting-doctors/create" },
@@ -75,7 +83,7 @@ const system_admin_nav_items: NavItems[] = [
   {
     title: "Operations",
     url: "/5am-corp/admin/operations",
-    icon: Users,
+    icon: Activity,
     items: [
       { title: "Appointments", url: "/5am-corp/admin/operations/appointments" },
       { title: "Bookings", url: "/5am-corp/admin/operations/bookings" },
@@ -86,7 +94,7 @@ const system_admin_nav_items: NavItems[] = [
   {
     title: "Masters",
     url: "/5am-corp/admin/masters",
-    icon: Settings2,
+    icon: Database,
     items: [
       { title: "Procedure Test Locations", url: "/5am-corp/admin/masters/procedure-test-locations" },
       { title: "Holter Devices Inventory", url: "/5am-corp/admin/masters/holter-devices-inventory" },
@@ -101,7 +109,8 @@ const system_admin_nav_items: NavItems[] = [
   },
 ];
 
-const five_am_admin_nav_items: NavItems[] = system_admin_nav_items.filter(nav_item => {nav_item.title != 'Organizations'});
+// Fixed: Proper filter logic with return statement and strict comparison
+const five_am_admin_nav_items: NavItems[] = system_admin_nav_items.filter(nav_item => nav_item.title !== 'Organizations');
 
 const five_am_agent_nav_items: NavItems[] = [
   {
@@ -112,12 +121,9 @@ const five_am_agent_nav_items: NavItems[] = [
   {
     title: "Assigned Clients",
     url: "/5am-corp/agent/assigned-clients",
-    icon: Building,
+    icon: Building2,
   },
 ];
-
-
-
 
 // Client organization navigation templates (with placeholder)
 const client_admin_nav_template: NavItems[] = [
@@ -134,6 +140,7 @@ const client_admin_nav_template: NavItems[] = [
       { title: "Users", url: "/{{orgSlug}}/staff/users" },
       { title: "Technicians", url: "/{{orgSlug}}/staff/technicians" },
       { title: "Interpreting Doctors", url: "/{{orgSlug}}/staff/interpreting-doctors" },
+      { title: "Referring Doctors", url: "/{{orgSlug}}/staff/referring-doctors" },
     ],
   },
   {
@@ -141,7 +148,7 @@ const client_admin_nav_template: NavItems[] = [
     url: "/{{orgSlug}}/operations",
     icon: Activity,
     items: [
-      // { title: "Patients", url: "/{{orgSlug}}/operations/patients" },
+      { title: "Patients", url: "/{{orgSlug}}/operations/patients" },
       { title: "Appointments", url: "/{{orgSlug}}/operations/appointments" },
       { title: "Bookings", url: "/{{orgSlug}}/operations/bookings" },
       { title: "Interpretations", url: "/{{orgSlug}}/operations/interpretations" },
@@ -151,7 +158,7 @@ const client_admin_nav_template: NavItems[] = [
   {
     title: "Masters",
     url: "/{{orgSlug}}/masters",
-    icon: Settings2,
+    icon: Database,
     items: [
       { title: "Procedure Test Locations", url: "/{{orgSlug}}/masters/procedure-test-locations" },
       { title: "Holter Devices Inventory", url: "/{{orgSlug}}/masters/holter-devices-inventory" },
@@ -175,7 +182,7 @@ const front_desk_nav_template: NavItems[] = [
   {
     title: "Bookings",
     url: "/{{orgSlug}}/front-desk/bookings",
-    icon: FileText,
+    icon: ClipboardList,
   },
   {
     title: "Technicians",
@@ -193,12 +200,12 @@ const technician_nav_template: NavItems[] = [
   {
     title: "My Bookings",
     url: "/{{orgSlug}}/technician/my-bookings",
-    icon: FileText,
+    icon: ClipboardList,
   },
   {
     title: "Holter Assignment",
     url: "/{{orgSlug}}/technician/holter-assignment",
-    icon: Activity,
+    icon: MonitorSpeaker,
   },
 ];
 
@@ -211,7 +218,7 @@ const interpreting_doctor_nav_template: NavItems[] = [
   {
     title: "Interpretation Queue",
     url: "/{{orgSlug}}/doctor/interpretation-queue",
-    icon: FileText,
+    icon: ClipboardList,
   },
   {
     title: "My Interpretations",
