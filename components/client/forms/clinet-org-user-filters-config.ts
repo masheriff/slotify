@@ -27,4 +27,10 @@ export const clientOrgUserFilterConfig: FilterConfig[] = [
       { value: "banned", label: "Banned" },
     ],
   },
+  {
+    label: "Created After",
+    key: "createdAfter",
+    type: "date",
+    placeholder: "Select date",
+  },
 ];

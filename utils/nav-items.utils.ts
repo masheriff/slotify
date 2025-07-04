@@ -55,16 +55,21 @@ const five_am_admin_nav_items: NavItems[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Organizations",
-    url: "/5am-corp/admin/organizations",
-    icon: Building,
+    title: "Users",
+    url: "/5am-corp/admin/users",
+    icon: Users,
     items: [
-      { title: "All Organizations", url: "/5am-corp/admin/organizations" },
-      {
-        title: "Create Organization",
-        url: "/5am-corp/admin/organizations/create",
-      },
+      { title: "All Users", url: "/5am-corp/admin/users" },
+      { title: "Create User", url: "/5am-corp/admin/users/create" },
     ],
+  },
+];
+
+const client_admin_nav_items: NavItems[] = [
+  {
+    title: "Dashboard",
+    url: "/dashboard",
+    icon: LayoutDashboard,
   },
 ];
 
@@ -76,13 +81,7 @@ const five_am_agent_nav_items: NavItems[] = [
   },
 ];
 
-const client_admin_nav_items: NavItems[] = [
-  {
-    title: "Dashboard",
-    url: "/dashboard",
-    icon: LayoutDashboard,
-  },
-];
+
 
 const front_desk_nav_items: NavItems[] = [
   {
