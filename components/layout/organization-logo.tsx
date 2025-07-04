@@ -22,8 +22,8 @@ export const OrganizationLogo = memo(({
     <Image
       src={logo}
       alt={`${name} logo`}
-      width={56}
-      height={56}
+      width={200}
+      height={200}
       quality={100}
       className="h-14 w-auto object-contain"
     />

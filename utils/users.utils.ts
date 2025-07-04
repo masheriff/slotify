@@ -72,6 +72,29 @@ export function getRoleHierarchy(role: UserRole): number {
 }
 
 /**
+ * Check if user can view user details - NEW FUNCTION
+ */
+export function canViewUser(currentUserRole: UserRole, targetUserRole: UserRole): boolean {
+  // Super admins can view anyone
+  if (currentUserRole === ADMIN_ORG_ROLES.SYSTEM_ADMIN) {
+    return true;
+  }
+
+  // 5AM Admins can view anyone except system admins
+  if (currentUserRole === ADMIN_ORG_ROLES.FIVE_AM_ADMIN) {
+    return true;
+  }
+
+  // ✅ NEW: Client admins can view users within their organization
+  if (currentUserRole === CLIENT_ORG_ROLES.CLIENT_ADMIN) {
+    const clientOrgRoles = Object.values(CLIENT_ORG_ROLES);
+    return clientOrgRoles.includes(targetUserRole as ClientOrgRole);
+  }
+
+  return false;
+}
+
+/**
  * Check if user can create a specific role
  */
 export function canCreateRole(currentUserRole: UserRole, targetRole: UserRole): boolean {
@@ -92,32 +115,56 @@ export function canCreateRole(currentUserRole: UserRole, targetRole: UserRole): 
   return false;
 }
 
+
 /**
- * Check if user can edit another user
+ * Check if user can edit another user - UPDATED WITH CLIENT ADMIN SUPPORT
  */
 export function canEditUser(currentUserRole: UserRole, targetUserRole: UserRole): boolean {
-  const currentHierarchy = getRoleHierarchy(currentUserRole);
-  const targetHierarchy = getRoleHierarchy(targetUserRole);
-
   // Super admins can edit anyone
   if (currentUserRole === ADMIN_ORG_ROLES.SYSTEM_ADMIN) {
     return true;
   }
 
-  // Admins can edit users with lower hierarchy, but not other super admins
+  // 5AM Admins can edit users with lower hierarchy, but not other super admins
   if (currentUserRole === ADMIN_ORG_ROLES.FIVE_AM_ADMIN) {
     return targetUserRole !== ADMIN_ORG_ROLES.SYSTEM_ADMIN;
+  }
+
+  // ✅ NEW: Client admins can edit users within their organization
+  if (currentUserRole === CLIENT_ORG_ROLES.CLIENT_ADMIN) {
+    // Client admins can edit other client org users, but not admin org users
+    const clientOrgRoles = Object.values(CLIENT_ORG_ROLES);
+    return clientOrgRoles.includes(targetUserRole as ClientOrgRole);
   }
 
   return false;
 }
 
 /**
- * Check if user can ban another user
+ * Check if user can ban another user - UPDATED WITH CLIENT ADMIN SUPPORT
  */
 export function canBanUser(currentUserRole: UserRole, targetUserRole: UserRole): boolean {
-  // Same rules as editing for now
-  return canEditUser(currentUserRole, targetUserRole);
+  // Super admins can ban anyone (except other super admins)
+  if (currentUserRole === ADMIN_ORG_ROLES.SYSTEM_ADMIN) {
+    return targetUserRole !== ADMIN_ORG_ROLES.SYSTEM_ADMIN;
+  }
+
+  // 5AM Admins can ban users with lower hierarchy, but not system admins
+  if (currentUserRole === ADMIN_ORG_ROLES.FIVE_AM_ADMIN) {
+    return targetUserRole !== ADMIN_ORG_ROLES.SYSTEM_ADMIN;
+  }
+
+  // ✅ NEW: Client admins can ban users within their organization (except other client admins)
+  if (currentUserRole === CLIENT_ORG_ROLES.CLIENT_ADMIN) {
+    const lowerClientRoles: ClientOrgRole[] = [
+      CLIENT_ORG_ROLES.FRONT_DESK,
+      CLIENT_ORG_ROLES.TECHNICIAN,
+      CLIENT_ORG_ROLES.INTERPRETING_DOCTOR,
+    ];
+    return lowerClientRoles.includes(targetUserRole as ClientOrgRole);
+  }
+
+  return false;
 }
 
 /**

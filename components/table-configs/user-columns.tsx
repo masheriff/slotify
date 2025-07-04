@@ -28,6 +28,7 @@ import {
   canEditUser,
   canBanUser,
   canImpersonateUser,
+  canViewUser,
 } from "@/utils/users.utils";
 import { getMemberRoleColor } from "@/utils/member.utils";
 import { format, formatDistanceToNow } from "date-fns";
@@ -60,6 +61,7 @@ function UserActionsCell({
   const currentUserRole = currentUser.role;
 
   const userStatus = getUserStatus(user);
+  const canView = canViewUser(currentUserRole as UserRole, user.role as UserRole); // NEW
   const canEdit = canEditUser(currentUserRole as UserRole, user.role as UserRole);
   const canBan = canBanUser(currentUserRole as UserRole, user.role as UserRole);
   const canImpersonate = canImpersonateUser(currentUserRole as UserRole, user.role as UserRole);
@@ -78,6 +80,10 @@ function UserActionsCell({
     }
     return `/5am-corp/admin/users/${user.id}/edit`;
   };
+
+    if (!canView && !canEdit && !canBan && !canImpersonate) {
+    return null;
+  }
 
   const handleUnbanUser = async () => {
     setIsUnbanLoading(true);
