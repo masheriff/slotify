@@ -7,7 +7,7 @@ import { generateId } from 'better-auth';
 import { db } from '@/db';
 import { users, members, organizations } from '@/db/schema/auth-schema';
 import { getServerSession } from '@/lib/auth-server';
-import { isSuperAdmin, isFiveAmAdmin } from '@/lib/permissions/healthcare-access-control';
+import { isSuperAdmin, isFiveAmAdmin, isClientAdmin } from '@/lib/permissions/healthcare-access-control';
 import { 
   userCreateSchema, 
   userUpdateSchema, 
@@ -54,7 +54,7 @@ export async function getUsersList(params: GetUsersListParams): Promise<ListData
 
     // Only super admins and admins can list users
     const currentUser = await getCurrentUser();
-    if (!isSuperAdmin(currentUser.role ?? "") && !isFiveAmAdmin(currentUser.role ?? "")) {
+    if (!isSuperAdmin(currentUser.role ?? "") && !isFiveAmAdmin(currentUser.role ?? "") && !isClientAdmin(currentUser.role ?? "")) {
       return {
         success: false,
         data: [],

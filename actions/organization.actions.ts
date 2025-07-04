@@ -8,7 +8,7 @@ import { z } from "zod";
 import { requireSuperAdmin, getServerSession } from "@/lib/auth-server";
 import { ServerActionResponse } from "@/types/server-actions.types";
 import { isSuperAdmin, isFiveAmAdmin } from "@/lib/permissions/healthcare-access-control";
-import { ListDataResult, Organization } from "@/types";
+import { ListDataResult, Organization, OrganizationMetadata } from "@/types";
 import { organizationDataSchema, OrganizationInput } from "@/schemas";
 import { ExistingMetadata } from "@/types/action.types";
 // FIXED: Server schema matches form schema exactly
@@ -925,6 +925,53 @@ export async function getOrganizationStats(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to get organization statistics",
+    };
+  }
+}
+
+/**
+ * Get organization by slug
+ */
+export async function getOrganizationBySlug(
+  slug: string
+): Promise<ServerActionResponse<Organization>> {
+  try {
+    console.log("🔍 Getting organization by slug:", slug);
+
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.slug, slug))
+      .limit(1);
+
+    if (!organization) {
+      return {
+        success: false,
+        error: `Organization with slug "${slug}" not found`,
+      };
+    }
+
+    console.log("✅ Found organization:", organization.name);
+
+    return {
+      success: true,
+      data: {
+        ...organization,
+        slug: organization.slug ?? "",
+        logo: organization.logo ?? undefined,
+        metadata: organization.metadata as OrganizationMetadata,
+      },
+    };
+
+  } catch (error) {
+    console.error("❌ Error getting organization by slug:", error);
+
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to get organization",
     };
   }
 }
