@@ -58,13 +58,14 @@ export function ImpersonateUserDialog({
         // Small delay to ensure session data propagates
         await new Promise(resolve => setTimeout(resolve, 100));
         
-        await organization.setActive({ organizationId: user.organization?.id })
+        await organization.setActive({ organizationId: user.organization?.id });
         
-        // Redirect to user's organization dashboard
+        // **SOLUTION: Use window.location.href for full page reload**
+        // This ensures all components (navigation, sidebar, logo) are refreshed
         if (user.organization?.slug) {
-          router.push(`/${user.organization.slug}/dashboard`);
+          window.location.href = `/${user.organization.slug}/dashboard`;
         } else {
-          router.push('/dashboard');
+          window.location.href = '/dashboard';
         }
         
         onSuccess?.();
@@ -74,9 +75,9 @@ export function ImpersonateUserDialog({
     } catch (error) {
       console.error('Impersonation error:', error);
       toast.error('An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Only set loading false on error since success redirects
     }
+    // Note: Don't set isLoading(false) on success since we're doing a full page redirect
   };
 
   const handleCancel = () => {

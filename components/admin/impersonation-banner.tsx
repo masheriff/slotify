@@ -2,18 +2,20 @@
 import { stopImpersonation } from "@/actions/impersonations";
 import { useSession } from "@/lib/auth-client";
 import { AlertTriangle, User, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { useState } from "react";;
+import { useState } from "react";
+import { User as UserType } from "better-auth";
 
-export function ImpersonationBanner() {
-  const { data, refetch } = useSession();
-  const router = useRouter();
+interface ImpersonationBannerProps {
+  isImpersonating: boolean;
+  user: UserType
+}
+
+export function ImpersonationBanner({ isImpersonating, user }: ImpersonationBannerProps) {
   const [isLoading, setIsLoading] = useState(false);
   
-  const isImpersonating = Boolean(data?.session?.impersonatedBy);
-  
+  // ✅ Use server-side prop instead of client-side check
   if (!isImpersonating) {
     return null;
   }
@@ -27,29 +29,21 @@ export function ImpersonationBanner() {
       if (result.success) {
         toast.success("Stopped impersonation");
         
-        // Force session refresh to clear impersonation data
-        console.log("🔄 Refreshing session after impersonation stop...");
-        await refetch();
-        console.log("✅ Session refreshed successfully");
-        
-        // Small delay to ensure session data propagates
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        
-        router.push("/5am-corp/admin/users");
+        // ✅ Use window.location.href for full page reload to refresh all UI components
+        window.location.href = "/5am-corp/admin/users";
       } else {
         toast.error("Failed to stop impersonation");
       }
     } catch (error) {
       console.error('Stop impersonation error:', error);
       toast.error('An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Only set loading false on error since success redirects
     }
+    // Note: Don't set isLoading(false) on success since we're doing a full page redirect
   };
 
   return (
-    <div className="fixed top-0 left-0 z-50 flex items-center w-full h-[40px] bg-gradient-to-r from-orange-500 to-red-500 text-white">
+    <div className="flex items-center px-2 h-[40px] bg-gradient-to-r from-orange-500 to-red-500 text-white">
       <div className="container mx-auto">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -63,7 +57,7 @@ export function ImpersonationBanner() {
               </span>
               <span className="text-sm opacity-90">
                 You are acting as{" "}
-                <strong>{data?.user.name || data?.user.email}</strong>
+                <strong>{user.name || user.email}</strong>
               </span>
             </div>
           </div>

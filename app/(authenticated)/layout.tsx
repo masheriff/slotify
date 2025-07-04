@@ -1,9 +1,10 @@
-
+// app/(authenticated)/layout.tsx
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { getServerSession, getServerOrganization } from "@/lib/auth-server";
 import { OrganizationMetadata, UserRole } from "@/types";
 import { redirect } from "next/navigation";
+import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 
 export default async function AuthenticatedLayout({
   children,
@@ -19,8 +20,11 @@ export default async function AuthenticatedLayout({
   const organization = await getServerOrganization();
 
   if (!organization) {
-    redirect("/select-organization"); // or handle as appropriate for your app
+    redirect("/select-organization");
   }
+
+  // ✅ Server-side impersonation check to prevent flickering
+  const isImpersonating = Boolean(session?.session?.impersonatedBy);
 
   return (
     <SidebarProvider>
@@ -42,7 +46,13 @@ export default async function AuthenticatedLayout({
         userRole={session.user.role as UserRole}
       />
       <SidebarInset>
-        {children}
+        {/* ✅ Server-side rendered impersonation banner */}
+        <ImpersonationBanner isImpersonating={isImpersonating} user={session?.user} />
+        
+        {/* ✅ Apply margin-top when impersonating to prevent layout shift */}
+        <div className={isImpersonating ? "mt-[40px]" : ""}>
+          {children}
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

@@ -5,7 +5,6 @@ import { GlobalLoadingIndicator } from "@/components/ui/global-loading";
 import NextTopLoader from "nextjs-toploader";
 import { Toaster } from "@/components/ui/sonner";
 import { initializeJobs } from "@/lib/startup/jobs";
-import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,8 +40,6 @@ export default function RootLayout({
 
           {/* Global action loading indicator */}
           <GlobalLoadingIndicator />
-
-          <ImpersonationBanner />
 
           {/* Toast notifications */}
           <Toaster position="top-right" />
