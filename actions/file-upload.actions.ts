@@ -1,6 +1,4 @@
-// Fix for file-upload-actions.ts
-
-"use server"
+// actions/file-upload.actions.ts - ADD PROFILE UPLOAD FUNCTION
 
 import { writeFile, unlink, mkdir } from "fs/promises"
 import { join } from "path"
@@ -8,10 +6,10 @@ import { generateId } from "better-auth"
 import { DeleteResult, UploadResult } from "@/types/action.types"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
-// Added webp to allowed types with correct handling
+const MAX_PROFILE_SIZE = 500 * 1024 // 500KB for profile pictures
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"]
 
-// Map MIME types to extensions to ensure consistency
+// Map MIME types to extensions
 const MIME_TO_EXTENSION = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -20,10 +18,12 @@ const MIME_TO_EXTENSION = {
   "image/svg+xml": "svg"
 }
 
-
-
 // Validate file type and size
-function validateFile(file: File, allowedTypes: string[] = ALLOWED_IMAGE_TYPES): { valid: boolean; error?: string } {
+function validateFile(
+  file: File, 
+  allowedTypes: string[] = ALLOWED_IMAGE_TYPES,
+  maxSize: number = MAX_FILE_SIZE
+): { valid: boolean; error?: string } {
   if (!file) {
     return {
       valid: false,
@@ -33,10 +33,10 @@ function validateFile(file: File, allowedTypes: string[] = ALLOWED_IMAGE_TYPES):
   
   console.log(`Validating file: ${file.name}, type: ${file.type}, size: ${file.size}`)
   
-  if (file.size > MAX_FILE_SIZE) {
+  if (file.size > maxSize) {
     return {
       valid: false,
-      error: `File size must be less than ${MAX_FILE_SIZE / 1024 / 1024}MB`
+      error: `File size must be less than ${Math.round(maxSize / 1024 / 1024)}MB`
     }
   }
 
@@ -51,7 +51,7 @@ function validateFile(file: File, allowedTypes: string[] = ALLOWED_IMAGE_TYPES):
 }
 
 // Generate file path based on upload type
-function generateFilePath(uploadType: "organizations" | "general", file: File): string {
+function generateFilePath(uploadType: "organizations" | "general" | "profile", file: File, userId?: string): string {
   const now = new Date()
   const year = now.getFullYear()
   const month = String(now.getMonth() + 1).padStart(2, '0')
@@ -64,6 +64,9 @@ function generateFilePath(uploadType: "organizations" | "general", file: File): 
   
   if (uploadType === "organizations") {
     return join("uploads", "organizations", `${fileId}.${extension}`)
+  } else if (uploadType === "profile" && userId) {
+    // For profile pictures: uploads/profile/user-{userId}_{timestamp}.png
+    return join("uploads", "profile", `user-${userId}_${time}.png`)
   } else {
     return join("uploads", year.toString(), month, day, `${time}_${fileId}.${extension}`)
   }
@@ -75,11 +78,96 @@ async function ensureDirectoryExists(filePath: string): Promise<void> {
   try {
     await mkdir(dir, { recursive: true })
   } catch (error) {
-    // Directory might already exist, which is fine
     console.log("Directory creation result:", error)
   }
 }
 
+// NEW: Upload profile picture function
+export async function uploadProfilePicture(formData: FormData, userId: string): Promise<UploadResult> {
+  try {
+    const file = formData.get("file") as File
+    
+    if (!file) {
+      return { success: false, error: "No file provided" }
+    }
+
+    console.log(`Processing profile picture upload: ${file.name}, type: ${file.type}, size: ${file.size}`)
+
+    // Validate file with profile-specific limits
+    const validation = validateFile(file, ALLOWED_IMAGE_TYPES, MAX_PROFILE_SIZE)
+    if (!validation.valid) {
+      console.log("Validation failed:", validation.error)
+      return { success: false, error: validation.error }
+    }
+
+    // Generate file path for profile picture
+    const filePath = generateFilePath("profile", file, userId)
+    const fullPath = join(process.cwd(), "public", filePath)
+
+    console.log(`Saving profile picture to: ${fullPath}`)
+
+    // Ensure directory exists
+    await ensureDirectoryExists(filePath)
+
+    // Convert file to buffer and save
+    try {
+      const bytes = await file.arrayBuffer()
+      const buffer = Buffer.from(bytes)
+      await writeFile(fullPath, buffer)
+      console.log("Profile picture saved successfully")
+    } catch (writeError) {
+      console.error("Error writing profile picture:", writeError)
+      return {
+        success: false,
+        error: writeError instanceof Error ? writeError.message : "Failed to save profile picture"
+      }
+    }
+
+    // Return public URL
+    const publicUrl = `/${filePath.replace(/\\/g, '/')}`
+    console.log("Profile picture upload successful, URL:", publicUrl)
+    
+    return {
+      success: true,
+      url: publicUrl
+    }
+
+  } catch (error) {
+    console.error("Profile picture upload error:", error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Profile picture upload failed"
+    }
+  }
+}
+
+// NEW: Delete old profile picture
+export async function deleteProfilePicture(imageUrl: string): Promise<DeleteResult> {
+  try {
+    if (!imageUrl || imageUrl === '') {
+      return { success: true } // Nothing to delete
+    }
+
+    // Extract file path from URL
+    const filePath = imageUrl.startsWith('/') ? imageUrl.slice(1) : imageUrl
+    const fullPath = join(process.cwd(), "public", filePath)
+
+    console.log(`Deleting old profile picture: ${fullPath}`)
+
+    // Delete file
+    await unlink(fullPath)
+    console.log("Old profile picture deleted successfully")
+
+    return { success: true }
+
+  } catch (error) {
+    // Don't fail the entire operation if old image deletion fails
+    console.warn("Warning: Could not delete old profile picture:", error)
+    return { success: true } // Return success anyway
+  }
+}
+
+// Existing functions remain unchanged...
 export async function uploadOrganizationLogo(formData: FormData): Promise<UploadResult> {
   try {
     const file = formData.get("file") as File
