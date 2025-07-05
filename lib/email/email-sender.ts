@@ -7,10 +7,7 @@ import {
 import { EmailSendResult, TemplateData } from "../../types/email.types";
 
 class EmailSender {
-  constructor() {
-    // Verify SMTP connection on initialization
-    this.verifyConnection();
-  }
+
 
   private async verifyConnection() {
     try {
@@ -77,6 +74,15 @@ class EmailSender {
   ): Promise<EmailSendResult> {
     return this.sendTemplateEmail("magic-link", to, data, options);
   }
+
+  async sendOTPEmail(
+    to: string,
+    data: TemplateData["otp-verification-email"],
+    options?: { customSubject?: string }
+  ): Promise<EmailSendResult> {
+    return this.sendTemplateEmail("otp-verification-email", to, data, options);
+  }
+  
 
   async sendOrganizationInvitationEmail(
     to: string,

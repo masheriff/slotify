@@ -8,6 +8,7 @@ import {
   organization,
   captcha,
   createAuthMiddleware,
+  emailOTP,
 } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/db";
@@ -15,6 +16,7 @@ import { eq } from "drizzle-orm";
 import {
   sendMagicLinkEmail,
   sendOrganizationInvitationEmail,
+  sendOTPEmail,
 } from "@/actions/email.actions";
 import {
   accounts,
@@ -214,6 +216,26 @@ export const auth = betterAuth({
       secretKey: process.env.RECAPTCHA_SECRET_KEY ?? "",
       minScore: 0.5, // Adjust the minimum score as needed
       endpoints: ["/sign-in/magic-link"], // Specify the endpoints that require CAPTCHA verification
+    }),
+    emailOTP({
+      sendVerificationOTP: async({ email, otp, type })=>{
+        if (type === "email-verification") {
+          
+          try {
+          const result = await sendOTPEmail(email, otp);
+
+          if (!result.success) {
+            console.error("Failed to send email verification OTP:", result.error);
+            throw new Error(`Email sending failed: ${result.error}`);
+          }
+
+          console.log("Email verification OTP sent successfully:", result.messageId);
+        } catch (error) {
+          console.error("Email verification OTP error:", error);
+          throw error;
+        }
+        }
+      }
     }),
     nextCookies(),
   ],

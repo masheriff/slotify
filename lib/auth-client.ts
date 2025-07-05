@@ -3,10 +3,11 @@ import {
   adminClient,
   organizationClient,
   magicLinkClient,
+  emailOTPClient,
 } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
-  plugins: [adminClient(), organizationClient(), magicLinkClient()],
+  plugins: [adminClient(), organizationClient(), magicLinkClient(), emailOTPClient()],
 });
 
 export const { signOut, useSession, useActiveOrganization } = authClient;

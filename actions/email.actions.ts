@@ -226,3 +226,17 @@ export async function sendOrganizationInvitationEmail(data: {
     };
   }
 }
+
+export async function sendOTPEmail(email: string, otp: string): Promise<EmailSendResult> {
+  try {
+    return await emailSender.sendOTPEmail(email, {
+      otp,
+      expiresIn: "5 minutes",
+    });
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send OTP email",
+    };
+  }
+}

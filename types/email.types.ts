@@ -40,6 +40,7 @@ export interface TemplateData {
   notification: NotificationEmailProps;
   "magic-link": MagicLinkEmailProps;
   "organization-invitation": OrganizationInvitationEmailProps;
+  "otp-verification-email": OTPVerificationEmailProps;
 }
 
 export interface EmailLayoutProps {
@@ -53,4 +54,9 @@ export interface OrganizationInvitationEmailProps {
   inviterName: string;
   invitationLink: string;
   expiresIn?: string;
+}
+
+export interface OTPVerificationEmailProps {
+  otp: string;
+  expiresIn: string;
 }

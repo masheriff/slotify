@@ -4,9 +4,10 @@ import { WelcomeEmail } from '../../emails/welcome';
 import { NotificationEmail } from '../../emails/notification';
 import { MagicLinkEmail } from '../../emails/magic-link';
 import { OrganizationInvitationEmail } from '../../emails/organization-invitation';
-import { WelcomeEmailProps, NotificationEmailProps, MagicLinkEmailProps, TemplateData, OrganizationInvitationEmailProps } from '../../types/email.types';
+import { WelcomeEmailProps, NotificationEmailProps, MagicLinkEmailProps, TemplateData, OrganizationInvitationEmailProps, OTPVerificationEmailProps } from '../../types/email.types';
+import { OTPVerificationEmail } from '@/emails/otp-verification-email';
 
-export type EmailTemplate = 'welcome' | 'notification' | 'magic-link' | 'organization-invitation';
+export type EmailTemplate = 'welcome' | 'notification' | 'magic-link' | 'organization-invitation' | 'otp-verification-email';
 
 
 
@@ -42,6 +43,12 @@ class TemplateRenderer {
           const orgInvitationData = data as OrganizationInvitationEmailProps;
           html = await render(OrganizationInvitationEmail(orgInvitationData));
           subject = `You're invited to join ${orgInvitationData.organizationName} on Slotify`;
+          break;
+
+        case 'otp-verification-email':
+          const otpVerificationEmailData = data as OTPVerificationEmailProps;
+          html = await render(OTPVerificationEmail(otpVerificationEmailData));
+          subject = 'Your OTP to verify your email';
           break;
 
         default:
