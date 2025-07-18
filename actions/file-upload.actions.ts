@@ -1,5 +1,5 @@
 // actions/file-upload.actions.ts - ADD PROFILE UPLOAD FUNCTION
-
+"use server";
 import { writeFile, unlink, mkdir } from "fs/promises"
 import { join } from "path"
 import { generateId } from "better-auth"
